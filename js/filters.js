@@ -1,0 +1,364 @@
+// ============================================================
+// ALERT & NOTIFICATION FUNCTIONS
+// ============================================================
+
+function playExpiredAlert() {
+  if (settings.expired_sound_enabled !== false) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.value = 400;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.6);
+    } catch (e) {}
+  }
+  if (settings.expired_vibration_enabled !== false && navigator.vibrate) {
+    navigator.vibrate([300, 150, 300]);
+  }
+}
+
+function playReadyAlert() {
+  if (settings.alert_sound_enabled === false && settings.alert_vibration_enabled === false) return;
+  if (settings.alert_sound_enabled === true) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 700;
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (e) {}
+  }
+  if (settings.alert_vibration_enabled === true && navigator.vibrate) {
+    navigator.vibrate([200, 100, 200]);
+  }
+  if (Notification.permission === "granted" && document.visibilityState === "hidden") {
+    const waitingCount = waitingData.filter(w => w.status === "waiting" || w.status === "offered").length;
+    new Notification("🆕 تحديث في قائمة الانتظار", {
+      body: `${waitingCount} عميل في الانتظار`,
+      icon: "/favicon.ico",
+      vibrate: [200, 100, 200],
+      silent: false
+    });
+  }
+}
+
+function processExpiredAlerts() {
+  const currentIds = new Set();
+  filteredExpiredData().forEach(r => {
+    currentIds.add(r.request_id);
+    if (!expiredAlerted.has(r.request_id)) {
+      expiredAlerted.add(r.request_id);
+      playExpiredAlert();
+    }
+  });
+  expiredAlerted.forEach(id => {
+    if (!currentIds.has(id)) expiredAlerted.delete(id);
+  });
+}
+
+function processReadyAlerts() {
+  const newIds = new Set();
+  filteredWaitingData().forEach(r => {
+    const isReady = hasMatchingAvailableTable(r);
+    if (isReady) {
+      newIds.add(r.request_id);
+      if (!readyAlerted.has(r.request_id)) {
+        readyAlerted.add(r.request_id);
+        playReadyAlert();
+      }
+    } else {
+      if (readyAlerted.has(r.request_id)) readyAlerted.delete(r.request_id);
+    }
+  });
+}
+
+// ============================================================
+// SUCCESS NOTIFICATION
+// ============================================================
+
+function showSuccessNotification(message, callback) {
+  const notification = document.createElement('div');
+  notification.className = 'toast-notification';
+  
+  const spinner = document.createElement('div');
+  spinner.className = 'spinner-circle';
+  
+  const restaurantIcon = document.createElement('div');
+  restaurantIcon.className = 'restaurant-icon hidden-icon';
+  restaurantIcon.innerHTML = '<i class="fas fa-utensils"></i>';
+  
+  const checkIcon = document.createElement('div');
+  checkIcon.className = 'check-icon hidden-icon';
+  checkIcon.innerHTML = '<i class="fas fa-check"></i>';
+  
+  const messageSpan = document.createElement('div');
+  messageSpan.className = 'toast-message';
+  messageSpan.innerText = message;
+  
+  notification.appendChild(spinner);
+  notification.appendChild(restaurantIcon);
+  notification.appendChild(checkIcon);
+  notification.appendChild(messageSpan);
+  
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    spinner.classList.add('hidden-icon');
+    restaurantIcon.classList.remove('hidden-icon');
+  }, 600);
+  
+  setTimeout(() => {
+    restaurantIcon.classList.add('hidden-icon');
+    checkIcon.classList.remove('hidden-icon');
+  }, 1000);
+  
+  setTimeout(() => {
+    notification.remove();
+    if (callback) callback();
+  }, 1500);
+}
+
+function showPersistentAlert(message, bgColor = '#3B82F6') {
+  const container = document.getElementById('offlineToastContainer');
+  if (!container) return;
+  
+  const toast = document.createElement('div');
+  toast.className = 'offline-toast';
+  toast.style.background = bgColor;
+  toast.style.cursor = 'pointer';
+  toast.innerHTML = `
+    <i class="fas fa-clock"></i>
+    <span>${message}</span>
+    <button class="close-toast" onclick="this.parentElement.remove()">
+      <i class="fas fa-times"></i>
+    </button>
+  `;
+  container.insertBefore(toast, container.firstChild);
+}
+
+// ============================================================
+// CUSTOM ALERT MODAL
+// ============================================================
+
+function showAlert(message, title = null) {
+  return new Promise((resolve) => {
+    const existingOverlay = document.querySelector('.alert-overlay');
+    if (existingOverlay) existingOverlay.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.className = 'alert-overlay';
+    
+    const alertBox = document.createElement('div');
+    alertBox.className = 'custom-alert';
+    alertBox.innerHTML = `
+      <div class="alert-header">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="alert-body">
+        <div class="alert-message">${message}</div>
+      </div>
+      <div class="alert-footer">
+        <button class="alert-button" id="alertConfirmBtn">${currentLang === 'ar' ? 'حسناً' : 'OK'}</button>
+      </div>
+    `;
+    
+    overlay.appendChild(alertBox);
+    document.body.appendChild(overlay);
+    
+    const confirmBtn = document.getElementById('alertConfirmBtn');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', () => {
+        overlay.remove();
+        resolve();
+      });
+    }
+    
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        overlay.remove();
+        resolve();
+      }
+    });
+  });
+}
+
+// ============================================================
+// OFFLINE & CONNECTION HANDLERS
+// ============================================================
+
+function updateConnectionStatus() {
+  const statusDot = document.getElementById('statusDot');
+  if (statusDot) {
+    if (navigator.onLine) {
+      statusDot.className = 'status-dot connected';
+    } else {
+      statusDot.className = 'status-dot maintenance';
+    }
+  }
+}
+
+function showOfflineToast() {
+  const container = document.getElementById('offlineToastContainer');
+  if (!container) return;
+  
+  const toast = document.createElement('div');
+  toast.className = 'offline-toast';
+  toast.innerHTML = `
+    <i class="fas fa-wifi-slash"></i>
+    <span>أنت غير متصل بالإنترنت</span>
+    <button class="close-toast" onclick="this.parentElement.remove()">
+      <i class="fas fa-times"></i>
+    </button>
+  `;
+  container.appendChild(toast);
+}
+
+// ============================================================
+// WHATSAPP MESSAGE
+// ============================================================
+
+async function sendWhatsAppMessage(phone, message) {
+  // التحقق من وجود business_id للمستخدم الحالي
+  if (!currentUser?.business_id) {
+    console.log('⚠️ لا يمكن إرسال رسالة واتساب: business_id غير موجود');
+    return;
+  }
+
+  try {
+    // استدعاء RPC الآمن بدلاً من الاتصال المباشر بـ Facebook API
+    const { data, error } = await supabase.rpc('send_whatsapp_message', {
+      p_phone: phone,
+      p_message: message,
+      p_business_id: currentUser.business_id
+    });
+
+    if (error) {
+      console.error('❌ خطأ في RPC واتساب:', error);
+      return;
+    }
+
+    console.log('✅ تم إرسال الرسالة إلى الخادم:', data);
+  } catch (e) {
+    console.log('❌ خطأ في إرسال واتساب:', e);
+  }
+}
+
+// ============================================================
+// SEARCH CUSTOMER BY PHONE
+// ============================================================
+
+async function searchCustomerByPhone(phone) {
+  const nameInput = document.getElementById('walkInName');
+  
+  if (!phone || phone.length !== 8) {
+    if (nameInput && nameInput.value) {
+      nameInput.value = "";
+      nameInput.placeholder = "الاسم الكامل";
+    }
+    return;
+  }
+  
+  const fullPhone = "05" + phone;
+  const { data, error } = await supabase
+    .from("customers")
+    .select("name")
+    .eq("phone", fullPhone)
+    .maybeSingle();
+  
+  if (!error && data && data.name) {
+    nameInput.value = data.name;
+    nameInput.placeholder = "الاسم (يمكن تعديله)";
+    console.log("✅ تم العثور على العميل:", data.name);
+  } else {
+    nameInput.value = "";
+    nameInput.placeholder = "الاسم الكامل";
+  }
+}
+
+// ============================================================
+// UPDATE VERSION BANNER
+// ============================================================
+
+let newVersionAvailable = false;
+
+function showUpdateBanner() {
+  const banner = document.createElement('div');
+  banner.style.cssText = `
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #10B981;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 40px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 10001;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    animation: slideDown 0.3s ease;
+  `;
+  banner.innerHTML = `
+    <i class="fas fa-sync-alt"></i>
+    <span>تحديث جديد متوفر - اضغط للتحديث</span>
+  `;
+  banner.onclick = () => {
+    navigator.serviceWorker.ready.then(registration => {
+      if (registration.waiting) registration.waiting.postMessage('skipWaiting');
+    });
+    banner.remove();
+    location.reload();
+  };
+  document.body.appendChild(banner);
+  
+  setTimeout(() => {
+    if (banner.parentElement) banner.remove();
+  }, 15000);
+}
+
+// ============================================================
+// SYNC FUNCTIONS
+// ============================================================
+
+async function performFinalSync() {
+  if (isCurrentlySyncing) return;
+  if (moveModeActive || tableEditMode || tableDeleteMode) return;
+  
+  isCurrentlySyncing = true;
+  console.log("🔄 جاري تحديث المزامنة...");
+  
+  try {
+    await loadAll();
+    console.log("✅ تم تحديث البيانات بنجاح");
+  } catch (err) {
+    console.error("❌ خطأ في تحديث البيانات:", err);
+  } finally {
+    isCurrentlySyncing = false;
+  }
+}
+
+function debouncedSync() {
+  if (syncTimeout) clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => {
+    performFinalSync();
+    syncTimeout = null;
+  }, 500);
+}

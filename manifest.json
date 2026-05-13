@@ -1,0 +1,9 @@
+{
+  "name": "EASY-Q",
+  "short_name": "EASY-Q",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#8B0000",
+  "theme_color": "#8B0000",
+  "icons": []
+}

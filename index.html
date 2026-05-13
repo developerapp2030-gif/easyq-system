@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+<title>EASY-Q | نظام إدارة الطاولات</title>
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="/manifest.json">
+
+<!-- iOS Support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="EASY-Q">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%238B0000'/%3E%3Ctext x='256' y='350' font-size='200' text-anchor='middle' fill='white' font-family='Arial'%3EEQ%3C/text%3E%3C/svg%3E">
+
+<!-- Theme Color -->
+<meta name="theme-color" content="#8B0000">
+<meta name="msapplication-TileColor" content="#8B0000">
+
+<!-- ⚠️ الأهم: تحميل مكتبة Supabase أولاً (قبل أي شيء) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- ثم تحميل الخطوط والستايلات -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+<!-- Main CSS -->
+<link rel="stylesheet" href="css/main.css">
+
+<!-- إصلاح القائمة الجانبية -强制执行 -->
+<style>
+    .app-container {
+        overflow: visible !important;
+    }
+</style>
+
+<!-- ✅ أخيراً: تحميل ملفات JavaScript الخاصة بك -->
+<script src="js/config.js"></script>
+<script src="js/helpers.js"></script>
+<script src="js/filters.js"></script>
+<script src="js/crud.js"></script>
+<script src="js/render.js"></script>
+<script src="js/events.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+<script>
+    // حل القائمة الجانبية - كود مستقل تماماً عن باقي الملفات
+    (function() {
+        // انتظر حتى يتم تحميل الصفحة
+        function initSidebar() {
+            const btn = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            
+            if (!btn || !sidebar) {
+                console.log("Elements not found, retrying...");
+                setTimeout(initSidebar, 100);
+                return;
+            }
+            
+            // إزالة أي أحداث قديمة
+            btn.onclick = null;
+            
+            // إضافة الحدث الجديد
+            btn.onclick = function(e) {
+                e.stopPropagation();
+                if (sidebar.classList.contains('open')) {
+                    sidebar.classList.remove('open');
+                } else {
+                    sidebar.classList.add('open');
+                }
+                console.log("Sidebar open:", sidebar.classList.contains('open'));
+            };
+            
+            // إغلاق القائمة عند الضغط خارجها
+            document.addEventListener('click', function(e) {
+                if (sidebar.classList.contains('open') && 
+                    !sidebar.contains(e.target) && 
+                    e.target !== btn && 
+                    !btn.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            });
+            
+            console.log("✅ Sidebar solution activated!");
+        }
+        
+        // بدء المحاولة فوراً
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSidebar);
+        } else {
+            initSidebar();
+        }
+    })();
+</script>
+</head>
+<body>
+
+<!-- شاشة تسجيل الدخول -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <i class="fas fa-utensils"></i>
+    </div>
+    <div class="login-title">EASY-Q</div>
+    <div class="login-sub">نظام إدارة طاولات المطاعم</div>
+    <input type="text" class="login-input" id="loginUsername" placeholder="اسم المستخدم" autocomplete="username">
+    <div style="position: relative; width: 100%;">
+      <input type="password" class="login-input" id="loginPassword" placeholder="كلمة المرور" autocomplete="current-password" style="padding-left: 14px; padding-right: 44px;">
+      <button type="button" onclick="togglePassword()" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--gray-500); font-size: 18px; cursor: pointer; padding: 10px;">
+        <i class="fas fa-eye" id="eyeIcon"></i>
+      </button>
+    </div>
+    <button class="login-btn" onclick="doLogin()">تسجيل الدخول</button>
+    <div class="login-error" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+  </div>
+</div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <button class="sidebar-toggle" id="sidebarToggle">
+      <i class="fas fa-bars"></i>
+    </button>
+    <div class="brand">
+      <div class="brand-icon"><i class="fas fa-utensils"></i></div>
+      <div class="brand-text" id="brandText">حجزك | Hajzak</div>
+      <i class="fas fa-user-circle" style="color: rgba(255,255,255,0.5); margin: 0 8px; font-size: 16px;"></i>
+      <span id="currentUserName" style="color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 500;">مدير النظام</span>
+    </div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot connected" id="statusDot"></div>
+    <div class="status-time" id="dateText"></div>
+  </div>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    <button class="theme-toggle" id="themeToggle">
+      <i class="fas fa-moon"></i>
+    </button>
+    <button class="lang-toggle-btn" id="langToggleBtn" onclick="toggleLanguage()">EN</button>
+  </div>
+</div>
+
+<!-- App Container -->
+<div class="app-container">
+  
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-nav">
+
+              <!-- Dashboard -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="dashboard">
+          <div class="menu-title">
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="dashboard">
+          <div class="sub-menu-item" data-view="dashboard-overview">
+            <i class="fas fa-chart-pie"></i> <span>نظرة عامة</span>
+          </div>
+          <div class="sub-menu-item" data-view="dashboard-today">
+            <i class="fas fa-calendar-day"></i> <span>ملخص اليوم</span>
+          </div>
+          <div class="sub-menu-item" data-view="dashboard-alerts">
+            <i class="fas fa-bell"></i> <span>تنبيهات</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Queue / الطابور -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="queue">
+          <div class="menu-title">
+            <i class="fas fa-clock"></i>
+            <span>الطابور</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="queue">
+          <div class="sub-menu-item" data-view="queue-cancelled">
+            <i class="fas fa-times-circle"></i> <span>ملغي / لم يحضر</span>
+          </div>
+          <div class="sub-menu-item" data-view="queue-seated">
+            <i class="fas fa-user-check"></i> <span>تم الجلوس</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tables / الطاولات -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="tables">
+          <div class="menu-title">
+            <i class="fas fa-chair"></i>
+            <span>الطاولات</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="tables">
+          <div class="sub-menu-item" data-view="tables-list">
+            <i class="fas fa-table-list"></i> <span>قائمة الطاولات</span>
+          </div>
+          <div class="sub-menu-item" data-view="tables-status">
+            <i class="fas fa-chart-simple"></i> <span>حالة الطاولات</span>
+          </div>
+          <div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>
+          
+          <div class="menu-item" id="addTableBtn" onclick="openAddTableModal()" style="margin: 4px 0; background: #8B0000; color: white;">
+            <i class="fas fa-plus-circle"></i> <span id="addTableLabel">➕ إضافة طاولة</span>
+          </div>
+          <div class="menu-item" id="editTableBtn" onclick="enableTableEditMode()" style="margin: 4px 0;">
+            <i class="fas fa-edit"></i> <span id="editTableLabel">تعديل طاولة</span>
+          </div>
+          <div class="menu-item" id="deleteTableBtn" onclick="enableTableDeleteMode()" style="margin: 4px 0;">
+            <i class="fas fa-trash-alt"></i> <span id="deleteTableLabel">حذف طاولة</span>
+          </div>
+          <div class="menu-item" id="moveTableBtn" onclick="toggleMoveMode()" style="margin: 4px 0;">
+            <i class="fas fa-arrows-alt"></i> <span id="moveTableLabel">تحريك طاولات</span>
+          </div>
+          <div class="menu-item" id="savePositionsBtn" onclick="saveTablePositions()" style="display: none; margin: 4px 0;">
+            <i class="fas fa-save"></i> <span id="savePositionsLabel">حفظ المواقع</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reservations / الحجوزات -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="reservations">
+          <div class="menu-title">
+            <i class="fas fa-calendar-alt"></i>
+            <span>الحجوزات</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="reservations">
+          <div class="sub-menu-item" data-view="res-calendar">
+            <i class="fas fa-calendar"></i> <span>عرض التقويم</span>
+          </div>
+          <div class="sub-menu-item" data-view="res-upcoming">
+            <i class="fas fa-arrow-right"></i> <span>القادمة</span>
+          </div>
+          <div class="sub-menu-item" data-view="res-confirmed">
+            <i class="fas fa-check-circle"></i> <span>المؤكدة</span>
+          </div>
+          <div class="sub-menu-item" data-view="res-add">
+            <i class="fas fa-plus-circle"></i> <span>إضافة حجز</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customers / العملاء -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="customers">
+          <div class="menu-title">
+            <i class="fas fa-users"></i>
+            <span>العملاء</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="customers">
+          <div class="sub-menu-item" data-view="customers-list">
+            <i class="fas fa-list"></i> <span>قائمة العملاء</span>
+          </div>
+          <div class="sub-menu-item" data-view="customers-profiles">
+            <i class="fas fa-id-card"></i> <span>ملفات العملاء</span>
+          </div>
+          <div class="sub-menu-item" data-view="customers-segments">
+            <i class="fas fa-tags"></i> <span>شرائح العملاء</span>
+          </div>
+          <div class="sub-menu-item" data-view="customers-loyalty">
+            <i class="fas fa-gem"></i> <span>برنامج الولاء</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reports / التقارير -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="reports">
+          <div class="menu-title">
+            <i class="fas fa-chart-bar"></i>
+            <span>التقارير</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="reports">
+          <div class="sub-menu-item" data-view="reports-waiting">
+            <i class="fas fa-hourglass"></i> <span>تحليل وقت الانتظار</span>
+          </div>
+          <div class="sub-menu-item" data-view="reports-peak">
+            <i class="fas fa-chart-line"></i> <span>ساعات الذروة</span>
+          </div>
+          <div class="sub-menu-item" data-view="reports-tables">
+            <i class="fas fa-chair"></i> <span>استغلال الطاولات</span>
+          </div>
+          <div class="sub-menu-item" data-view="reports-staff">
+            <i class="fas fa-user-tie"></i> <span>أداء الموظفين</span>
+          </div>
+          <div class="sub-menu-item" data-view="reports-export">
+            <i class="fas fa-download"></i> <span>تصدير التقارير</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Notifications / الإشعارات (Admin) -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="notifications">
+          <div class="menu-title">
+            <i class="fas fa-bell"></i>
+            <span>الإشعارات</span>
+            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="notifications">
+          <div class="sub-menu-item" data-view="notif-whatsapp">
+            <i class="fab fa-whatsapp"></i> <span>واتساب API</span>
+          </div>
+          <div class="sub-menu-item" data-view="notif-logs" onclick="openWhatsAppLogsModal()">
+    <i class="fas fa-history"></i> <span>سجل الرسائل</span>
+</div>
+          <div class="sub-menu-item" data-view="notif-templates">
+            <i class="fas fa-file-alt"></i> <span>قوالب الرسائل</span>
+          </div>
+          <div class="sub-menu-item" data-view="notif-alerts">
+            <i class="fas fa-exclamation-triangle"></i> <span>تنبيهات الطابور</span>
+          </div>
+          <div class="sub-menu-item" data-view="notif-triggers">
+            <i class="fas fa-clock"></i> <span>مؤقتات تلقائية</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Branches & Zones / الفروع والمناطق (Admin) -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="branches">
+          <div class="menu-title">
+            <i class="fas fa-store"></i>
+            <span>الفروع والمناطق</span>
+            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="branches">
+          <div class="sub-menu-item" data-view="branches-list">
+            <i class="fas fa-list"></i> <span>إدارة الفروع</span>
+          </div>
+          <div class="sub-menu-item" data-view="zones-list" onclick="openZonesModal()">
+            <i class="fas fa-map"></i> <span>إدارة المناطق</span>
+          </div>
+          <div class="sub-menu-item" data-view="floors-list" onclick="openFloorsModal()">
+            <i class="fas fa-building"></i> <span>إدارة الطوابق</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Users & Roles / المستخدمين والصلاحيات (Admin) -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="users">
+          <div class="menu-title">
+            <i class="fas fa-user-shield"></i>
+            <span>المستخدمين</span>
+            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="users">
+          <div class="sub-menu-item" data-view="users-list" onclick="openUsersModal()">
+            <i class="fas fa-users"></i> <span>قائمة الموظفين</span>
+          </div>
+          <div class="sub-menu-item" data-view="users-roles" onclick="openPermissionsModal()">
+            <i class="fas fa-lock"></i> <span>الصلاحيات</span>
+          </div>
+          <div class="sub-menu-item" data-view="users-log">
+            <i class="fas fa-history"></i> <span>سجل النشاط</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings / الإعدادات (Admin) -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="settings">
+          <div class="menu-title">
+            <i class="fas fa-cog"></i>
+            <span>الإعدادات</span>
+            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="settings">
+          <div class="sub-menu-item" data-view="settings-general" onclick="openSettingsModal()">
+            <i class="fas fa-building"></i> <span>الإعدادات العامة</span>
+          </div>
+          <div class="sub-menu-item" data-view="settings-queue">
+            <i class="fas fa-clock"></i> <span>قواعد الطابور</span>
+          </div>
+          <div class="sub-menu-item" data-view="settings-tables">
+            <i class="fas fa-chair"></i> <span>أنواع الطاولات</span>
+          </div>
+          <div class="sub-menu-item" data-view="settings-preferences">
+            <i class="fas fa-sliders-h"></i> <span>تفضيلات النظام</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timer Settings -->
+      <div class="sidebar-nav-section">
+        <div class="main-menu-item" data-menu="timers">
+          <div class="menu-title">
+            <i class="fas fa-hourglass-half"></i>
+            <span>المؤقتات</span>
+            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+          </div>
+          <i class="fas fa-chevron-right toggle-icon"></i>
+        </div>
+        <div class="sub-menu" data-submenu="timers">
+          <div class="sub-menu-item" data-view="timers-settings" onclick="openTimerSettingsModal()">
+            <i class="fas fa-sliders-h"></i> <span>إعدادات المؤقتات</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-divider"></div>
+      <div class="menu-item" id="logoutBtn" onclick="logoutAndClean()" style="margin: 4px 8px;">
+        <i class="fas fa-sign-out-alt"></i> <span id="logoutLabel">تسجيل الخروج</span>
+      </div>
+      <div style="padding: 16px; text-align: center; font-size: 11px; color: var(--gray-500);">
+        <i class="fas fa-code-branch"></i> EasyQ v1.4
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="unified-bar">
+      <div class="left-controls">
+        <!-- Floor Dropdown -->
+        <div class="zone-dropdown" id="floorDropdown" style="min-width: 140px; max-width: 160px;">
+          <div class="zone-dropdown-btn" onclick="toggleFloorMenu()">
+            <span id="currentFloorLabel">🏠 أرضي</span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="zone-dropdown-menu" id="floorDropdownMenu"></div>
+        </div>
+        <!-- Zone Dropdown -->
+        <div class="zone-dropdown" id="zoneDropdown">
+          <div class="zone-dropdown-btn" onclick="toggleZoneMenu()">
+            <span id="currentZoneLabel">🍽️ داخلي</span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="zone-dropdown-menu" id="zoneDropdownMenu"></div>
+        </div>
+      </div>
+      <div class="right-controls">
+        <div class="stats-row" id="statusSummary"></div>
+      </div>
+    </div>
+
+    <div class="tables-grid" id="floorCanvas"></div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel-container">
+    <div class="waiting-header-standalone">
+      <div class="waiting-title" id="waitingTitle">Queue</div>
+      <div class="waiting-actions">
+        <button class="icon-btn assign-auto-btn" onclick="assignNextCustomer()" title="تعيين تلقائي">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <button class="icon-btn" id="walkInBtn" onclick="openWalkInModal()" title="Walk-in"><i class="fas fa-user-plus"></i></button>
+        <button class="icon-btn" id="clearBtn" onclick="clearSelection()" title="Clear"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+
+    <div class="waiting-sidebar">
+      <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button id="tabQueueBtn" style="flex: 1; padding: 8px 12px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; background: #8B0000; color: white;">
+          <i class="fas fa-users" style="margin-left: 5px;"></i> <span id="tabQueueLabel">الانتظار</span> <span id="waitingCount" style="background: white; color: #8B0000; padding: 2px 8px; border-radius: 20px; margin-right: 0px;">0</span>
+        </button>
+        <button id="tabExpiredBtn" style="flex: 1; padding: 8px 12px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; background: #e0e0e0; color: #333;">
+          <i class="fas fa-clock" style="margin-left: 5px;"></i> <span id="tabExpiredLabel">المنتهية</span>
+        </button>
+      </div>
+
+      <div id="waitingContent" style="display: block;">
+        <div class="waiting-list" id="waitingList"></div>
+      </div>
+
+      <div id="expiredContent" style="display: none;">
+        <div class="expired-section">
+          <div class="expired-title" id="expiredTitle">Expired</div>
+          <div id="expiredList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modals -->
+<div class="modal-backdrop" id="statusModal">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">Table Actions</div>
+    <div class="modal-sub" id="modalSub"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" style="background:#10b981;" onclick="manualStatusChange('available')" id="btnAvailable"><i class="fas fa-check-circle"></i> Avail</button>
+      <button class="modal-btn" style="background:#f59e0b;" onclick="manualStatusChange('reserved')" id="btnReserved"><i class="fas fa-clock"></i> Reserved</button>
+      <button class="modal-btn" style="background:#8B0000;" onclick="manualStatusChange('occupied')" id="btnOccupied"><i class="fas fa-chair"></i> Occupied</button>
+      <button class="modal-btn" style="background:#3b82f6;" onclick="manualStatusChange('cleaning')" id="btnCleaning"><i class="fas fa-broom"></i> Cleaning</button>
+      <button class="modal-btn" style="background:#6b7280;" onclick="manualStatusChange('disabled')" id="btnDisabled"><i class="fas fa-ban"></i> Disabled</button>
+      <button class="modal-btn" style="background:#8b5cf6;" onclick="manualStatusChange('pending')" id="btnPending"><i class="fas fa-hourglass-half"></i> Pending</button>
+      <button class="modal-btn" style="background:#8B5E3C;" onclick="swapCurrentTable()" id="btnSwap"><i class="fas fa-exchange-alt"></i> Swap</button>
+    </div>
+    <button class="modal-close" onclick="closeStatusModal()" id="modalCloseBtn">Close</button>
+  </div>
+</div>
+
+<div class="settings-backdrop" id="settingsModal">
+  <div class="settings-modal">
+    <div class="modal-title" id="settingsPanelTitle">Settings</div>
+    <div class="settings-section">
+      <div class="settings-row">
+        <div class="settings-label" id="readyModeLabel">سياسة التعيين التلقائي</div>
+        <div class="toggle-group">
+          <button class="toggle-btn" id="modeAnyBtn" onclick="setReadyMode('any_match')">First (الأول في الطابور)</button>
+          <button class="toggle-btn" id="modeQueueBtn" onclick="setReadyMode('queue_priority')">Queue Fit (الأنسب)</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-bell"></i> Ready Alert</div><div class="toggle-group"><button class="toggle-btn" id="soundOnBtn" onclick="setBoolSetting('alert_sound_enabled',true)">ON</button><button class="toggle-btn" id="soundOffBtn" onclick="setBoolSetting('alert_sound_enabled',false)">OFF</button></div></div>
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-mobile-alt"></i> Vibration</div><div class="toggle-group"><button class="toggle-btn" id="vibrationOnBtn" onclick="setBoolSetting('alert_vibration_enabled',true)">ON</button><button class="toggle-btn" id="vibrationOffBtn" onclick="setBoolSetting('alert_vibration_enabled',false)">OFF</button></div></div>
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-hourglass-end"></i> Expired Sound</div><div class="toggle-group"><button class="toggle-btn" id="expiredSoundOnBtn" onclick="setBoolSetting('expired_sound_enabled',true)">ON</button><button class="toggle-btn" id="expiredSoundOffBtn" onclick="setBoolSetting('expired_sound_enabled',false)">OFF</button></div></div>
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-mobile-alt"></i> Expired Vibration</div><div class="toggle-group"><button class="toggle-btn" id="expiredVibrationOnBtn" onclick="setBoolSetting('expired_vibration_enabled',true)">ON</button><button class="toggle-btn" id="expiredVibrationOffBtn" onclick="setBoolSetting('expired_vibration_enabled',false)">OFF</button></div></div>
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-list"></i> Expired Panel</div><div class="toggle-group"><button class="toggle-btn" id="expiredPanelOnBtn" onclick="setBoolSetting('expired_panel_enabled',true)">ON</button><button class="toggle-btn" id="expiredPanelOffBtn" onclick="setBoolSetting('expired_panel_enabled',false)">OFF</button></div></div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-list-ol"></i> Expired Limit</div><div class="stepper"><button class="step-btn" onclick="changeNumberSetting('expired_list_limit',-1,1,20)">-</button><div class="step-value" id="expired_list_limit_value">5</div><button class="step-btn" onclick="changeNumberSetting('expired_list_limit',1,1,20)">+</button></div></div>
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-clock"></i> Reservation Hold</div><div class="stepper"><button class="step-btn" onclick="changeNumberSetting('reservation_hold_minutes',-1,1,120)">-</button><div class="step-value" id="reservation_hold_minutes_value">10</div><button class="step-btn" onclick="changeNumberSetting('reservation_hold_minutes',1,1,120)">+</button></div></div>
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-hourglass-start"></i> Pending Hold</div><div class="stepper"><button class="step-btn" onclick="changeNumberSetting('pending_hold_minutes',-1,1,120)">-</button><div class="step-value" id="pending_hold_minutes_value">5</div><button class="step-btn" onclick="changeNumberSetting('pending_hold_minutes',1,1,120)">+</button></div></div>
+      <div class="settings-row"><div class="settings-label"><i class="fas fa-broom"></i> Cleaning Hold</div><div class="stepper"><button class="step-btn" onclick="changeNumberSetting('cleaning_hold_minutes',-1,1,120)">-</button><div class="step-value" id="cleaning_hold_minutes_value">10</div><button class="step-btn" onclick="changeNumberSetting('cleaning_hold_minutes',1,1,120)">+</button></div></div>
+    </div>
+    <div class="settings-actions">
+      <button class="settings-save" onclick="saveSettings()">Save</button>
+      <button class="settings-close" onclick="closeSettingsModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="walkInModal">
+  <div class="modal">
+    <div class="modal-title" id="walkInTitle">Add Walk-in</div>
+    <div class="modal-sub" id="walkInSub">Add a customer from inside the restaurant</div>
+    <div class="walkin-form">
+      <div>
+        <label class="guest-label" id="walkInPhoneLabel">رقم الجوال</label>
+        <div class="phone-prefix">
+          <span>05</span>
+          <input id="walkInPhone" type="tel" placeholder="XXXXXXXX" maxlength="8" style="flex:1; border:none; padding:12px; background:transparent; outline:none; font-size:16px;">
+        </div>
+      </div>
+      <div>
+        <label class="guest-label" id="walkInNameLabel">الاسم الكامل</label>
+        <input id="walkInName" type="text" class="walkin-input" placeholder="الاسم الكامل" maxlength="20">
+      </div>
+      <div class="walkin-row">
+        <div style="flex:1">
+          <label class="guest-label" id="walkInPartyLabel">عدد الضيوف</label>
+          <div class="guest-input">
+            <button type="button" onclick="changePartySize(-1)">-</button>
+            <span id="walkInPartyValue">2</span>
+            <button type="button" onclick="changePartySize(1)">+</button>
+          </div>
+          <input type="hidden" id="walkInParty" value="2">
+        </div>
+        <div style="flex:2">
+          <label class="guest-label" id="walkInZoneLabel">المنطقة المفضلة</label>
+          <select id="walkInZone" class="walkin-input">
+            <option value="">بدون تفضيل</option>
+            <option value="Indoor">داخلي</option>
+            <option value="VIP">VIP</option>
+            <option value="Family">عائلي</option>
+            <option value="Outdoor">خارجي</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button class="settings-save" onclick="saveWalkIn()">إضافة</button>
+        <button class="settings-close" onclick="closeWalkInModal()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="tableModal">
+  <div class="modal">
+    <div class="modal-title" id="tableModalTitle">Add New Table</div>
+    <div class="modal-sub" id="tableModalSub">Enter table details</div>
+    <input id="tableName" type="text" class="walkin-input" placeholder="Table name">
+    <select id="tableFloor" class="walkin-input" style="margin-bottom: 12px;">
+      <option value="1">Ground Floor</option>
+      <option value="2">First Floor</option>
+      <option value="3">Second Floor</option>
+    </select>
+    <input id="tableCapacity" type="number" min="1" max="20" value="4" class="walkin-input" placeholder="Seats">
+    <select id="tableZone" class="walkin-input" style="margin-bottom: 12px;">
+      <option value="Indoor">Indoor</option>
+      <option value="VIP">VIP</option>
+      <option value="Smoking">Smoking</option>
+      <option value="Family">Family</option>
+      <option value="Outdoor">Outdoor</option>
+    </select>
+    <div style="display: flex; gap: 12px;">
+      <button class="settings-save" onclick="saveTable()">Save</button>
+      <button class="settings-close" onclick="closeTableModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="editRequestModal">
+  <div class="modal" style="max-width: 450px;">
+    <div class="modal-title" id="editRequestTitle">تعديل طلب العميل</div>
+    <div class="modal-sub" id="editRequestSub"></div>
+    <div class="walkin-form">
+      <div>
+        <label class="guest-label">الاسم الكامل</label>
+        <input id="editName" type="text" class="walkin-input" placeholder="الاسم الكامل" maxlength="20">
+      </div>
+      <div>
+        <label class="guest-label">رقم الجوال</label>
+        <div class="phone-prefix">
+          <span>05</span>
+          <input id="editPhone" type="tel" placeholder="XXXXXXXX" maxlength="8" style="flex:1; border:none; padding:12px; background:transparent; outline:none; font-size:16px;">
+        </div>
+      </div>
+      <div class="walkin-row">
+        <div style="flex:1">
+          <label class="guest-label">عدد الضيوف</label>
+          <div class="guest-input">
+            <button type="button" onclick="changeEditPartySize(-1)">-</button>
+            <span id="editPartyValue">2</span>
+            <button type="button" onclick="changeEditPartySize(1)">+</button>
+          </div>
+          <input type="hidden" id="editParty" value="2">
+        </div>
+        <div style="flex:2">
+          <label class="guest-label">المنطقة المفضلة</label>
+          <select id="editZone" class="walkin-input">
+            <option value="">بدون تفضيل</option>
+            <option value="Indoor">داخلي</option>
+            <option value="VIP">VIP</option>
+            <option value="Smoking">مدخنين</option>
+            <option value="Family">عائلي</option>
+            <option value="Outdoor">خارجي</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button class="settings-save" onclick="saveEditedRequest()">حفظ التعديلات</button>
+        <button class="settings-close" onclick="closeEditRequestModal()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="usersModal">
+  <div class="modal" style="max-width: 500px;">
+    <div class="modal-title" id="usersModalTitle">إدارة المستخدمين</div>
+    <div class="modal-sub">قائمة الموظفين المسجلين في النظام</div>
+    
+    <div id="usersList" style="max-height: 300px; overflow-y: auto;"></div>
+    
+    <div id="addUserForm" style="display: none; margin-top: 16px;">
+      <input type="text" id="newUsername" class="walkin-input" placeholder="اسم المستخدم" style="margin-bottom: 8px;">
+      <input type="text" id="newDisplayName" class="walkin-input" placeholder="الاسم الظاهر" style="margin-bottom: 8px;">
+      <input type="password" id="newPassword" class="walkin-input" placeholder="كلمة المرور" style="margin-bottom: 8px;">
+      <select id="newRole" class="walkin-input" style="margin-bottom: 8px;">
+        <option value="staff">موظف</option>
+        <option value="manager">مدير</option>
+        <option value="admin">مدير النظام</option>
+      </select>
+      <div style="display: flex; gap: 8px;">
+        <button class="settings-save" onclick="saveUser()">حفظ</button>
+        <button class="settings-close" onclick="cancelAddUser()">إلغاء</button>
+      </div>
+    </div>
+    
+    <div style="display: flex; gap: 8px; margin-top: 16px;">
+      <button class="settings-save" onclick="showAddUserForm()" style="flex: 1;">➕ إضافة مستخدم</button>
+      <button class="settings-close" onclick="closeUsersModal()" style="flex: 1;">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="zonesModal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-title">إدارة المناطق</div>
+    <div class="modal-sub">تفعيل أو تعطيل المناطق في المطعم</div>
+    <div id="zonesList"></div>
+    <div style="display: flex; gap: 8px; margin-top: 16px;">
+      <button class="settings-save" onclick="saveZonePreferences()" style="flex: 1;">💾 حفظ التغييرات</button>
+      <button class="settings-close" onclick="closeZonesModal()" style="flex: 1;">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="permissionsModal">
+  <div class="modal" style="max-width: 500px;">
+    <div class="modal-title">🔐 إدارة الصلاحيات</div>
+    <div class="modal-sub">تحديد صلاحيات كل دور في النظام</div>
+    <div id="permissionsList"></div>
+    <div style="display: flex; gap: 8px; margin-top: 16px;">
+      <button class="settings-save" onclick="savePermissions()" style="flex: 1;">💾 حفظ الصلاحيات</button>
+      <button class="settings-close" onclick="closePermissionsModal()" style="flex: 1;">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="floorsModal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-title">إدارة الطوابق</div>
+    <div class="modal-sub">تفعيل أو تعطيل الطوابق في المطعم</div>
+    <div id="floorsList"></div>
+    <div style="display: flex; gap: 8px; margin-top: 16px;">
+      <button class="settings-save" onclick="saveFloorPreferences()" style="flex: 1;">💾 حفظ التغييرات</button>
+      <button class="settings-close" onclick="closeFloorsModal()" style="flex: 1;">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="timerSettingsModal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-title" id="timerModalTitle">
+      <i class="fas fa-hourglass-half"></i> إعدادات المؤقتات
+    </div>
+    <div class="modal-sub">ضبط المدة الزمنية للحالات التلقائية</div>
+    
+    <div class="settings-section">
+      <div class="settings-row">
+        <div class="settings-label">
+          <i class="fas fa-clock"></i> مدة الحجز (Reserved)
+        </div>
+        <div class="stepper">
+          <button class="step-btn" onclick="changeTimerSetting('reservation_hold_minutes', -1, 1, 60)">-</button>
+          <div class="step-value" id="reservation_hold_minutes_display">10</div>
+          <button class="step-btn" onclick="changeTimerSetting('reservation_hold_minutes', 1, 1, 60)">+</button>
+        </div>
+        <div style="font-size: 11px; color: var(--gray-500);">دقائق</div>
+      </div>
+      
+      <div class="settings-row">
+        <div class="settings-label">
+          <i class="fas fa-broom"></i> مدة التنظيف (Cleaning)
+        </div>
+        <div class="stepper">
+          <button class="step-btn" onclick="changeTimerSetting('cleaning_hold_minutes', -1, 1, 60)">-</button>
+          <div class="step-value" id="cleaning_hold_minutes_display">10</div>
+          <button class="step-btn" onclick="changeTimerSetting('cleaning_hold_minutes', 1, 1, 60)">+</button>
+        </div>
+        <div style="font-size: 11px; color: var(--gray-500);">دقائق</div>
+      </div>
+    </div>
+    
+    <div class="settings-actions">
+      <button class="settings-save" onclick="saveTimerSettings()">💾 حفظ</button>
+      <button class="settings-close" onclick="closeTimerSettingsModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+<div id="offlineToastContainer"></div>
+
+<script>
+// ============================================================
+// INITIALIZATION - تشغيل النظام
+// ============================================================
+
+// تعريف المتغيرات العامة التي تحتاجها الدوال
+let timerInterval = null;
+let syncTimeout = null;
+let isCurrentlySyncing = false;
+let autoRefreshInterval = null;
+
+function toggleLanguage() {
+  const newLang = currentLang === 'en' ? 'ar' : 'en';
+  currentLang = newLang;
+  localStorage.setItem("hajzak_lang", newLang);
+  
+  // ❌ تم حذف سطري تغيير اتجاه الصفحة
+  // document.body.classList.toggle("ar", newLang === "ar");
+  // document.body.setAttribute("dir", newLang === "ar" ? "rtl" : "ltr");
+  
+// تحديث الطابق الأساسي - طريقة مباشرة
+const floorSpan = document.getElementById('currentFloorLabel');
+if (floorSpan) {
+    if (newLang === 'ar') {
+        if (currentFloor === 1) floorSpan.innerHTML = '🏠 أرضي';
+        else if (currentFloor === 2) floorSpan.innerHTML = '🔼 أول';
+        else if (currentFloor === 3) floorSpan.innerHTML = '🔽 ثاني';
+    } else {
+        if (currentFloor === 1) floorSpan.innerHTML = '🏠 Ground';
+        else if (currentFloor === 2) floorSpan.innerHTML = '🔼 First';
+        else if (currentFloor === 3) floorSpan.innerHTML = '🔽 Second';
+    }
+}
+
+// تحديث المنطقة الأساسية - طريقة مباشرة
+const zoneSpan = document.getElementById('currentZoneLabel');
+if (zoneSpan) {
+    if (newLang === 'ar') {
+        if (currentZone === 'Indoor') zoneSpan.innerHTML = '🍽️ داخلي';
+        else if (currentZone === 'Outdoor') zoneSpan.innerHTML = '🌿 خارجي';
+        else if (currentZone === 'VIP') zoneSpan.innerHTML = '👑 VIP';
+        else if (currentZone === 'Family') zoneSpan.innerHTML = '👨‍👩‍👧‍👦 عائلي';
+        else if (currentZone === 'Smoking') zoneSpan.innerHTML = '🚬 مدخنين';
+    } else {
+        if (currentZone === 'Indoor') zoneSpan.innerHTML = '🍽️ Indoor';
+        else if (currentZone === 'Outdoor') zoneSpan.innerHTML = '🌿 Outdoor';
+        else if (currentZone === 'VIP') zoneSpan.innerHTML = '👑 VIP';
+        else if (currentZone === 'Family') zoneSpan.innerHTML = '👨‍👩‍👧‍👦 Family';
+        else if (currentZone === 'Smoking') zoneSpan.innerHTML = '🚬 Smoking';
+    }
+}
+
+  // تحديث زر اللغة
+  const langBtn = document.getElementById('langToggleBtn');
+  if (langBtn) langBtn.innerText = newLang.toUpperCase();
+  
+  // تحديث العلامة التجارية
+  const brandText = document.getElementById('brandText');
+  if (brandText) {
+    brandText.innerHTML = newLang === 'ar' ? 'حجزك | Hajzak' : 'Hajzak | حجزك';
+  }
+  
+  // تحديث عناوين رئيسية
+  const waitingTitle = document.getElementById('waitingTitle');
+  if (waitingTitle) waitingTitle.innerText = newLang === 'ar' ? 'الطابور' : 'Queue';
+  
+  const expiredTitle = document.getElementById('expiredTitle');
+  if (expiredTitle) expiredTitle.innerText = newLang === 'ar' ? 'المنتهية' : 'Expired';
+  
+  // تحديث أزرار التبويب
+  const tabQueueLabel = document.getElementById('tabQueueLabel');
+  if (tabQueueLabel) tabQueueLabel.innerText = newLang === 'ar' ? 'الانتظار' : 'Queue';
+  
+  const tabExpiredLabel = document.getElementById('tabExpiredLabel');
+  if (tabExpiredLabel) tabExpiredLabel.innerText = newLang === 'ar' ? 'المنتهية' : 'Expired';
+  
+  // تحديث نافذة إضافة عميل
+  const walkInTitle = document.getElementById('walkInTitle');
+  if (walkInTitle) walkInTitle.innerText = newLang === 'ar' ? 'إضافة عميل' : 'Add Walk-in';
+  
+  const walkInSub = document.getElementById('walkInSub');
+  if (walkInSub) walkInSub.innerText = newLang === 'ar' ? 'إضافة عميل جديد' : 'Add a customer';
+  
+  const phoneLabel = document.getElementById('walkInPhoneLabel');
+  if (phoneLabel) phoneLabel.innerText = newLang === 'ar' ? 'رقم الجوال' : 'Phone';
+  
+  const nameLabel = document.getElementById('walkInNameLabel');
+  if (nameLabel) nameLabel.innerText = newLang === 'ar' ? 'الاسم الكامل' : 'Full Name';
+  
+  const partyLabel = document.getElementById('walkInPartyLabel');
+  if (partyLabel) partyLabel.innerText = newLang === 'ar' ? 'عدد الضيوف' : 'Party Size';
+  
+  const zoneLabel = document.getElementById('walkInZoneLabel');
+  if (zoneLabel) zoneLabel.innerText = newLang === 'ar' ? 'المنطقة المفضلة' : 'Preferred Zone';
+  
+  // تحديث القائمة الجانبية
+  updateSidebarTexts(newLang);
+
+    // ✅ تحديث قوائم المناطق والطوابق
+  if (typeof loadZoneDropdown === 'function') loadZoneDropdown();
+  if (typeof loadFloorDropdown === 'function') loadFloorDropdown();
+  
+// تحديث خيارات المنطقة في نافذة إضافة عميل
+const walkInZoneSelect = document.getElementById('walkInZone');
+if (walkInZoneSelect) {
+    const zoneOptions = {
+        '': newLang === 'ar' ? 'بدون تفضيل' : 'No Preference',
+        'Indoor': newLang === 'ar' ? 'داخلي' : 'Indoor',
+        'VIP': newLang === 'ar' ? 'VIP' : 'VIP',
+        'Family': newLang === 'ar' ? 'عائلي' : 'Family',
+        'Outdoor': newLang === 'ar' ? 'خارجي' : 'Outdoor'
+    };
+    Array.from(walkInZoneSelect.options).forEach(opt => {
+        if (zoneOptions[opt.value]) {
+            opt.text = zoneOptions[opt.value];
+        }
+    });
+}
+
+// تحديث خيارات المنطقة في نافذة تعديل الطلب
+const editZoneSelect = document.getElementById('editZone');
+if (editZoneSelect) {
+    const zoneOptions = {
+        '': newLang === 'ar' ? 'بدون تفضيل' : 'No Preference',
+        'Indoor': newLang === 'ar' ? 'داخلي' : 'Indoor',
+        'VIP': newLang === 'ar' ? 'VIP' : 'VIP',
+        'Smoking': newLang === 'ar' ? 'مدخنين' : 'Smoking',
+        'Family': newLang === 'ar' ? 'عائلي' : 'Family',
+        'Outdoor': newLang === 'ar' ? 'خارجي' : 'Outdoor'
+    };
+    Array.from(editZoneSelect.options).forEach(opt => {
+        if (zoneOptions[opt.value]) {
+            opt.text = zoneOptions[opt.value];
+        }
+    });
+}
+
+  // إعادة عرض البيانات
+  if (typeof renderFloorPlan === 'function') renderFloorPlan();
+  if (typeof renderWaitingList === 'function') renderWaitingList();
+  if (typeof renderExpiredList === 'function') renderExpiredList();
+  if (typeof renderStatusSummary === 'function') renderStatusSummary();
+  
+  console.log("✅ Language changed to:", newLang);
+}
+
+function updateSidebarTexts(lang) {
+  // ترجمة من عربية إلى إنجليزية
+  const arToEn = {
+    'لوحة البيانات': 'Dashboard',
+    'الطابور': 'Queue',
+    'الطاولات': 'Tables',
+    'الحجوزات': 'Reservations',
+    'العملاء': 'Customers',
+    'التقارير': 'Reports',
+    'الإشعارات': 'Notifications',
+    'الفروع والمناطق': 'Branches & Zones',
+    'المستخدمين': 'Users',
+    'الإعدادات': 'Settings',
+    'المؤقتات': 'Timers',
+    'نظرة عامة': 'Overview',
+    'ملخص اليوم': 'Today Summary',
+    'تنبيهات': 'Alerts',
+    'ملغي / لم يحضر': 'Cancelled/No-show',
+    'تم الجلوس': 'Seated',
+    'قائمة الطاولات': 'Tables List',
+    'حالة الطاولات': 'Tables Status',
+    'عرض التقويم': 'Calendar View',
+    'القادمة': 'Upcoming',
+    'المؤكدة': 'Confirmed',
+    'إضافة حجز': 'Add Reservation',
+    'قائمة العملاء': 'Customer List',
+    'ملفات العملاء': 'Customer Profiles',
+    'شرائح العملاء': 'Customer Segments',
+    'برنامج الولاء': 'Loyalty Program',
+    'تحليل وقت الانتظار': 'Wait Time Analysis',
+    'ساعات الذروة': 'Peak Hours',
+    'استغلال الطاولات': 'Table Utilization',
+    'أداء الموظفين': 'Staff Performance',
+    'تصدير التقارير': 'Export Reports',
+    'واتساب API': 'WhatsApp API',
+    'قوالب الرسائل': 'Message Templates',
+    'تنبيهات الطابور': 'Queue Alerts',
+    'مؤقتات تلقائية': 'Auto Timers',
+    'إدارة الفروع': 'Branch Management',
+    'إدارة المناطق': 'Zones Management',
+    'إدارة الطوابق': 'Floors Management',
+    'قائمة الموظفين': 'Staff List',
+    'الصلاحيات': 'Permissions',
+    'سجل النشاط': 'Activity Log',
+    'الإعدادات العامة': 'General Settings',
+    'قواعد الطابور': 'Queue Rules',
+    'أنواع الطاولات': 'Table Types',
+    'تفضيلات النظام': 'System Preferences',
+    'إعدادات المؤقتات': 'Timer Settings'
+  };
+  
+  // ترجمة من إنجليزية إلى عربية
+  const enToAr = {
+    'Dashboard': 'لوحة البيانات',
+    'Queue': 'الطابور',
+    'Tables': 'الطاولات',
+    'Reservations': 'الحجوزات',
+    'Customers': 'العملاء',
+    'Reports': 'التقارير',
+    'Notifications': 'الإشعارات',
+    'Branches & Zones': 'الفروع والمناطق',
+    'Users': 'المستخدمين',
+    'Settings': 'الإعدادات',
+    'Timers': 'المؤقتات',
+    'Overview': 'نظرة عامة',
+    'Today Summary': 'ملخص اليوم',
+    'Alerts': 'تنبيهات',
+    'Cancelled/No-show': 'ملغي / لم يحضر',
+    'Seated': 'تم الجلوس',
+    'Tables List': 'قائمة الطاولات',
+    'Tables Status': 'حالة الطاولات',
+    'Calendar View': 'عرض التقويم',
+    'Upcoming': 'القادمة',
+    'Confirmed': 'المؤكدة',
+    'Add Reservation': 'إضافة حجز',
+    'Customer List': 'قائمة العملاء',
+    'Customer Profiles': 'ملفات العملاء',
+    'Customer Segments': 'شرائح العملاء',
+    'Loyalty Program': 'برنامج الولاء',
+    'Wait Time Analysis': 'تحليل وقت الانتظار',
+    'Peak Hours': 'ساعات الذروة',
+    'Table Utilization': 'استغلال الطاولات',
+    'Staff Performance': 'أداء الموظفين',
+    'Export Reports': 'تصدير التقارير',
+    'WhatsApp API': 'واتساب API',
+    'Message Templates': 'قوالب الرسائل',
+    'Queue Alerts': 'تنبيهات الطابور',
+    'Auto Timers': 'مؤقتات تلقائية',
+    'Branch Management': 'إدارة الفروع',
+    'Zones Management': 'إدارة المناطق',
+    'Floors Management': 'إدارة الطوابق',
+    'Staff List': 'قائمة الموظفين',
+    'Permissions': 'الصلاحيات',
+    'Activity Log': 'سجل النشاط',
+    'General Settings': 'الإعدادات العامة',
+    'Queue Rules': 'قواعد الطابور',
+    'Table Types': 'أنواع الطاولات',
+    'System Preferences': 'تفضيلات النظام',
+    'Timer Settings': 'إعدادات المؤقتات'
+  };
+  
+  // اختيار قاموس الترجمة المناسب
+  const dict = lang === 'ar' ? enToAr : arToEn;
+  
+  // تحديث جميع العناصر
+  document.querySelectorAll('.main-menu-item .menu-title span, .sub-menu-item span, .menu-item span').forEach(el => {
+    const text = el.innerText.trim();
+    if (dict[text]) {
+      el.innerText = dict[text];
+    }
+  });
+}
+
+function setLanguage(lang) {
+  if (window.isSettingLanguage) return;
+  window.isSettingLanguage = true;
+  
+  currentLang = lang;
+  localStorage.setItem("hajzak_lang", lang);
+  document.body.classList.toggle("ar", lang === "ar");
+  
+  const businessName = settings.business_name || (lang === "ar" ? "حجزك | Hajzak" : "Hajzak | حجزك");
+  const brandText = document.getElementById("brandText");
+  if (brandText) brandText.innerHTML = businessName;
+  
+  const waitingTitle = document.getElementById("waitingTitle");
+  if (waitingTitle) waitingTitle.innerHTML = lang === "ar" ? "الطابور" : "Queue";
+  
+  const expiredTitle = document.getElementById("expiredTitle");
+  if (expiredTitle) expiredTitle.innerHTML = lang === "ar" ? "المنتهية" : "Expired";
+  
+  const modalTitle = document.getElementById("modalTitle");
+  if (modalTitle) modalTitle.innerHTML = lang === "ar" ? "إجراءات الطاولة" : "Table Actions";
+  
+  const btnAvailable = document.getElementById("btnAvailable");
+  if (btnAvailable) btnAvailable.innerHTML = lang === "ar" ? "متاحة" : "Available";
+  
+  const btnReserved = document.getElementById("btnReserved");
+  if (btnReserved) btnReserved.innerHTML = lang === "ar" ? "محجوزة" : "Reserved";
+  
+  const btnOccupied = document.getElementById("btnOccupied");
+  if (btnOccupied) btnOccupied.innerHTML = lang === "ar" ? "مشغولة" : "Occupied";
+  
+  const btnCleaning = document.getElementById("btnCleaning");
+  if (btnCleaning) btnCleaning.innerHTML = lang === "ar" ? "تنظيف" : "Cleaning";
+  
+  const btnDisabled = document.getElementById("btnDisabled");
+  if (btnDisabled) btnDisabled.innerHTML = lang === "ar" ? "مغلقة" : "Disabled";
+  
+  const btnPending = document.getElementById("btnPending");
+  if (btnPending) btnPending.innerHTML = lang === "ar" ? "معلقة" : "Pending";
+  
+  const modalCloseBtn = document.getElementById("modalCloseBtn");
+  if (modalCloseBtn) modalCloseBtn.innerHTML = lang === "ar" ? "إغلاق" : "Close";
+  
+  const btnSwap = document.getElementById("btnSwap");
+  if (btnSwap) btnSwap.innerHTML = lang === "ar" ? "تبديل" : "Swap";
+  
+  const tabQueueLabel = document.getElementById('tabQueueLabel');
+  if (tabQueueLabel) tabQueueLabel.innerText = lang === 'ar' ? 'الانتظار' : 'Queue';
+  
+  const tabExpiredLabel = document.getElementById('tabExpiredLabel');
+  if (tabExpiredLabel) tabExpiredLabel.innerText = lang === 'ar' ? 'المنتهية' : 'Expired';
+  
+  const langToggleBtn = document.getElementById('langToggleBtn');
+  if (langToggleBtn) langToggleBtn.innerText = currentLang.toUpperCase();
+  
+  updateDate();
+  renderStatusSummary();
+  renderFloorPlan();
+  renderWaitingList();
+  renderExpiredList();
+  
+  window.isSettingLanguage = false;
+}
+
+// دوال إضافية
+function updateZoneDropdowns() {
+  const activeZones = globalActiveZones;
+  const zoneSelects = document.querySelectorAll('#walkInZone, #editZone, #tableZone');
+  zoneSelects.forEach(select => {
+    if (!select) return;
+    const options = select.querySelectorAll('option');
+    options.forEach(opt => {
+      if (opt.value === '') return;
+      opt.style.display = activeZones.includes(opt.value) ? 'block' : 'none';
+    });
+  });
+}
+
+function updateFloorDropdowns() {
+  const activeFloors = globalActiveFloors;
+  const floorSelect = document.getElementById('tableFloor');
+  if (floorSelect) {
+    const options = floorSelect.querySelectorAll('option');
+    options.forEach(opt => {
+      opt.style.display = activeFloors.includes(opt.value) ? 'block' : 'none';
+    });
+  }
+}
+
+// بدء التطبيق
+async function startApp() {
+  await loadSettings();
+  await loadActiveSettings();
+  updateDate();
+  
+  const savedLang = currentLang;
+  setLanguage(savedLang);
+  
+  await loadAll();
+  await checkReservationTimers();
+  
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    updateAllTimers();
+  }, 1000);
+  
+  setInterval(updateDate, 1000);
+  optimizeForTouch();
+  
+  // إعداد أزرار التبويب
+  const tabQueueBtn = document.getElementById('tabQueueBtn');
+  const tabExpiredBtn = document.getElementById('tabExpiredBtn');
+  const waitingContent = document.getElementById('waitingContent');
+  const expiredContent = document.getElementById('expiredContent');
+  
+  function updateTabStyle(activeTab) {
+    if (activeTab === 'queue') {
+      tabQueueBtn.style.background = '#8B0000';
+      tabQueueBtn.style.color = 'white';
+      tabExpiredBtn.style.background = '#e0e0e0';
+      tabExpiredBtn.style.color = '#333';
+      waitingContent.style.display = 'block';
+      expiredContent.style.display = 'none';
+    } else {
+      tabExpiredBtn.style.background = '#8B0000';
+      tabExpiredBtn.style.color = 'white';
+      tabQueueBtn.style.background = '#e0e0e0';
+      tabQueueBtn.style.color = '#333';
+      waitingContent.style.display = 'none';
+      expiredContent.style.display = 'block';
+    }
+  }
+  
+  if (tabQueueBtn && tabExpiredBtn) {
+    tabQueueBtn.addEventListener('click', () => updateTabStyle('queue'));
+    tabExpiredBtn.addEventListener('click', () => updateTabStyle('expired'));
+  }
+  
+  await updateZoneDropdowns();
+  await updateFloorDropdowns();
+  await loadZoneDropdown();
+  await loadFloorDropdown();
+  
+  const finalLangBtn = document.getElementById('langToggleBtn');
+  if (finalLangBtn) {
+    finalLangBtn.innerText = savedLang.toUpperCase();
+    finalLangBtn.style.visibility = 'visible';
+  }
+}
+
+// تفعيل القوائم المنسدلة في السايدبار
+function initSidebarDropdowns() {
+  const mainMenuItems = document.querySelectorAll('.main-menu-item');
+  
+  mainMenuItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const menuId = this.getAttribute('data-menu');
+      const subMenu = document.querySelector(`.sub-menu[data-submenu="${menuId}"]`);
+      const isOpen = this.classList.contains('open');
+      
+      document.querySelectorAll('.main-menu-item').forEach(m => {
+        if (m !== this) {
+          m.classList.remove('open');
+          const otherSubMenu = document.querySelector(`.sub-menu[data-submenu="${m.getAttribute('data-menu')}"]`);
+          if (otherSubMenu) otherSubMenu.classList.remove('open');
+        }
+      });
+      
+      if (!isOpen) {
+        this.classList.add('open');
+        if (subMenu) subMenu.classList.add('open');
+      } else {
+        this.classList.remove('open');
+        if (subMenu) subMenu.classList.remove('open');
+      }
+    });
+  });
+  
+  const subItems = document.querySelectorAll('.sub-menu-item');
+  subItems.forEach(item => {
+    item.addEventListener('click', function(e) {
+      e.stopPropagation();
+      document.querySelectorAll('.sub-menu-item').forEach(i => i.classList.remove('active'));
+      document.querySelectorAll('.main-menu-item').forEach(i => i.classList.remove('active'));
+      this.classList.add('active');
+      
+      const parentSubMenu = this.closest('.sub-menu');
+      if (parentSubMenu) {
+        const menuId = parentSubMenu.getAttribute('data-submenu');
+        const parentMain = document.querySelector(`.main-menu-item[data-menu="${menuId}"]`);
+        if (parentMain) parentMain.classList.add('active');
+      }
+      
+      if (moveModeActive) {
+        toggleMoveMode();
+      }
+    });
+  });
+}
+
+// تشغيل التطبيق
+startApp();
+setTimeout(initSidebarDropdowns, 100);
+
+// Service Worker للتحديث التلقائي
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(registration => {
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          newVersionAvailable = true;
+          showUpdateBanner();
+        }
+      });
+    });
+  });
+  
+  setInterval(() => {
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(registration => {
+        registration.update();
+      });
+    }
+  }, 600000);
+}
+
+// Supabase Realtime Channel
+if (window.supabaseChannel) {
+  try {
+    window.supabaseChannel.unsubscribe();
+  } catch(e) { console.log("No existing channel"); }
+}
+
+const channel = supabase.channel('realtime-dashboard');
+
+channel.on('postgres_changes', 
+  { event: '*', schema: 'public', table: 'dining_tables' }, 
+  async (payload) => {
+    console.log("🔄 [REALTIME] طاولة:", payload.eventType);
+    
+    if (payload.eventType === 'INSERT') {
+      if (!floorData.find(t => t.id === payload.new.id)) {
+        floorData.push(payload.new);
+      }
+    } else if (payload.eventType === 'UPDATE') {
+      const index = floorData.findIndex(t => t.id === payload.new.id);
+      if (index !== -1) {
+        floorData[index] = { ...floorData[index], ...payload.new };
+      } else {
+        floorData.push(payload.new);
+      }
+    } else if (payload.eventType === 'DELETE') {
+      floorData = floorData.filter(t => t.id !== payload.old.id);
+    }
+    
+    renderFloorPlan();
+    renderStatusSummary();
+  }
+);
+
+channel.on('postgres_changes', 
+  { event: '*', schema: 'public', table: 'table_requests' }, 
+  async (payload) => {
+    console.log("🔄 [REALTIME] طلب:", payload.eventType);
+    await loadWaitingList();
+    renderWaitingList();
+    
+    if (payload.eventType === 'UPDATE' && payload.new?.status === 'cancelled') {
+      await renderExpiredList();
+    }
+    if (payload.eventType === 'DELETE') {
+      await renderExpiredList();
+    }
+    
+    processReadyAlerts();
+    processExpiredAlerts();
+  }
+);
+
+channel.on('postgres_changes', 
+  { event: '*', schema: 'public', table: 'restaurant_settings' }, 
+  async (payload) => {
+    console.log("🔄 [REALTIME] إعدادات:", payload.new?.setting_key);
+    await loadActiveSettings();
+    renderStatusSummary();
+    loadFloorDropdown();
+    loadZoneDropdown();
+    renderFloorPlan();
+  }
+);
+
+channel.on('system', { event: 'connected' }, () => {
+  console.log("✅ [REALTIME] متصل بخادم المزامنة");
+});
+
+channel.subscribe((status, err) => {
+  if (status === 'SUBSCRIBED') {
+    console.log("✅ [REALTIME] تم الاشتراك في المزامنة الفورية");
+  } else if (status === 'CHANNEL_ERROR') {
+    console.error("❌ [REALTIME] خطأ في المزامنة:", err);
+  }
+});
+
+window.supabaseChannel = channel;
+
+// أحداث الاتصال بالإنترنت
+window.addEventListener('online', () => {
+  updateConnectionStatus();
+  loadAll();
+  showSuccessNotification('✅ تم استعادة الاتصال بالإنترنت');
+});
+
+window.addEventListener('offline', () => {
+  updateConnectionStatus();
+  showOfflineToast();
+});
+
+updateConnectionStatus();
+if (!navigator.onLine) {
+  showOfflineToast();
+}
+
+// تحديث المزامنة الدورية
+setInterval(() => {
+  performFinalSync();
+}, 2000);
+
+window.addEventListener('keydown', debouncedSync);
+window.addEventListener('click', debouncedSync);
+window.addEventListener('touchstart', debouncedSync);
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    performFinalSync();
+  }
+});
+
+// طلب إذن الإشعارات
+if ("Notification" in window && Notification.permission === "default") {
+  Notification.requestPermission();
+}
+
+// أحداث resize و orientation
+window.addEventListener('resize', handleOrientationChange);
+window.addEventListener('orientationchange', handleOrientationChange);
+
+// إغلاق المؤقت عند إغلاق الصفحة
+window.addEventListener('beforeunload', () => {
+  if (timerInterval) clearInterval(timerInterval);
+});
+
+// ============================================================
+// تصدير الدوال العامة للنطاق العام
+// ============================================================
+
+window.changePartySize = changePartySize;
+window.changeEditPartySize = changeEditPartySize;
+window.toggleLanguage = toggleLanguage;
+window.doLogin = doLogin;
+window.togglePassword = togglePassword;
+window.logoutAndClean = logoutAndClean;
+window.openAddTableModal = openAddTableModal;
+window.enableTableEditMode = enableTableEditMode;
+window.enableTableDeleteMode = enableTableDeleteMode;
+window.toggleMoveMode = toggleMoveMode;
+window.saveTablePositions = saveTablePositions;
+window.saveTable = saveTable;
+window.closeTableModal = closeTableModal;
+window.openWalkInModal = openWalkInModal;
+window.closeWalkInModal = closeWalkInModal;
+window.saveWalkIn = saveWalkIn;
+window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.setReadyMode = setReadyMode;
+window.setBoolSetting = setBoolSetting;
+window.changeNumberSetting = changeNumberSetting;
+window.saveSettings = saveSettings;
+window.assignNextCustomer = assignNextCustomer;
+window.clearSelection = clearSelection;
+window.manualStatusChange = manualStatusChange;
+window.swapCurrentTable = swapCurrentTable;
+window.closeStatusModal = closeStatusModal;
+window.restoreExpiredBooking = restoreExpiredBooking;
+window.closeExpiredRequest = closeExpiredRequest;
+window.openZonesModal = openZonesModal;
+window.closeZonesModal = closeZonesModal;
+window.saveZonePreferences = saveZonePreferences;
+window.openFloorsModal = openFloorsModal;
+window.closeFloorsModal = closeFloorsModal;
+window.saveFloorPreferences = saveFloorPreferences;
+window.openUsersModal = openUsersModal;
+window.closeUsersModal = closeUsersModal;
+window.showAddUserForm = showAddUserForm;
+window.cancelAddUser = cancelAddUser;
+window.saveUser = saveUser;
+window.deleteUser = deleteUser;
+window.openPermissionsModal = openPermissionsModal;
+window.closePermissionsModal = closePermissionsModal;
+window.savePermissions = savePermissions;
+window.openTimerSettingsModal = openTimerSettingsModal;
+window.closeTimerSettingsModal = closeTimerSettingsModal;
+window.changeTimerSetting = changeTimerSetting;
+window.saveTimerSettings = saveTimerSettings;
+window.openEditRequestModal = openEditRequestModal;
+window.closeEditRequestModal = closeEditRequestModal;
+window.saveEditedRequest = saveEditedRequest;
+window.toggleZoneMenu = toggleZoneMenu;
+window.toggleFloorMenu = toggleFloorMenu;
+window.selectZone = selectZone;
+window.selectFloor = selectFloor;
+window.logError = logError;
+
+console.log("✅ جميع دوال النظام تم تصديرها بنجاح");
+
+// ✅ أضف الكود الجديد هنا
+(async function() {
+    console.log("Initializing app...");
+    
+    if (typeof checkExistingSession === 'function') {
+        await checkExistingSession();
+        console.log("Session check completed");
+    }
+    
+    if (typeof startApp === 'function') {
+        await startApp();
+        console.log("App started");
+    } else if (typeof loadAll === 'function') {
+        await loadAll();
+        console.log("Data loaded");
+    }
+})();
+
+(function() {
+    const themeBtn = document.getElementById('themeToggle');
+    if (themeBtn) {
+        themeBtn.onclick = function(e) {
+            e.preventDefault();
+            document.body.classList.toggle('dark');
+            const isDark = document.body.classList.contains('dark');
+            localStorage.setItem('darkMode', isDark);
+            
+            const icon = this.querySelector('i');
+            if (icon) {
+                if (isDark) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                } else {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                }
+            }
+            console.log("Dark mode:", isDark);
+        };
+        console.log("✅ Dark mode button fixed!");
+    }
+    
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark');
+        const icon = themeBtn?.querySelector('i');
+        if (icon) {
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+        }
+    }
+})();
+
+// إغلاق قوائم المناطق والطوابق عند الضغط خارجها
+document.addEventListener('click', function(e) {
+    const zoneDropdown = document.getElementById('zoneDropdown');
+    const floorDropdown = document.getElementById('floorDropdown');
+    const zoneMenu = document.getElementById('zoneDropdownMenu');
+    const floorMenu = document.getElementById('floorDropdownMenu');
+    
+    if (zoneDropdown && !zoneDropdown.contains(e.target)) {
+        if (zoneMenu) zoneMenu.classList.remove('show');
+    }
+    
+    if (floorDropdown && !floorDropdown.contains(e.target)) {
+        if (floorMenu) floorMenu.classList.remove('show');
+    }
+});
+
+// إغلاق قوائم المناطق والطوابق عند الضغط خارجها
+document.addEventListener('click', function(e) {
+    // ... الكود الموجود ...
+});
+
+// ✅ أضف كود إصلاح اللغة هنا
+(function() {
+    const savedLang = localStorage.getItem('hajzak_lang');
+    if (savedLang === 'en') {
+        setTimeout(function() {
+            if (typeof updateSidebarTexts === 'function') {
+                updateSidebarTexts('en');
+            }
+            const floorSpan = document.getElementById('currentFloorLabel');
+            if (floorSpan && window.currentFloor === 1) {
+                floorSpan.innerHTML = '🏠 Ground';
+            }
+            if (typeof loadFloorDropdown === 'function') {
+                loadFloorDropdown();
+            }
+            if (typeof loadZoneDropdown === 'function') {
+                loadZoneDropdown();
+            }
+            console.log("✅ English re-applied after refresh");
+        }, 150);
+    }
+})();
+
+</script>
+</body>
+</html>
