@@ -602,3 +602,239 @@ body.theme-premium .login-logo {
   background: linear-gradient(135deg, #06372E, #0E5C4A) !important;
   border: 1px solid rgba(198,146,58,0.45) !important;
 }
+
+/* إصلاح أولوية السايدبار فوق جميع عناصر الصفحة */
+body.theme-premium .sidebar {
+  z-index: 12000 !important;
+}
+
+body.theme-premium .sidebar.open {
+  z-index: 12000 !important;
+}
+
+body.theme-premium .topbar {
+  z-index: 13000 !important;
+}
+
+/* إبقاء القوائم المنسدلة فوق الطاولات لكن تحت السايدبار */
+body.theme-premium .unified-bar {
+  z-index: 2500 !important;
+}
+
+body.theme-premium .left-controls {
+  z-index: 2600 !important;
+}
+
+body.theme-premium .zone-dropdown {
+  z-index: 2700 !important;
+}
+
+body.theme-premium .zone-dropdown-menu {
+  z-index: 2800 !important;
+}
+
+/* ============================================================
+   PREMIUM SHARPNESS STEP 1
+   زيادة الأبيض والحدة بدون لمس الطاولات أو الحالات
+============================================================ */
+
+/* خلفية عامة أنظف وأقل طحلبية */
+body.theme-premium {
+  background:
+    linear-gradient(135deg, #F7F7F4 0%, #ECEFEA 100%) !important;
+}
+
+/* جعل شريط التحكم العلوي أبيض أوضح */
+body.theme-premium .unified-bar {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06) !important;
+}
+
+/* جعل منطقة الفلور أكثر بياضًا ووضوحًا */
+body.theme-premium .tables-grid {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.11) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.055) !important;
+}
+
+/* جعل لوحة الانتظار بيضاء أوضح */
+body.theme-premium .waiting-sidebar,
+body.theme-premium .waiting-header-standalone {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.11) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.055) !important;
+}
+
+/* تقوية النصوص */
+body.theme-premium {
+  --text-primary: #111827;
+}
+
+body.theme-premium .waiting-title,
+body.theme-premium .brand-text,
+body.theme-premium .table-info .table-name,
+body.theme-premium .customer-name-part {
+  color: #111827 !important;
+}
+
+/* تقليل النعومة الزائدة في الحواف */
+body.theme-premium .unified-bar,
+body.theme-premium .tables-grid,
+body.theme-premium .waiting-sidebar,
+body.theme-premium .waiting-header-standalone {
+  border-radius: 14px !important;
+}
+
+/* ============================================================
+   PREMIUM SHARPNESS STEP 2
+   تقليل الطحلبية وزيادة الاحترافية والحدة
+============================================================ */
+
+/* الهيدر: أعمق وأقل خضار مبالغ */
+body.theme-premium .topbar {
+  background:
+    linear-gradient(
+      135deg,
+      #021914 0%,
+      #04271F 45%,
+      #0A4B3D 100%
+    ) !important;
+
+  border-bottom: 1px solid rgba(198,146,58,0.22) !important;
+
+  box-shadow:
+    0 10px 28px rgba(0,0,0,0.22) !important;
+}
+
+/* تقوية الأبيض داخل الهيدر */
+body.theme-premium .topbar * {
+  color: #FFFFFF;
+}
+
+/* جعل الأزرار العلوية أكثر حدة */
+body.theme-premium .theme-toggle,
+body.theme-premium .lang-toggle-btn,
+body.theme-premium .sidebar-toggle {
+  background: rgba(255,255,255,0.10) !important;
+
+  border: 1px solid rgba(255,255,255,0.18) !important;
+
+  border-radius: 12px !important;
+
+  backdrop-filter: none !important;
+}
+
+/* الهوفر */
+body.theme-premium .theme-toggle:hover,
+body.theme-premium .lang-toggle-btn:hover,
+body.theme-premium .sidebar-toggle:hover {
+  background: rgba(255,255,255,0.18) !important;
+
+  border-color: rgba(198,146,58,0.45) !important;
+
+  transform: translateY(-1px);
+}
+
+/* الذهبي يظهر بشكل أقوى */
+body.theme-premium #premiumThemeToggle.active {
+  background:
+    linear-gradient(
+      135deg,
+      #C6923A 0%,
+      #E2BC67 100%
+    ) !important;
+
+  color: #111111 !important;
+
+  border-color: rgba(255,255,255,0.25) !important;
+
+  box-shadow:
+    0 6px 18px rgba(198,146,58,0.28) !important;
+}
+
+/* السايدبار أقل طحلبية وأكثر احتراف */
+body.theme-premium .sidebar {
+  background:
+    linear-gradient(
+      180deg,
+      #01130F 0%,
+      #04271F 100%
+    ) !important;
+
+  border-right:
+    1px solid rgba(198,146,58,0.18) !important;
+}
+
+/* عناصر القائمة */
+body.theme-premium .main-menu-item,
+body.theme-premium .sub-menu-item,
+body.theme-premium .menu-item {
+
+  border-radius: 12px !important;
+
+  transition:
+    background 0.2s ease,
+    transform 0.15s ease,
+    border-color 0.2s ease !important;
+}
+
+/* Hover */
+body.theme-premium .main-menu-item:hover,
+body.theme-premium .sub-menu-item:hover,
+body.theme-premium .menu-item:hover {
+
+  background: rgba(255,255,255,0.08) !important;
+
+  border: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+/* Active state أقوى */
+body.theme-premium .main-menu-item.active,
+body.theme-premium .sub-menu-item.active,
+body.theme-premium .menu-item.active {
+
+  background:
+    linear-gradient(
+      135deg,
+      #C6923A 0%,
+      #E2BC67 100%
+    ) !important;
+
+  color: #111111 !important;
+
+  box-shadow:
+    0 8px 20px rgba(198,146,58,0.22) !important;
+}
+
+/* النصوص السوداء الحقيقية */
+body.theme-premium .brand-text,
+body.theme-premium .waiting-title,
+body.theme-premium .zone-dropdown-btn,
+body.theme-premium .customer-name-part {
+
+  color: #111111 !important;
+}
+
+/* إزالة النعومة الزائدة */
+body.theme-premium .waiting-sidebar,
+body.theme-premium .tables-grid,
+body.theme-premium .unified-bar {
+
+  backdrop-filter: none !important;
+}
+
+/* الحواف أوضح */
+body.theme-premium .waiting-sidebar,
+body.theme-premium .tables-grid,
+body.theme-premium .unified-bar,
+body.theme-premium .zone-dropdown-btn {
+
+  border:
+    1px solid rgba(0,0,0,0.10) !important;
+}
+
+/* تحسين الفراغات */
+body.theme-premium .main-content {
+  gap: 16px !important;
+}
