@@ -200,10 +200,28 @@ body.theme-premium .waiting-actions .icon-btn:hover {
 }
 
 body.theme-premium .assign-auto-btn {
-  background: linear-gradient(135deg, #06372E, #0A4B3D) !important;
-  color: #FFFFFF !important;
+  background:
+    linear-gradient(
+      135deg,
+      #C6923A 0%,
+      #E5BD68 100%
+    ) !important;
+
+  color: #111111 !important;
+
+  border: 1px solid rgba(255,255,255,0.22) !important;
+
+  border-radius: 12px !important;
+
+  box-shadow:
+    0 8px 20px rgba(198,146,58,0.24) !important;
+
+  font-weight: 800 !important;
 }
-body.theme-premium .assign-auto-btn i { color: #FFFFFF !important; }
+
+body.theme-premium .assign-auto-btn i {
+  color: #111111 !important;
+}
 
 body.theme-premium #tabQueueBtn {
   background: linear-gradient(135deg, #06372E, #0A4B3D) !important;
@@ -378,23 +396,99 @@ body.theme-premium .login-card {
 }
 
 /* ============================================================
-   PREMIUM FINAL PATCH - Queue / Walk-in Modal / Gold Accents
+   FINAL PREMIUM FIXES
+   يحل: زر التعيين، زر الثيم، مودال العميل المحلي، ارتفاع الانتظار، الوضع الليلي
 ============================================================ */
 
-/* 1) زر التعيين التلقائي ذهبي والسهم أسود */
+/* زر الثيم: نفس تنسيق زر اللغة والوضع الليلي، ويتحول للذهبي عند التفعيل */
+body.theme-premium #premiumThemeToggle {
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  border-radius: 12px !important;
+  color: #FFFFFF !important;
+}
+
+body.theme-premium #premiumThemeToggle i {
+  color: #FFFFFF !important;
+}
+
+body.theme-premium #premiumThemeToggle.active {
+  background: linear-gradient(135deg, #C6923A 0%, #E2BC67 100%) !important;
+  color: #111111 !important;
+  border-color: rgba(255,255,255,0.25) !important;
+  box-shadow: 0 6px 18px rgba(198,146,58,0.28) !important;
+}
+
+body.theme-premium #premiumThemeToggle.active i {
+  color: #111111 !important;
+}
+
+/* زر التعيين التلقائي: ذهبي كامل والسهم أسود */
 body.theme-premium .assign-auto-btn {
   background: linear-gradient(135deg, #C6923A 0%, #E5BD68 100%) !important;
   color: #111111 !important;
-  border: 1px solid rgba(0,0,0,0.12) !important;
-  box-shadow: 0 10px 22px rgba(198,146,58,0.28) !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 22px rgba(198,146,58,0.24) !important;
+  font-weight: 800 !important;
 }
 
 body.theme-premium .assign-auto-btn i {
   color: #111111 !important;
 }
 
-/* 2) إصلاح مودال إضافة عميل محلي في المنتصف أعلى الشاشة */
-body.theme-premium #walkInModal {
+body.theme-premium .assign-auto-btn:hover {
+  background: linear-gradient(135deg, #B9842F 0%, #DFAF58 100%) !important;
+  color: #111111 !important;
+}
+
+/* رقم الطابور: ذهبي والرقم أسود */
+body.theme-premium .queue-number-badge {
+  background: linear-gradient(135deg, #C6923A 0%, #E5BD68 100%) !important;
+  color: #111111 !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
+  font-weight: 900 !important;
+}
+
+/* تفاصيل بطاقة الانتظار: الوقت، الأشخاص، المنطقة، الأيقونات باللون الأخضر */
+body.theme-premium .waiting-row-bottom,
+body.theme-premium .waiting-row-bottom *,
+body.theme-premium .detail-item,
+body.theme-premium .detail-item i {
+  color: #06372E !important;
+  font-weight: 700 !important;
+}
+
+/* بطاقة جاهزة: أخضر أوضح لتظهر أنها جاهزة للتعيين */
+body.theme-premium .waiting-card.ready {
+  background: linear-gradient(135deg, rgba(21,154,114,0.24) 0%, #FFFFFF 52%, rgba(21,154,114,0.13) 100%) !important;
+  border: 2px solid #159A72 !important;
+  box-shadow: 0 0 0 3px rgba(21,154,114,0.12), 0 14px 32px rgba(21,154,114,0.18) !important;
+}
+
+/* البطاقة الأولى في الطابور: تمييز خفيف بدون مبالغة */
+body.theme-premium .waiting-list .waiting-card:first-child {
+  border-color: rgba(21,154,114,0.55) !important;
+  box-shadow: 0 0 0 2px rgba(21,154,114,0.10), 0 12px 28px rgba(3,31,26,0.10) !important;
+}
+
+/* ارتفاع لوحة الانتظار مثل منطقة العمل */
+body.theme-premium .main-content {
+  align-items: stretch !important;
+}
+
+body.theme-premium .right-panel-container {
+  height: 100% !important;
+}
+
+body.theme-premium .waiting-sidebar {
+  height: 100% !important;
+  min-height: 100% !important;
+}
+
+/* مودال إضافة عميل محلي: في المنتصف وبأعلى الشاشة */
+body.theme-premium #walkInModal.show {
+  display: flex !important;
   align-items: flex-start !important;
   justify-content: center !important;
   padding-top: 72px !important;
@@ -411,57 +505,67 @@ body.theme-premium #walkInModal .modal {
   max-width: 92vw !important;
 }
 
-/* 3) رقم الطابور ذهبي والرقم أسود */
-body.theme-premium .queue-number-badge {
-  background: linear-gradient(135deg, #C6923A 0%, #E5BD68 100%) !important;
-  color: #111111 !important;
-  border: 1px solid rgba(0,0,0,0.10) !important;
-  font-weight: 900 !important;
+/* الوضع الليلي داخل الثيم الاحترافي */
+body.theme-premium.dark {
+  background: linear-gradient(135deg, #081612 0%, #10231E 100%) !important;
+  color: #F8F3E8 !important;
 }
 
-/* 4) تفاصيل بطاقة الانتظار باللون الأخضر */
-body.theme-premium .waiting-row-bottom,
-body.theme-premium .waiting-row-bottom *,
-body.theme-premium .detail-item,
-body.theme-premium .detail-item i {
-  color: #06372E !important;
-  font-weight: 700 !important;
+body.theme-premium.dark::before {
+  opacity: 0.14 !important;
+  background-image: radial-gradient(rgba(229,189,104,0.18) 1px, transparent 1px) !important;
 }
 
-/* 5) بطاقة العميل الجاهز أوضح */
-body.theme-premium .waiting-card.ready {
-  background: linear-gradient(
-    135deg,
-    rgba(21,154,114,0.24) 0%,
-    #FFFFFF 55%,
-    rgba(21,154,114,0.12) 100%
-  ) !important;
-
-  border: 2px solid #159A72 !important;
-
-  box-shadow:
-    0 0 0 3px rgba(21,154,114,0.14),
-    0 14px 32px rgba(21,154,114,0.20) !important;
+body.theme-premium.dark .tables-grid,
+body.theme-premium.dark .waiting-sidebar,
+body.theme-premium.dark .waiting-header-standalone,
+body.theme-premium.dark .unified-bar,
+body.theme-premium.dark .zone-dropdown-btn,
+body.theme-premium.dark .zone-dropdown-menu,
+body.theme-premium.dark .waiting-card,
+body.theme-premium.dark .expired-card,
+body.theme-premium.dark .modal,
+body.theme-premium.dark .settings-modal {
+  background: #10231E !important;
+  color: #F8F3E8 !important;
+  border-color: rgba(229,189,104,0.14) !important;
 }
 
-/* شريط علوي صغير للبطاقة الجاهزة */
-body.theme-premium .waiting-card.ready::before {
-  content: "جاهز للتعيين";
-  display: block;
-  width: fit-content;
-  margin-bottom: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #159A72;
-  color: #FFFFFF;
-  font-size: 11px;
-  font-weight: 900;
+body.theme-premium.dark .waiting-title,
+body.theme-premium.dark .brand-text,
+body.theme-premium.dark .customer-name-part,
+body.theme-premium.dark .waiting-row-bottom,
+body.theme-premium.dark .waiting-row-bottom *,
+body.theme-premium.dark .zone-dropdown-btn,
+body.theme-premium.dark .stat-item {
+  color: #F8F3E8 !important;
 }
 
-/* 6) البطاقة الأولى في الطابور تكون أوضح حتى لو لم تأخذ ready */
-body.theme-premium .waiting-list .waiting-card:first-child {
-  border-color: rgba(21,154,114,0.55) !important;
-  box-shadow:
-    0 0 0 2px rgba(21,154,114,0.10),
-    0 12px 28px rgba(3,31,26,0.10) !important;
+body.theme-premium.dark .stat-item,
+body.theme-premium.dark .waiting-actions .icon-btn,
+body.theme-premium.dark #tabExpiredBtn {
+  background: #172D26 !important;
+  border-color: rgba(229,189,104,0.14) !important;
+  color: #F8F3E8 !important;
+}
+
+body.theme-premium.dark .walkin-input,
+body.theme-premium.dark .login-input,
+body.theme-premium.dark .phone-prefix,
+body.theme-premium.dark .guest-input,
+body.theme-premium.dark .toggle-btn,
+body.theme-premium.dark .step-btn {
+  background: #172D26 !important;
+  color: #F8F3E8 !important;
+  border-color: rgba(229,189,104,0.14) !important;
+}
+
+@media (max-width: 768px) {
+  body.theme-premium #walkInModal.show {
+    padding-top: 58px !important;
+  }
+
+  body.theme-premium #walkInModal .modal {
+    width: 95vw !important;
+  }
 }
