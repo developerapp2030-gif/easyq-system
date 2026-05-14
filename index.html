@@ -828,10 +828,12 @@ if (zoneSpan) {
 
   // تحديث زر اللغة
   const langBtn = document.getElementById('langToggleBtn');
-  if (langBtn) if (newLang === 'ar') {
-  langBtn.innerText = 'ع';
-} else {
-  langBtn.innerText = 'EN';
+if (langBtn) {
+  if (newLang === 'ar') {
+    langBtn.innerText = 'ع';
+  } else {
+    langBtn.innerText = 'EN';
+  }
 }
   
   // تحديث العلامة التجارية
