@@ -838,3 +838,25 @@ body.theme-premium .zone-dropdown-btn {
 body.theme-premium .main-content {
   gap: 16px !important;
 }
+
+/* إصلاح ظهور المودالات فوق شريط الفلاتر والعدادات */
+body.theme-premium .modal-backdrop,
+body.theme-premium .settings-backdrop {
+  z-index: 50000 !important;
+}
+
+body.theme-premium .modal,
+body.theme-premium .settings-modal {
+  position: relative !important;
+  z-index: 50001 !important;
+}
+
+/* عند وجود مودال، لا يسمح لشريط الفلاتر بالظهور فوقه */
+body.theme-premium .unified-bar {
+  z-index: 2500 !important;
+}
+
+body.theme-premium .zone-dropdown,
+body.theme-premium .zone-dropdown-menu {
+  z-index: 3000 !important;
+}
