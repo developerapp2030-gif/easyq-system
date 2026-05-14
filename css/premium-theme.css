@@ -581,3 +581,29 @@ body.theme-premium.dark .step-btn {
     width: 95vw !important;
   }
 }
+
+/* FORCE FIX: Auto assign button gold */
+body.theme-premium .waiting-actions .icon-btn.assign-auto-btn {
+  background: linear-gradient(135deg, #C6923A 0%, #E5BD68 100%) !important;
+  color: #111111 !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
+  box-shadow: 0 10px 22px rgba(198,146,58,0.24) !important;
+}
+
+body.theme-premium .waiting-actions .icon-btn.assign-auto-btn i {
+  color: #111111 !important;
+}
+
+/* FORCE FIX: Premium theme button same as other header buttons */
+body.theme-premium #premiumThemeToggle,
+body.theme-premium #premiumThemeToggle.active {
+  background: rgba(255,255,255,0.10) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  box-shadow: none !important;
+}
+
+body.theme-premium #premiumThemeToggle i,
+body.theme-premium #premiumThemeToggle.active i {
+  color: #FFFFFF !important;
+}
