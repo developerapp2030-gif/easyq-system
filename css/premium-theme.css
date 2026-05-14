@@ -1260,3 +1260,47 @@ background-repeat: no-repeat;
 
   color: #C6923A;
 }
+
+/* FIX LOGIN BACKGROUND IMAGE */
+
+.premium-login-overlay {
+
+  background-image:
+    linear-gradient(
+      135deg,
+      rgba(2,20,16,0.55),
+      rgba(3,31,26,0.45),
+      rgba(6,55,46,0.38)
+    ),
+    url("../images/login-bg.jpg") !important;
+
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* REMOVE MAIN.CSS BACKGROUND OVER LOGIN */
+
+body:has(.premium-login-overlay)::before {
+
+  display: none !important;
+}
+
+/* EXTRA DARK CINEMATIC OVERLAY */
+
+.premium-login-overlay::after {
+
+  content: "";
+
+  position: absolute;
+  inset: 0;
+
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(198,146,58,0.10),
+      transparent 28%
+    );
+
+  pointer-events: none;
+}
