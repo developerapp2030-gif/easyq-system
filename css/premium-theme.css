@@ -623,3 +623,7 @@ body.theme-premium #premiumThemeToggle i,
 body.theme-premium #premiumThemeToggle.active i {
   color: #FFFFFF !important;
 }
+
+body.theme-premium .table-status-bar.occupied {
+  background: linear-gradient(135deg, #5E0B15 0%, #8B1E2D 100%) !important;
+}
