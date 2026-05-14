@@ -376,3 +376,92 @@ body.theme-premium .login-card {
   body.theme-premium .unified-bar,
   body.theme-premium .waiting-header-standalone { border-radius: 12px !important; }
 }
+
+/* ============================================================
+   PREMIUM FINAL PATCH - Queue / Walk-in Modal / Gold Accents
+============================================================ */
+
+/* 1) زر التعيين التلقائي ذهبي والسهم أسود */
+body.theme-premium .assign-auto-btn {
+  background: linear-gradient(135deg, #C6923A 0%, #E5BD68 100%) !important;
+  color: #111111 !important;
+  border: 1px solid rgba(0,0,0,0.12) !important;
+  box-shadow: 0 10px 22px rgba(198,146,58,0.28) !important;
+}
+
+body.theme-premium .assign-auto-btn i {
+  color: #111111 !important;
+}
+
+/* 2) إصلاح مودال إضافة عميل محلي في المنتصف أعلى الشاشة */
+body.theme-premium #walkInModal {
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: 72px !important;
+}
+
+body.theme-premium #walkInModal .modal {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  margin: 0 auto !important;
+  width: 500px !important;
+  max-width: 92vw !important;
+}
+
+/* 3) رقم الطابور ذهبي والرقم أسود */
+body.theme-premium .queue-number-badge {
+  background: linear-gradient(135deg, #C6923A 0%, #E5BD68 100%) !important;
+  color: #111111 !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
+  font-weight: 900 !important;
+}
+
+/* 4) تفاصيل بطاقة الانتظار باللون الأخضر */
+body.theme-premium .waiting-row-bottom,
+body.theme-premium .waiting-row-bottom *,
+body.theme-premium .detail-item,
+body.theme-premium .detail-item i {
+  color: #06372E !important;
+  font-weight: 700 !important;
+}
+
+/* 5) بطاقة العميل الجاهز أوضح */
+body.theme-premium .waiting-card.ready {
+  background: linear-gradient(
+    135deg,
+    rgba(21,154,114,0.24) 0%,
+    #FFFFFF 55%,
+    rgba(21,154,114,0.12) 100%
+  ) !important;
+
+  border: 2px solid #159A72 !important;
+
+  box-shadow:
+    0 0 0 3px rgba(21,154,114,0.14),
+    0 14px 32px rgba(21,154,114,0.20) !important;
+}
+
+/* شريط علوي صغير للبطاقة الجاهزة */
+body.theme-premium .waiting-card.ready::before {
+  content: "جاهز للتعيين";
+  display: block;
+  width: fit-content;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #159A72;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+/* 6) البطاقة الأولى في الطابور تكون أوضح حتى لو لم تأخذ ready */
+body.theme-premium .waiting-list .waiting-card:first-child {
+  border-color: rgba(21,154,114,0.55) !important;
+  box-shadow:
+    0 0 0 2px rgba(21,154,114,0.10),
+    0 12px 28px rgba(3,31,26,0.10) !important;
+}
