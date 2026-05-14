@@ -137,7 +137,7 @@
     <button class="theme-toggle" id="themeToggle">
       <i class="fas fa-moon"></i>
     </button>
-    <button class="lang-toggle-btn" id="langToggleBtn" onclick="toggleLanguage()">EN</button>
+    <button class="lang-toggle-btn" id="langToggleBtn" onclick="toggleLanguage()" style="font-family: 'Cairo', sans-serif; font-weight: bold;">EN</button>
   </div>
 </div>
 
@@ -828,7 +828,11 @@ if (zoneSpan) {
 
   // تحديث زر اللغة
   const langBtn = document.getElementById('langToggleBtn');
-  if (langBtn) langBtn.innerText = newLang.toUpperCase();
+  if (langBtn) if (newLang === 'ar') {
+  langBtn.innerText = 'ع';
+} else {
+  langBtn.innerText = 'EN';
+}
   
   // تحديث العلامة التجارية
   const brandText = document.getElementById('brandText');
