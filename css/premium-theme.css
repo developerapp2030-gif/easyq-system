@@ -409,3 +409,196 @@ body.theme-premium .tables-grid {
   position: relative !important;
   z-index: 1 !important;
 }
+
+/* ============================================================
+   PREMIUM THEME V2 - أقوى وأوضح بدون لمس منطق النظام
+============================================================ */
+
+body.theme-premium {
+  --primary: #06372E;
+  --primary-dark: #021B16;
+  --primary-light: #E7F1ED;
+
+  --premium-green: #06372E;
+  --premium-green-2: #0E5C4A;
+  --premium-gold: #C6923A;
+  --premium-cream: #F4EFE4;
+
+  --card-bg: #FFFDF8;
+  --border-color: rgba(6, 55, 46, 0.16);
+  --text-primary: #10231E;
+  --sidebar-bg: #021B16;
+}
+
+/* الخلفية العامة: أقل نعومة وأكثر احترافية */
+body.theme-premium {
+  background:
+    radial-gradient(circle at top left, rgba(198,146,58,0.10), transparent 30%),
+    linear-gradient(135deg, #F4EFE4 0%, #E9EFE9 100%) !important;
+}
+
+body.theme-premium::before {
+  opacity: 0.22 !important;
+  background-image: radial-gradient(rgba(6,55,46,0.18) 1px, transparent 1px) !important;
+}
+
+/* الهيدر: أعمق وأكثر قوة */
+body.theme-premium .topbar {
+  background: linear-gradient(135deg, #021B16 0%, #06372E 55%, #0E5C4A 100%) !important;
+  border-bottom: 1px solid rgba(198,146,58,0.28) !important;
+  box-shadow: 0 10px 28px rgba(2,27,22,0.28) !important;
+}
+
+/* الأزرار العلوية */
+body.theme-premium .theme-toggle,
+body.theme-premium .lang-toggle-btn,
+body.theme-premium .sidebar-toggle {
+  background: rgba(255,255,255,0.13) !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  border-radius: 12px !important;
+}
+
+body.theme-premium .theme-toggle:hover,
+body.theme-premium .lang-toggle-btn:hover,
+body.theme-premium .sidebar-toggle:hover {
+  background: rgba(255,255,255,0.24) !important;
+  transform: translateY(-1px);
+}
+
+/* زر الثيم عند التفعيل */
+body.theme-premium #premiumThemeToggle.active {
+  background: linear-gradient(135deg, #C6923A, #E5BD68) !important;
+  color: #10231E !important;
+}
+
+/* البطاقات والحاويات: حواف أقل نعومة وحدود أوضح */
+body.theme-premium .unified-bar,
+body.theme-premium .waiting-header-standalone,
+body.theme-premium .waiting-sidebar,
+body.theme-premium .tables-grid,
+body.theme-premium .modal,
+body.theme-premium .settings-modal {
+  border-radius: 16px !important;
+  border: 1px solid rgba(6,55,46,0.16) !important;
+  box-shadow: 0 12px 30px rgba(6,55,46,0.08) !important;
+}
+
+/* اللوحة اليمنى */
+body.theme-premium .right-panel-container .waiting-sidebar {
+  background: #FFFDF8 !important;
+}
+
+/* القوائم المنسدلة */
+body.theme-premium .zone-dropdown-btn {
+  border-radius: 12px !important;
+  border: 1px solid rgba(6,55,46,0.18) !important;
+  background: #FFFDF8 !important;
+  box-shadow: 0 6px 16px rgba(6,55,46,0.06) !important;
+}
+
+body.theme-premium .zone-dropdown-btn:hover {
+  border-color: rgba(198,146,58,0.45) !important;
+}
+
+/* القائمة المنسدلة فوق الجميع */
+body.theme-premium .unified-bar {
+  position: relative !important;
+  z-index: 3000 !important;
+  overflow: visible !important;
+}
+
+body.theme-premium .left-controls {
+  position: relative !important;
+  z-index: 3100 !important;
+  overflow: visible !important;
+}
+
+body.theme-premium .zone-dropdown {
+  position: relative !important;
+  z-index: 3200 !important;
+}
+
+body.theme-premium .zone-dropdown-menu {
+  z-index: 9999 !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(6,55,46,0.18) !important;
+  box-shadow: 0 18px 42px rgba(6,55,46,0.18) !important;
+}
+
+/* أزرار التبويب: وضوح أعلى */
+body.theme-premium #tabQueueBtn {
+  background: linear-gradient(135deg, #06372E, #0E5C4A) !important;
+  color: #fff !important;
+  border-radius: 12px !important;
+}
+
+body.theme-premium #tabExpiredBtn {
+  background: #DFDED8 !important;
+  color: #1F2E2A !important;
+  border-radius: 12px !important;
+}
+
+/* أزرار العمليات */
+body.theme-premium .assign-auto-btn,
+body.theme-premium .settings-save,
+body.theme-premium .login-btn {
+  background: linear-gradient(135deg, #06372E, #0E5C4A) !important;
+  color: white !important;
+  box-shadow: 0 10px 22px rgba(6,55,46,0.22) !important;
+}
+
+body.theme-premium .icon-btn {
+  border-radius: 12px !important;
+  border: 1px solid rgba(6,55,46,0.10) !important;
+}
+
+/* السايدبار */
+body.theme-premium .sidebar {
+  background: linear-gradient(180deg, #021B16 0%, #06372E 100%) !important;
+  border-right: 1px solid rgba(198,146,58,0.25) !important;
+}
+
+body.theme-premium .main-menu-item,
+body.theme-premium .sub-menu-item,
+body.theme-premium .menu-item {
+  border-radius: 12px !important;
+}
+
+body.theme-premium .main-menu-item:hover,
+body.theme-premium .sub-menu-item:hover,
+body.theme-premium .menu-item:hover {
+  background: rgba(255,255,255,0.12) !important;
+}
+
+body.theme-premium .main-menu-item.active,
+body.theme-premium .sub-menu-item.active,
+body.theme-premium .menu-item.active {
+  background: linear-gradient(135deg, #C6923A, #E5BD68) !important;
+  color: #10231E !important;
+}
+
+body.theme-premium .main-menu-item.active i,
+body.theme-premium .sub-menu-item.active i,
+body.theme-premium .menu-item.active i {
+  color: #10231E !important;
+}
+
+/* العدادات العلوية */
+body.theme-premium .stat-item {
+  background: rgba(255,255,255,0.75) !important;
+  border: 1px solid rgba(6,55,46,0.12) !important;
+  box-shadow: 0 6px 14px rgba(6,55,46,0.06) !important;
+  font-weight: 700 !important;
+}
+
+/* تسجيل الدخول */
+body.theme-premium .login-card {
+  border-radius: 22px !important;
+  border: 1px solid rgba(198,146,58,0.28) !important;
+  box-shadow: 0 28px 70px rgba(0,0,0,0.28) !important;
+}
+
+body.theme-premium .login-logo {
+  background: linear-gradient(135deg, #06372E, #0E5C4A) !important;
+  border: 1px solid rgba(198,146,58,0.45) !important;
+}
