@@ -401,7 +401,15 @@ body.theme-premium .login-logo i { color: var(--premium-gold-light) !important; 
 
 /* LOGIN */
 body.theme-premium .login-overlay {
-  background: linear-gradient(135deg, rgba(3, 31, 26, 0.86), rgba(6, 55, 46, 0.68)), url('https://zjdfadkonftkgljvzxoy.supabase.co/storage/v1/object/public/background%20loging%20image/geometric_abstract_background_with_connected_dots_and_lines.jpg') center/cover no-repeat !important;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0,0,0,0.48),
+      rgba(0,0,0,0.30)
+    ),
+    url("/images/login-bg.jpg")
+    center center / cover no-repeat !important;
 }
 body.theme-premium .login-overlay::before {
   background: radial-gradient(circle at 22% 18%, rgba(229, 189, 104, 0.25), transparent 32%), rgba(0, 0, 0, 0.38) !important;
