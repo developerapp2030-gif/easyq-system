@@ -1,276 +1,298 @@
 /* ============================================================
-   EASY-Q Premium Theme
-   Safe visual layer only - does not change JS logic or IDs
-   Activation: add class "theme-premium" to <body>
-   Disable: remove this file link or remove body.theme-premium
+   EASY-Q Premium Theme - CLEAN VERSION
+   Safe visual layer only.
+   Activation: body.theme-premium
+   Important: replace the entire old premium-theme.css with this file.
    ============================================================ */
 
 body.theme-premium {
   --primary: #06372E;
-  --primary-dark: #031F1A;
+  --primary-dark: #021914;
   --primary-light: #E8F3EF;
+  --premium-green: #06372E;
+  --premium-green-strong: #04271F;
+  --premium-green-soft: #0A4B3D;
+  --premium-gold: #C6923A;
+  --premium-gold-light: #E2BC67;
   --success: #159A72;
   --danger: #B42318;
   --warning: #C6923A;
   --info: #2563EB;
-  --gray-50: #FBF8F0;
-  --gray-100: #F3EEE3;
-  --gray-200: #E6DED0;
-  --gray-300: #D2C7B6;
-  --gray-400: #9B9386;
-  --gray-500: #756F65;
-  --gray-600: #5C574F;
-  --gray-700: #393D37;
-  --gray-800: #172520;
-  --card-bg: #FFFCF6;
-  --sidebar-bg: #031F1A;
-  --border-color: rgba(6, 55, 46, 0.13);
-  --text-primary: #13221E;
-  --shadow-sm: 0 2px 10px rgba(3, 31, 26, 0.06);
-  --shadow-md: 0 12px 30px rgba(3, 31, 26, 0.12);
-  --shadow-lg: 0 24px 70px rgba(3, 31, 26, 0.18);
-}
-
-body.theme-premium.dark {
-  --primary: #0B6B58;
-  --primary-dark: #031F1A;
-  --primary-light: #123F35;
-  --card-bg: #10231E;
-  --sidebar-bg: #031713;
-  --border-color: rgba(229, 189, 104, 0.16);
-  --text-primary: #F8F3E8;
-  --gray-50: #10231E;
-  --gray-100: #152B25;
-  --gray-200: #1D3A32;
-  --gray-300: #2D4D43;
-  --gray-400: #7B9088;
-  --gray-500: #A5B3AE;
-  --gray-600: #C3CDC9;
-  --gray-700: #DCE4E0;
-  --gray-800: #F8F3E8;
+  --gray-50: #FAFAF8;
+  --gray-100: #F4F4F1;
+  --gray-200: #E6E3DC;
+  --gray-300: #D2CFC6;
+  --gray-400: #9B968C;
+  --gray-500: #6F6A60;
+  --gray-600: #4D4A43;
+  --gray-700: #2E312D;
+  --gray-800: #111827;
+  --card-bg: #FFFFFF;
+  --sidebar-bg: #021914;
+  --border-color: rgba(0, 0, 0, 0.10);
+  --text-primary: #111827;
+  --premium-radius: 14px;
+  --premium-radius-sm: 12px;
+  --shadow-soft: 0 10px 24px rgba(0, 0, 0, 0.055);
+  --shadow-panel: 0 14px 34px rgba(0, 0, 0, 0.075);
+  --shadow-strong: 0 24px 70px rgba(0, 0, 0, 0.22);
 }
 
 body.theme-premium {
-  background:
-    radial-gradient(circle at 8% 12%, rgba(198,146,58,0.09), transparent 28%),
-    linear-gradient(135deg, #F8F3E8 0%, #EEF5F1 100%) !important;
+  background: radial-gradient(circle at 8% 10%, rgba(198, 146, 58, 0.08), transparent 28%), linear-gradient(135deg, #F7F7F4 0%, #ECEFEA 100%) !important;
+  color: var(--text-primary) !important;
 }
 
 body.theme-premium::before {
-  background-image: radial-gradient(rgba(6,55,46,0.16) 1px, transparent 1px) !important;
-  opacity: 0.32 !important;
+  background-image: radial-gradient(rgba(6, 55, 46, 0.13) 1px, transparent 1px) !important;
+  opacity: 0.20 !important;
 }
 
-/* Topbar */
+/* TOPBAR */
 body.theme-premium .topbar {
-  background: linear-gradient(135deg, #031F1A 0%, #06372E 55%, #0B6B58 100%) !important;
-  box-shadow: 0 12px 34px rgba(3, 31, 26, 0.28) !important;
-  border-bottom: 1px solid rgba(229, 189, 104, 0.18) !important;
+  background: linear-gradient(135deg, #021914 0%, #04271F 48%, #0A4B3D 100%) !important;
+  border-bottom: 1px solid rgba(198, 146, 58, 0.22) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22) !important;
+  z-index: 13000 !important;
 }
+
+body.theme-premium .topbar .brand-text,
+body.theme-premium .topbar #currentUserName,
+body.theme-premium .topbar .status-time,
+body.theme-premium .topbar i { color: #FFFFFF !important; }
 
 body.theme-premium .brand-icon,
 body.theme-premium .sidebar-toggle,
 body.theme-premium .theme-toggle,
 body.theme-premium .lang-toggle-btn,
 body.theme-premium .status-bar {
-  background: rgba(255, 255, 255, 0.12) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.10) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  border-radius: 12px !important;
+  backdrop-filter: none !important;
 }
 
-body.theme-premium .brand-icon {
-  box-shadow: inset 0 0 0 1px rgba(229, 189, 104, 0.22);
+body.theme-premium .brand-icon i { color: var(--premium-gold-light) !important; }
+
+body.theme-premium .theme-toggle:hover,
+body.theme-premium .lang-toggle-btn:hover,
+body.theme-premium .sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(198, 146, 58, 0.45) !important;
+  transform: translateY(-1px);
 }
 
-body.theme-premium .brand-icon i {
-  color: #E5BD68 !important;
+body.theme-premium #premiumThemeToggle.active {
+  background: linear-gradient(135deg, var(--premium-gold), var(--premium-gold-light)) !important;
+  color: #111111 !important;
+  box-shadow: 0 6px 18px rgba(198, 146, 58, 0.28) !important;
 }
+body.theme-premium #premiumThemeToggle.active i { color: #111111 !important; }
 
-body.theme-premium .brand-text {
-  letter-spacing: 0.2px;
-}
-
-/* Sidebar */
+/* SIDEBAR */
 body.theme-premium .sidebar {
-  background:
-    radial-gradient(circle at top right, rgba(198,146,58,0.13), transparent 35%),
-    linear-gradient(180deg, #031F1A 0%, #061713 100%) !important;
-  border-right: 1px solid rgba(229, 189, 104, 0.16) !important;
-  box-shadow: 20px 0 60px rgba(3,31,26,0.28) !important;
+  background: radial-gradient(circle at top right, rgba(198, 146, 58, 0.10), transparent 35%), linear-gradient(180deg, #01130F 0%, #04271F 100%) !important;
+  border-right: 1px solid rgba(198, 146, 58, 0.18) !important;
+  box-shadow: 20px 0 60px rgba(3, 31, 26, 0.28) !important;
+  z-index: 12000 !important;
 }
+body.theme-premium .sidebar.open { z-index: 12000 !important; }
 
 body.theme-premium .menu-item,
 body.theme-premium .main-menu-item,
 body.theme-premium .sub-menu-item {
-  border: 1px solid transparent;
-  color: rgba(255,255,255,0.84) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease !important;
 }
 
 body.theme-premium .menu-item i,
 body.theme-premium .main-menu-item i,
-body.theme-premium .sub-menu-item i {
-  color: rgba(229,189,104,0.78) !important;
-}
+body.theme-premium .sub-menu-item i { color: rgba(229, 189, 104, 0.86) !important; }
 
 body.theme-premium .menu-item:hover,
 body.theme-premium .main-menu-item:hover,
 body.theme-premium .sub-menu-item:hover {
-  background: rgba(255, 255, 255, 0.09) !important;
-  border-color: rgba(229,189,104,0.12) !important;
-  transform: translateX(-2px);
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
 }
 
 body.theme-premium .menu-item.active,
 body.theme-premium .main-menu-item.active,
 body.theme-premium .sub-menu-item.active {
-  background: linear-gradient(135deg, #0B6B58, #06372E) !important;
-  border-color: rgba(229,189,104,0.25) !important;
-  color: #fff !important;
-  box-shadow: 0 12px 26px rgba(0,0,0,0.18) !important;
+  background: linear-gradient(135deg, var(--premium-gold), var(--premium-gold-light)) !important;
+  color: #111111 !important;
+  box-shadow: 0 8px 20px rgba(198, 146, 58, 0.22) !important;
 }
 
-body.theme-premium .sidebar-divider {
-  background: rgba(229,189,104,0.16) !important;
-}
+body.theme-premium .menu-item.active i,
+body.theme-premium .main-menu-item.active i,
+body.theme-premium .sub-menu-item.active i { color: #111111 !important; }
+body.theme-premium .sidebar-divider { background: rgba(198, 146, 58, 0.18) !important; }
 
-body.theme-premium [style*="background: var(--primary)"] {
-  background: linear-gradient(135deg, #C6923A, #E5BD68) !important;
-  color: #13221E !important;
-}
+/* MAIN LAYOUT PANELS - does not alter table cards/status colors */
+body.theme-premium .app-container { gap: 16px !important; }
+body.theme-premium .main-content { gap: 16px !important; overflow: visible !important; }
+body.theme-premium .right-panel-container { gap: 16px !important; }
 
-/* Layout cards */
 body.theme-premium .unified-bar,
+body.theme-premium .tables-grid,
 body.theme-premium .waiting-header-standalone,
-body.theme-premium .waiting-sidebar,
-body.theme-premium .modal,
-body.theme-premium .settings-modal,
-body.theme-premium .zone-dropdown-btn,
-body.theme-premium .zone-dropdown-menu {
-  background: rgba(255, 252, 246, 0.92) !important;
-  border: 1px solid rgba(6, 55, 46, 0.12) !important;
-  box-shadow: 0 16px 40px rgba(3, 31, 26, 0.08) !important;
-  backdrop-filter: blur(16px);
+body.theme-premium .waiting-sidebar {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  border-radius: var(--premium-radius) !important;
+  box-shadow: var(--shadow-soft) !important;
+  backdrop-filter: none !important;
 }
 
-body.theme-premium .tables-grid {
-  background:
-    linear-gradient(135deg, rgba(255,252,246,0.92), rgba(239,247,243,0.94)),
-    radial-gradient(circle at 20% 12%, rgba(198,146,58,0.09), transparent 30%) !important;
-  border: 1px solid rgba(6,55,46,0.11) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 18px 46px rgba(3,31,26,0.08) !important;
+body.theme-premium .waiting-header-standalone { min-height: 55px !important; }
+body.theme-premium .waiting-sidebar { min-height: 400px !important; padding: 16px !important; }
+body.theme-premium .tables-grid { position: relative !important; z-index: 1 !important; }
+
+/* FILTERS / DROPDOWNS / COUNTERS */
+body.theme-premium .unified-bar { position: relative !important; z-index: 2500 !important; overflow: visible !important; }
+body.theme-premium .left-controls { position: relative !important; z-index: 2600 !important; overflow: visible !important; }
+body.theme-premium .zone-dropdown { position: relative !important; z-index: 2700 !important; }
+
+body.theme-premium .zone-dropdown-btn {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.045) !important;
+  color: #111827 !important;
 }
+body.theme-premium .zone-dropdown-btn:hover { border-color: rgba(198, 146, 58, 0.48) !important; }
+
+body.theme-premium .zone-dropdown-menu {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.14) !important;
+  z-index: 2800 !important;
+}
+
+body.theme-premium .zone-item-menu:hover,
+body.theme-premium .zone-item:hover { background: rgba(6, 55, 46, 0.055) !important; }
 
 body.theme-premium .stat-item {
-  background: rgba(6,55,46,0.06) !important;
-  border: 1px solid rgba(6,55,46,0.08);
-  color: #22332E !important;
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.05) !important;
+  color: #111827 !important;
+  font-weight: 700 !important;
 }
 
-/* Buttons and hard-coded red overrides */
-body.theme-premium .settings-save,
-body.theme-premium .login-btn,
-body.theme-premium .alert-button,
-body.theme-premium .assign-auto-btn,
-body.theme-premium .tab-btn.active,
-body.theme-premium #tabQueueBtn,
-body.theme-premium #tabExpiredBtn[style*="#8B0000"],
-body.theme-premium #addTableBtn,
-body.theme-premium [style*="#8B0000"] {
-  background: linear-gradient(135deg, #06372E, #0B6B58) !important;
-  color: #fff !important;
+/* QUEUE PANEL */
+body.theme-premium .waiting-title { color: #111827 !important; font-weight: 800 !important; }
+
+body.theme-premium .waiting-actions .icon-btn {
+  border-radius: 12px !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  background: #F3F5F4 !important;
+  color: #111827 !important;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.045) !important;
+}
+body.theme-premium .waiting-actions .icon-btn:hover {
+  background: #FFFFFF !important;
+  border-color: rgba(198, 146, 58, 0.42) !important;
 }
 
-body.theme-premium .login-btn:hover,
-body.theme-premium .alert-button:hover,
-body.theme-premium .assign-auto-btn:hover,
-body.theme-premium .settings-save:hover {
-  background: linear-gradient(135deg, #031F1A, #075244) !important;
+body.theme-premium .assign-auto-btn {
+  background: linear-gradient(135deg, #06372E, #0A4B3D) !important;
+  color: #FFFFFF !important;
+}
+body.theme-premium .assign-auto-btn i { color: #FFFFFF !important; }
+
+body.theme-premium #tabQueueBtn {
+  background: linear-gradient(135deg, #06372E, #0A4B3D) !important;
+  color: #FFFFFF !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 18px rgba(6, 55, 46, 0.18) !important;
 }
 
-body.theme-premium .queue-number-badge,
+body.theme-premium #tabExpiredBtn {
+  background: #E5E3DD !important;
+  color: #111827 !important;
+  border-radius: 12px !important;
+}
+
+body.theme-premium #waitingCount,
 body.theme-premium .waiting-badge-count {
-  background: #06372E !important;
-  color: #fff !important;
-}
-
-body.theme-premium .tab-btn.active .waiting-badge-count,
-body.theme-premium #waitingCount {
-  background: #fff !important;
+  background: #FFFFFF !important;
   color: #06372E !important;
+  font-weight: 900 !important;
 }
 
-/* Table cards */
-body.theme-premium .table-card {
-  background: rgba(255, 252, 246, 0.96) !important;
-  border: 1px solid rgba(6,55,46,0.14) !important;
-  box-shadow: 0 12px 28px rgba(3,31,26,0.10) !important;
-  border-radius: 16px !important;
-}
-
-body.theme-premium .table-card:hover {
-  transform: translateY(-4px) !important;
-  box-shadow: 0 20px 46px rgba(3,31,26,0.16) !important;
-}
-
-body.theme-premium .table-card.match {
-  box-shadow: 0 0 0 3px rgba(21,154,114,0.9), 0 18px 46px rgba(21,154,114,0.25) !important;
-}
-
-body.theme-premium .table-status-bar.available { background: linear-gradient(135deg, #159A72, #0B6B58) !important; }
-body.theme-premium .table-status-bar.occupied { background: linear-gradient(135deg, #7A1E22, #4B1113) !important; }
-body.theme-premium .table-status-bar.reserved { background: linear-gradient(135deg, #C6923A, #E5BD68) !important; }
-body.theme-premium .table-status-bar.cleaning { background: linear-gradient(135deg, #2563EB, #1D4ED8) !important; }
-body.theme-premium .table-status-bar.disabled { background: linear-gradient(135deg, #6B7280, #374151) !important; }
-body.theme-premium .table-status-bar.pending { background: linear-gradient(135deg, #7C3AED, #5B21B6) !important; }
-
-body.theme-premium .table-timer {
-  color: #7A1E22 !important;
-}
-
-/* Queue cards */
 body.theme-premium .waiting-card,
 body.theme-premium .expired-card {
-  background: rgba(255, 252, 246, 0.96) !important;
-  border: 1px solid rgba(6,55,46,0.12) !important;
-  box-shadow: 0 10px 26px rgba(3,31,26,0.07) !important;
-  border-radius: 16px !important;
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.055) !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease !important;
+}
+
+body.theme-premium .waiting-card:hover,
+body.theme-premium .expired-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(6, 55, 46, 0.28) !important;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.075) !important;
 }
 
 body.theme-premium .waiting-card.ready {
-  background: linear-gradient(135deg, rgba(21,154,114,0.18), rgba(255,252,246,0.96)) !important;
-  border-color: rgba(21,154,114,0.62) !important;
+  background: linear-gradient(135deg, rgba(21, 154, 114, 0.13), #FFFFFF 58%) !important;
+  border-color: rgba(21, 154, 114, 0.55) !important;
 }
-
 body.theme-premium .waiting-card.selected {
-  background: rgba(229, 189, 104, 0.18) !important;
-  border-color: #C6923A !important;
+  background: linear-gradient(135deg, rgba(198, 146, 58, 0.16), #FFFFFF 60%) !important;
+  border-color: var(--premium-gold) !important;
 }
 
+body.theme-premium .customer-name-part { color: #111827 !important; font-weight: 800 !important; }
 body.theme-premium .source-badge {
-  background: rgba(6,55,46,0.08) !important;
+  background: rgba(6, 55, 46, 0.075) !important;
   color: #06372E !important;
+  border: 1px solid rgba(6, 55, 46, 0.08) !important;
+}
+body.theme-premium .queue-number-badge {
+  background: #06372E !important;
+  color: #FFFFFF !important;
+  font-weight: 800 !important;
+}
+body.theme-premium .waiting-divider { border-top-color: rgba(0, 0, 0, 0.10) !important; }
+body.theme-premium .waiting-row-bottom { color: #5C574F !important; font-weight: 600 !important; }
+
+body.theme-premium #waitingList:empty::before,
+body.theme-premium #expiredList:empty::before {
+  content: "لا يوجد طلبات انتظار حالياً";
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #6F6A60;
+  font-weight: 800;
+  font-size: 16px;
+  opacity: 0.78;
+}
+body.theme-premium #expiredList:empty::before { content: "لا توجد طلبات منتهية حالياً"; }
+
+/* BUTTONS / FORMS / RED OVERRIDES */
+body.theme-premium .settings-save,
+body.theme-premium .login-btn,
+body.theme-premium .alert-button,
+body.theme-premium #addTableBtn,
+body.theme-premium [style*="#8B0000"] {
+  background: linear-gradient(135deg, #06372E, #0A4B3D) !important;
+  color: #FFFFFF !important;
 }
 
-body.theme-premium .restore-btn {
-  background: rgba(21,154,114,0.12) !important;
-  color: #0B6B58 !important;
-}
-
-body.theme-premium .delete-request-btn {
-  background: rgba(180,35,24,0.10) !important;
-  color: #B42318 !important;
-}
-
-/* Modals and inputs */
-body.theme-premium .modal-backdrop,
-body.theme-premium .settings-backdrop,
-body.theme-premium .alert-overlay {
-  background: rgba(3,31,26,0.62) !important;
-  backdrop-filter: blur(8px) !important;
-}
-
-body.theme-premium .modal-title {
-  color: #06372E !important;
+body.theme-premium .settings-save:hover,
+body.theme-premium .login-btn:hover,
+body.theme-premium .alert-button:hover {
+  background: linear-gradient(135deg, #021914, #06372E) !important;
 }
 
 body.theme-premium .walkin-input,
@@ -279,584 +301,78 @@ body.theme-premium .phone-prefix,
 body.theme-premium .guest-input,
 body.theme-premium .toggle-btn,
 body.theme-premium .step-btn {
-  background: rgba(255,255,255,0.72) !important;
-  border-color: rgba(6,55,46,0.14) !important;
+  background: #FFFFFF !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
 }
 
 body.theme-premium .walkin-input:focus,
 body.theme-premium .login-input:focus {
-  border-color: #C6923A !important;
-  box-shadow: 0 0 0 4px rgba(198,146,58,0.14) !important;
+  border-color: var(--premium-gold) !important;
+  box-shadow: 0 0 0 4px rgba(198, 146, 58, 0.14) !important;
 }
 
 body.theme-premium .toggle-btn.active {
-  background: linear-gradient(135deg, #06372E, #0B6B58) !important;
-  color: #fff !important;
+  background: linear-gradient(135deg, #06372E, #0A4B3D) !important;
+  color: #FFFFFF !important;
 }
 
-/* Login */
-body.theme-premium .login-overlay {
-  background:
-    linear-gradient(135deg, rgba(3,31,26,0.86), rgba(6,55,46,0.68)),
-    url('https://zjdfadkonftkgljvzxoy.supabase.co/storage/v1/object/public/background%20loging%20image/geometric_abstract_background_with_connected_dots_and_lines.jpg') center/cover no-repeat !important;
-}
-
-body.theme-premium .login-overlay::before {
-  background:
-    radial-gradient(circle at 22% 18%, rgba(229,189,104,0.25), transparent 32%),
-    rgba(0,0,0,0.38) !important;
-}
-
-body.theme-premium .login-card {
-  background: rgba(255,252,246,0.94) !important;
-  border: 1px solid rgba(229,189,104,0.22) !important;
-  box-shadow: 0 30px 90px rgba(0,0,0,0.32) !important;
-  backdrop-filter: blur(22px) !important;
-}
-
-body.theme-premium .login-logo {
-  background: linear-gradient(135deg, #06372E, #0B6B58) !important;
-  box-shadow: 0 14px 36px rgba(3,31,26,0.24), inset 0 0 0 1px rgba(229,189,104,0.28);
-}
-
-body.theme-premium .login-logo i {
-  color: #E5BD68 !important;
-}
-
-/* Notifications */
-body.theme-premium .toast-notification,
-body.theme-premium .custom-alert {
-  background: rgba(255,252,246,0.96) !important;
-  border: 1px solid rgba(6,55,46,0.12) !important;
-  box-shadow: 0 24px 70px rgba(3,31,26,0.22) !important;
-}
-
-body.theme-premium .spinner-circle {
-  border-top-color: #06372E !important;
-}
-
-body.theme-premium .restaurant-icon {
-  background: linear-gradient(135deg, #06372E, #0B6B58) !important;
-}
-
-body.theme-premium .alert-header {
-  background: linear-gradient(135deg, #06372E, #0B6B58) !important;
-}
-
-/* Dropdowns */
-body.theme-premium .zone-item-menu:hover,
-body.theme-premium .zone-item:hover {
-  background: rgba(6,55,46,0.07) !important;
-}
-
-/* Optional theme switcher button injected by script */
-.easyq-theme-switcher {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 10050;
-  border: 0;
-  border-radius: 999px;
-  padding: 11px 16px;
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 13px;
-  background: linear-gradient(135deg, #06372E, #0B6B58);
-  color: #fff;
-  box-shadow: 0 14px 34px rgba(3,31,26,0.24);
-}
-
-.easyq-theme-switcher.is-red {
-  background: linear-gradient(135deg, #8B0000, #5C0000);
-}
-
-@media (max-width: 768px) {
-  .easyq-theme-switcher {
-    right: 12px;
-    bottom: 12px;
-    padding: 10px 13px;
-    font-size: 12px;
-  }
-}
-
-/* إصلاح ظهور قوائم الطوابق والمناطق فوق لوحة الطاولات */
-body.theme-premium .unified-bar {
-  position: relative !important;
-  z-index: 3000 !important;
-  overflow: visible !important;
-}
-
-body.theme-premium .left-controls {
-  position: relative !important;
-  z-index: 3100 !important;
-  overflow: visible !important;
-}
-
-body.theme-premium .zone-dropdown {
-  position: relative !important;
-  z-index: 3200 !important;
-}
-
-body.theme-premium .zone-dropdown-menu {
-  z-index: 9999 !important;
-}
-
-body.theme-premium .main-content {
-  overflow: visible !important;
-}
-
-body.theme-premium .tables-grid {
-  position: relative !important;
-  z-index: 1 !important;
-}
-
-/* ============================================================
-   PREMIUM THEME V2 - أقوى وأوضح بدون لمس منطق النظام
-============================================================ */
-
-body.theme-premium {
-  --primary: #06372E;
-  --primary-dark: #021B16;
-  --primary-light: #E7F1ED;
-
-  --premium-green: #06372E;
-  --premium-green-2: #0E5C4A;
-  --premium-gold: #C6923A;
-  --premium-cream: #F4EFE4;
-
-  --card-bg: #FFFDF8;
-  --border-color: rgba(6, 55, 46, 0.16);
-  --text-primary: #10231E;
-  --sidebar-bg: #021B16;
-}
-
-/* الخلفية العامة: أقل نعومة وأكثر احترافية */
-body.theme-premium {
-  background:
-    radial-gradient(circle at top left, rgba(198,146,58,0.10), transparent 30%),
-    linear-gradient(135deg, #F4EFE4 0%, #E9EFE9 100%) !important;
-}
-
-body.theme-premium::before {
-  opacity: 0.22 !important;
-  background-image: radial-gradient(rgba(6,55,46,0.18) 1px, transparent 1px) !important;
-}
-
-/* الهيدر: أعمق وأكثر قوة */
-body.theme-premium .topbar {
-  background: linear-gradient(135deg, #021B16 0%, #06372E 55%, #0E5C4A 100%) !important;
-  border-bottom: 1px solid rgba(198,146,58,0.28) !important;
-  box-shadow: 0 10px 28px rgba(2,27,22,0.28) !important;
-}
-
-/* الأزرار العلوية */
-body.theme-premium .theme-toggle,
-body.theme-premium .lang-toggle-btn,
-body.theme-premium .sidebar-toggle {
-  background: rgba(255,255,255,0.13) !important;
-  border: 1px solid rgba(255,255,255,0.18) !important;
-  border-radius: 12px !important;
-}
-
-body.theme-premium .theme-toggle:hover,
-body.theme-premium .lang-toggle-btn:hover,
-body.theme-premium .sidebar-toggle:hover {
-  background: rgba(255,255,255,0.24) !important;
-  transform: translateY(-1px);
-}
-
-/* زر الثيم عند التفعيل */
-body.theme-premium #premiumThemeToggle.active {
-  background: linear-gradient(135deg, #C6923A, #E5BD68) !important;
-  color: #10231E !important;
-}
-
-/* البطاقات والحاويات: حواف أقل نعومة وحدود أوضح */
-body.theme-premium .unified-bar,
-body.theme-premium .waiting-header-standalone,
-body.theme-premium .waiting-sidebar,
-body.theme-premium .tables-grid,
-body.theme-premium .modal,
-body.theme-premium .settings-modal {
-  border-radius: 16px !important;
-  border: 1px solid rgba(6,55,46,0.16) !important;
-  box-shadow: 0 12px 30px rgba(6,55,46,0.08) !important;
-}
-
-/* اللوحة اليمنى */
-body.theme-premium .right-panel-container .waiting-sidebar {
-  background: #FFFDF8 !important;
-}
-
-/* القوائم المنسدلة */
-body.theme-premium .zone-dropdown-btn {
-  border-radius: 12px !important;
-  border: 1px solid rgba(6,55,46,0.18) !important;
-  background: #FFFDF8 !important;
-  box-shadow: 0 6px 16px rgba(6,55,46,0.06) !important;
-}
-
-body.theme-premium .zone-dropdown-btn:hover {
-  border-color: rgba(198,146,58,0.45) !important;
-}
-
-/* القائمة المنسدلة فوق الجميع */
-body.theme-premium .unified-bar {
-  position: relative !important;
-  z-index: 3000 !important;
-  overflow: visible !important;
-}
-
-body.theme-premium .left-controls {
-  position: relative !important;
-  z-index: 3100 !important;
-  overflow: visible !important;
-}
-
-body.theme-premium .zone-dropdown {
-  position: relative !important;
-  z-index: 3200 !important;
-}
-
-body.theme-premium .zone-dropdown-menu {
-  z-index: 9999 !important;
-  border-radius: 14px !important;
-  border: 1px solid rgba(6,55,46,0.18) !important;
-  box-shadow: 0 18px 42px rgba(6,55,46,0.18) !important;
-}
-
-/* أزرار التبويب: وضوح أعلى */
-body.theme-premium #tabQueueBtn {
-  background: linear-gradient(135deg, #06372E, #0E5C4A) !important;
-  color: #fff !important;
-  border-radius: 12px !important;
-}
-
-body.theme-premium #tabExpiredBtn {
-  background: #DFDED8 !important;
-  color: #1F2E2A !important;
-  border-radius: 12px !important;
-}
-
-/* أزرار العمليات */
-body.theme-premium .assign-auto-btn,
-body.theme-premium .settings-save,
-body.theme-premium .login-btn {
-  background: linear-gradient(135deg, #06372E, #0E5C4A) !important;
-  color: white !important;
-  box-shadow: 0 10px 22px rgba(6,55,46,0.22) !important;
-}
-
-body.theme-premium .icon-btn {
-  border-radius: 12px !important;
-  border: 1px solid rgba(6,55,46,0.10) !important;
-}
-
-/* السايدبار */
-body.theme-premium .sidebar {
-  background: linear-gradient(180deg, #021B16 0%, #06372E 100%) !important;
-  border-right: 1px solid rgba(198,146,58,0.25) !important;
-}
-
-body.theme-premium .main-menu-item,
-body.theme-premium .sub-menu-item,
-body.theme-premium .menu-item {
-  border-radius: 12px !important;
-}
-
-body.theme-premium .main-menu-item:hover,
-body.theme-premium .sub-menu-item:hover,
-body.theme-premium .menu-item:hover {
-  background: rgba(255,255,255,0.12) !important;
-}
-
-body.theme-premium .main-menu-item.active,
-body.theme-premium .sub-menu-item.active,
-body.theme-premium .menu-item.active {
-  background: linear-gradient(135deg, #C6923A, #E5BD68) !important;
-  color: #10231E !important;
-}
-
-body.theme-premium .main-menu-item.active i,
-body.theme-premium .sub-menu-item.active i,
-body.theme-premium .menu-item.active i {
-  color: #10231E !important;
-}
-
-/* العدادات العلوية */
-body.theme-premium .stat-item {
-  background: rgba(255,255,255,0.75) !important;
-  border: 1px solid rgba(6,55,46,0.12) !important;
-  box-shadow: 0 6px 14px rgba(6,55,46,0.06) !important;
-  font-weight: 700 !important;
-}
-
-/* تسجيل الدخول */
-body.theme-premium .login-card {
-  border-radius: 22px !important;
-  border: 1px solid rgba(198,146,58,0.28) !important;
-  box-shadow: 0 28px 70px rgba(0,0,0,0.28) !important;
-}
-
-body.theme-premium .login-logo {
-  background: linear-gradient(135deg, #06372E, #0E5C4A) !important;
-  border: 1px solid rgba(198,146,58,0.45) !important;
-}
-
-/* إصلاح أولوية السايدبار فوق جميع عناصر الصفحة */
-body.theme-premium .sidebar {
-  z-index: 12000 !important;
-}
-
-body.theme-premium .sidebar.open {
-  z-index: 12000 !important;
-}
-
-body.theme-premium .topbar {
-  z-index: 13000 !important;
-}
-
-/* إبقاء القوائم المنسدلة فوق الطاولات لكن تحت السايدبار */
-body.theme-premium .unified-bar {
-  z-index: 2500 !important;
-}
-
-body.theme-premium .left-controls {
-  z-index: 2600 !important;
-}
-
-body.theme-premium .zone-dropdown {
-  z-index: 2700 !important;
-}
-
-body.theme-premium .zone-dropdown-menu {
-  z-index: 2800 !important;
-}
-
-/* ============================================================
-   PREMIUM SHARPNESS STEP 1
-   زيادة الأبيض والحدة بدون لمس الطاولات أو الحالات
-============================================================ */
-
-/* خلفية عامة أنظف وأقل طحلبية */
-body.theme-premium {
-  background:
-    linear-gradient(135deg, #F7F7F4 0%, #ECEFEA 100%) !important;
-}
-
-/* جعل شريط التحكم العلوي أبيض أوضح */
-body.theme-premium .unified-bar {
-  background: #FFFFFF !important;
-  border: 1px solid rgba(0, 0, 0, 0.10) !important;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.06) !important;
-}
-
-/* جعل منطقة الفلور أكثر بياضًا ووضوحًا */
-body.theme-premium .tables-grid {
-  background: #FFFFFF !important;
-  border: 1px solid rgba(0, 0, 0, 0.11) !important;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.055) !important;
-}
-
-/* جعل لوحة الانتظار بيضاء أوضح */
-body.theme-premium .waiting-sidebar,
-body.theme-premium .waiting-header-standalone {
-  background: #FFFFFF !important;
-  border: 1px solid rgba(0, 0, 0, 0.11) !important;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.055) !important;
-}
-
-/* تقوية النصوص */
-body.theme-premium {
-  --text-primary: #111827;
-}
-
-body.theme-premium .waiting-title,
-body.theme-premium .brand-text,
-body.theme-premium .table-info .table-name,
-body.theme-premium .customer-name-part {
-  color: #111827 !important;
-}
-
-/* تقليل النعومة الزائدة في الحواف */
-body.theme-premium .unified-bar,
-body.theme-premium .tables-grid,
-body.theme-premium .waiting-sidebar,
-body.theme-premium .waiting-header-standalone {
-  border-radius: 14px !important;
-}
-
-/* ============================================================
-   PREMIUM SHARPNESS STEP 2
-   تقليل الطحلبية وزيادة الاحترافية والحدة
-============================================================ */
-
-/* الهيدر: أعمق وأقل خضار مبالغ */
-body.theme-premium .topbar {
-  background:
-    linear-gradient(
-      135deg,
-      #021914 0%,
-      #04271F 45%,
-      #0A4B3D 100%
-    ) !important;
-
-  border-bottom: 1px solid rgba(198,146,58,0.22) !important;
-
-  box-shadow:
-    0 10px 28px rgba(0,0,0,0.22) !important;
-}
-
-/* تقوية الأبيض داخل الهيدر */
-body.theme-premium .topbar * {
-  color: #FFFFFF;
-}
-
-/* جعل الأزرار العلوية أكثر حدة */
-body.theme-premium .theme-toggle,
-body.theme-premium .lang-toggle-btn,
-body.theme-premium .sidebar-toggle {
-  background: rgba(255,255,255,0.10) !important;
-
-  border: 1px solid rgba(255,255,255,0.18) !important;
-
-  border-radius: 12px !important;
-
-  backdrop-filter: none !important;
-}
-
-/* الهوفر */
-body.theme-premium .theme-toggle:hover,
-body.theme-premium .lang-toggle-btn:hover,
-body.theme-premium .sidebar-toggle:hover {
-  background: rgba(255,255,255,0.18) !important;
-
-  border-color: rgba(198,146,58,0.45) !important;
-
-  transform: translateY(-1px);
-}
-
-/* الذهبي يظهر بشكل أقوى */
-body.theme-premium #premiumThemeToggle.active {
-  background:
-    linear-gradient(
-      135deg,
-      #C6923A 0%,
-      #E2BC67 100%
-    ) !important;
-
-  color: #111111 !important;
-
-  border-color: rgba(255,255,255,0.25) !important;
-
-  box-shadow:
-    0 6px 18px rgba(198,146,58,0.28) !important;
-}
-
-/* السايدبار أقل طحلبية وأكثر احتراف */
-body.theme-premium .sidebar {
-  background:
-    linear-gradient(
-      180deg,
-      #01130F 0%,
-      #04271F 100%
-    ) !important;
-
-  border-right:
-    1px solid rgba(198,146,58,0.18) !important;
-}
-
-/* عناصر القائمة */
-body.theme-premium .main-menu-item,
-body.theme-premium .sub-menu-item,
-body.theme-premium .menu-item {
-
-  border-radius: 12px !important;
-
-  transition:
-    background 0.2s ease,
-    transform 0.15s ease,
-    border-color 0.2s ease !important;
-}
-
-/* Hover */
-body.theme-premium .main-menu-item:hover,
-body.theme-premium .sub-menu-item:hover,
-body.theme-premium .menu-item:hover {
-
-  background: rgba(255,255,255,0.08) !important;
-
-  border: 1px solid rgba(255,255,255,0.06) !important;
-}
-
-/* Active state أقوى */
-body.theme-premium .main-menu-item.active,
-body.theme-premium .sub-menu-item.active,
-body.theme-premium .menu-item.active {
-
-  background:
-    linear-gradient(
-      135deg,
-      #C6923A 0%,
-      #E2BC67 100%
-    ) !important;
-
-  color: #111111 !important;
-
-  box-shadow:
-    0 8px 20px rgba(198,146,58,0.22) !important;
-}
-
-/* النصوص السوداء الحقيقية */
-body.theme-premium .brand-text,
-body.theme-premium .waiting-title,
-body.theme-premium .zone-dropdown-btn,
-body.theme-premium .customer-name-part {
-
-  color: #111111 !important;
-}
-
-/* إزالة النعومة الزائدة */
-body.theme-premium .waiting-sidebar,
-body.theme-premium .tables-grid,
-body.theme-premium .unified-bar {
-
-  backdrop-filter: none !important;
-}
-
-/* الحواف أوضح */
-body.theme-premium .waiting-sidebar,
-body.theme-premium .tables-grid,
-body.theme-premium .unified-bar,
-body.theme-premium .zone-dropdown-btn {
-
-  border:
-    1px solid rgba(0,0,0,0.10) !important;
-}
-
-/* تحسين الفراغات */
-body.theme-premium .main-content {
-  gap: 16px !important;
-}
-
-/* إصلاح ظهور المودالات فوق شريط الفلاتر والعدادات */
+/* MODALS / ALERTS */
 body.theme-premium .modal-backdrop,
-body.theme-premium .settings-backdrop {
+body.theme-premium .settings-backdrop,
+body.theme-premium .alert-overlay {
+  background: rgba(3, 31, 26, 0.58) !important;
+  backdrop-filter: blur(4px) !important;
   z-index: 50000 !important;
 }
 
+body.theme-premium .modal-backdrop.show,
+body.theme-premium .settings-backdrop.show {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: 70px !important;
+}
+
 body.theme-premium .modal,
-body.theme-premium .settings-modal {
+body.theme-premium .settings-modal,
+body.theme-premium .custom-alert,
+body.theme-premium .toast-notification {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--shadow-strong) !important;
+  backdrop-filter: none !important;
   position: relative !important;
   z-index: 50001 !important;
 }
 
-/* عند وجود مودال، لا يسمح لشريط الفلاتر بالظهور فوقه */
-body.theme-premium .unified-bar {
-  z-index: 2500 !important;
+body.theme-premium .modal-title { color: #06372E !important; font-weight: 900 !important; }
+body.theme-premium .alert-header { background: linear-gradient(135deg, #06372E, #0A4B3D) !important; }
+body.theme-premium .spinner-circle { border-top-color: #06372E !important; }
+body.theme-premium .restaurant-icon,
+body.theme-premium .login-logo { background: linear-gradient(135deg, #06372E, #0A4B3D) !important; }
+body.theme-premium .login-logo i { color: var(--premium-gold-light) !important; }
+
+/* LOGIN */
+body.theme-premium .login-overlay {
+  background: linear-gradient(135deg, rgba(3, 31, 26, 0.86), rgba(6, 55, 46, 0.68)), url('https://zjdfadkonftkgljvzxoy.supabase.co/storage/v1/object/public/background%20loging%20image/geometric_abstract_background_with_connected_dots_and_lines.jpg') center/cover no-repeat !important;
+}
+body.theme-premium .login-overlay::before {
+  background: radial-gradient(circle at 22% 18%, rgba(229, 189, 104, 0.25), transparent 32%), rgba(0, 0, 0, 0.38) !important;
+}
+body.theme-premium .login-card {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(198, 146, 58, 0.26) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32) !important;
+  backdrop-filter: none !important;
 }
 
-body.theme-premium .zone-dropdown,
-body.theme-premium .zone-dropdown-menu {
-  z-index: 3000 !important;
+@media (max-width: 768px) {
+  body.theme-premium .modal-backdrop.show,
+  body.theme-premium .settings-backdrop.show { padding-top: 58px !important; }
+  body.theme-premium .waiting-sidebar,
+  body.theme-premium .tables-grid,
+  body.theme-premium .unified-bar,
+  body.theme-premium .waiting-header-standalone { border-radius: 12px !important; }
 }
