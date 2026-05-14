@@ -378,3 +378,34 @@ body.theme-premium .zone-item:hover {
     font-size: 12px;
   }
 }
+
+/* إصلاح ظهور قوائم الطوابق والمناطق فوق لوحة الطاولات */
+body.theme-premium .unified-bar {
+  position: relative !important;
+  z-index: 3000 !important;
+  overflow: visible !important;
+}
+
+body.theme-premium .left-controls {
+  position: relative !important;
+  z-index: 3100 !important;
+  overflow: visible !important;
+}
+
+body.theme-premium .zone-dropdown {
+  position: relative !important;
+  z-index: 3200 !important;
+}
+
+body.theme-premium .zone-dropdown-menu {
+  z-index: 9999 !important;
+}
+
+body.theme-premium .main-content {
+  overflow: visible !important;
+}
+
+body.theme-premium .tables-grid {
+  position: relative !important;
+  z-index: 1 !important;
+}
