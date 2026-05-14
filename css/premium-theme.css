@@ -144,7 +144,13 @@ body.theme-premium .sidebar-divider { background: rgba(198, 146, 58, 0.18) !impo
 
 /* MAIN LAYOUT PANELS - does not alter table cards/status colors */
 body.theme-premium .app-container { gap: 16px !important; }
-body.theme-premium .main-content { gap: 16px !important; overflow: visible !important; }
+body.theme-premium .main-content {
+  gap: 16px !important;
+
+  overflow: visible !important;
+
+  align-items: stretch !important;
+}
 body.theme-premium .right-panel-container { gap: 16px !important; }
 
 body.theme-premium .unified-bar,
@@ -159,7 +165,17 @@ body.theme-premium .waiting-sidebar {
 }
 
 body.theme-premium .waiting-header-standalone { min-height: 55px !important; }
-body.theme-premium .waiting-sidebar { min-height: 400px !important; padding: 16px !important; }
+body.theme-premium .waiting-sidebar {
+  height: 100% !important;
+
+  min-height: unset !important;
+
+  padding: 16px !important;
+
+  display: flex !important;
+
+  flex-direction: column !important;
+}
 body.theme-premium .tables-grid { position: relative !important; z-index: 1 !important; }
 
 /* FILTERS / DROPDOWNS / COUNTERS */
