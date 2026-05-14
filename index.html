@@ -98,24 +98,166 @@
 </head>
 <body>
 
-<!-- شاشة تسجيل الدخول -->
-<div class="login-overlay" id="loginOverlay">
-  <div class="login-card">
-    <div class="login-logo">
-      <i class="fas fa-utensils"></i>
+<!-- =========================================================
+     PREMIUM LOGIN SCREEN
+========================================================= -->
+<div class="login-overlay premium-login-overlay" id="loginOverlay">
+
+  <!-- LEFT SIDE -->
+  <div class="premium-login-left">
+
+    <div class="premium-login-brand">
+      <div class="premium-brand-icon">
+        <i class="fas fa-utensils"></i>
+      </div>
+
+      <div>
+        <div class="premium-brand-title">EASY-Q</div>
+        <div class="premium-brand-sub">
+          Smart Restaurant Queue System
+        </div>
+      </div>
     </div>
-    <div class="login-title">EASY-Q</div>
-    <div class="login-sub">نظام إدارة طاولات المطاعم</div>
-    <input type="text" class="login-input" id="loginUsername" placeholder="اسم المستخدم" autocomplete="username">
-    <div style="position: relative; width: 100%;">
-      <input type="password" class="login-input" id="loginPassword" placeholder="كلمة المرور" autocomplete="current-password" style="padding-left: 14px; padding-right: 44px;">
-      <button type="button" onclick="togglePassword()" style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--gray-500); font-size: 18px; cursor: pointer; padding: 10px;">
-        <i class="fas fa-eye" id="eyeIcon"></i>
-      </button>
+
+    <div class="premium-login-hero">
+
+      <div class="premium-login-badge">
+        منصة ذكية لإدارة انتظار العملاء والطاولات
+      </div>
+
+      <h1 class="premium-login-heading">
+        تجربة احترافية
+        <br>
+        لتنظيم المطاعم والكافيهات
+      </h1>
+
+      <p class="premium-login-description">
+        إدارة الطوابير، الطاولات، الحجوزات والتنبيهات
+        في واجهة سريعة وحديثة مصممة للمطاعم الحديثة.
+      </p>
+
+      <div class="premium-login-stats">
+
+        <div class="premium-stat-card">
+          <div class="premium-stat-number">⚡</div>
+          <div class="premium-stat-label">Realtime</div>
+        </div>
+
+        <div class="premium-stat-card">
+          <div class="premium-stat-number">24/7</div>
+          <div class="premium-stat-label">Cloud System</div>
+        </div>
+
+        <div class="premium-stat-card">
+          <div class="premium-stat-number">∞</div>
+          <div class="premium-stat-label">Multi Branch</div>
+        </div>
+
+      </div>
+
     </div>
-    <button class="login-btn" onclick="doLogin()">تسجيل الدخول</button>
-    <div class="login-error" id="loginError">اسم المستخدم أو كلمة المرور غير صحيحة</div>
+
   </div>
+
+  <!-- RIGHT SIDE -->
+  <div class="premium-login-right">
+
+    <div class="premium-login-card">
+
+      <div class="premium-login-card-header">
+        <h2>تسجيل الدخول</h2>
+        <p>
+          قم بتسجيل الدخول للوصول إلى لوحة التحكم
+        </p>
+      </div>
+
+      <div class="premium-form-group">
+        <label>البريد الإلكتروني</label>
+
+        <div class="premium-input-wrap">
+          <i class="fas fa-envelope"></i>
+
+          <input
+            type="text"
+            class="premium-login-input"
+            id="loginUsername"
+            placeholder="name@restaurant.com"
+            autocomplete="username"
+          >
+        </div>
+      </div>
+
+      <div class="premium-form-group">
+        <label>كلمة المرور</label>
+
+        <div class="premium-input-wrap">
+
+          <i class="fas fa-lock"></i>
+
+          <input
+            type="password"
+            class="premium-login-input"
+            id="loginPassword"
+            placeholder="••••••••"
+            autocomplete="current-password"
+          >
+
+          <button
+            type="button"
+            class="premium-password-toggle"
+            onclick="togglePassword()"
+          >
+            <i class="fas fa-eye" id="eyeIcon"></i>
+          </button>
+
+        </div>
+      </div>
+
+      <div class="premium-login-options">
+
+        <label class="premium-remember">
+
+          <input type="checkbox" id="rememberLogin">
+
+          <span>تذكرني</span>
+
+        </label>
+
+        <button
+          class="premium-link-btn"
+          onclick="openForgotPasswordModal()"
+        >
+          نسيت كلمة المرور؟
+        </button>
+
+      </div>
+
+      <button
+        class="premium-login-btn"
+        onclick="doLogin()"
+      >
+        تسجيل الدخول
+      </button>
+
+      <div class="login-error" id="loginError">
+        البريد الإلكتروني أو كلمة المرور غير صحيحة
+      </div>
+
+      <div class="premium-login-divider">
+        <span>أو</span>
+      </div>
+
+      <button
+        class="premium-register-btn"
+        onclick="openRegisterBusinessModal()"
+      >
+        إنشاء مطعم جديد
+      </button>
+
+    </div>
+
+  </div>
+
 </div>
 
 <!-- Top Bar -->
