@@ -76,18 +76,29 @@ body.theme-premium .brand-icon i { color: var(--premium-gold-light) !important; 
 
 body.theme-premium .theme-toggle:hover,
 body.theme-premium .lang-toggle-btn:hover,
-body.theme-premium .sidebar-toggle:hover {
+body.theme-premium .sidebar-toggle:hover,
+body.theme-premium #premiumThemeToggle:hover {
   background: rgba(255, 255, 255, 0.18) !important;
   border-color: rgba(198, 146, 58, 0.45) !important;
   transform: translateY(-1px);
 }
 
-body.theme-premium #premiumThemeToggle.active {
-  background: linear-gradient(135deg, var(--premium-gold), var(--premium-gold-light)) !important;
-  color: #111111 !important;
-  box-shadow: 0 6px 18px rgba(198, 146, 58, 0.28) !important;
+/* زر الثيم مثل زر اللغة والوضع الليلي */
+body.theme-premium #premiumThemeToggle {
+  background: rgba(255,255,255,0.10) !important;
+
+  border: 1px solid rgba(255,255,255,0.18) !important;
+
+  border-radius: 12px !important;
+
+  color: #FFFFFF !important;
+
+  box-shadow: none !important;
 }
-body.theme-premium #premiumThemeToggle.active i { color: #111111 !important; }
+
+body.theme-premium #premiumThemeToggle i {
+  color: #FFFFFF !important;
+}
 
 /* SIDEBAR */
 body.theme-premium .sidebar {
@@ -200,6 +211,7 @@ body.theme-premium .waiting-actions .icon-btn:hover {
 }
 
 body.theme-premium .assign-auto-btn {
+
   background:
     linear-gradient(
       135deg,
@@ -209,12 +221,12 @@ body.theme-premium .assign-auto-btn {
 
   color: #111111 !important;
 
-  border: 1px solid rgba(255,255,255,0.22) !important;
+  border: 1px solid rgba(0,0,0,0.10) !important;
 
   border-radius: 12px !important;
 
   box-shadow:
-    0 8px 20px rgba(198,146,58,0.24) !important;
+    0 10px 22px rgba(198,146,58,0.24) !important;
 
   font-weight: 800 !important;
 }
