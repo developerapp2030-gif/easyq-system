@@ -869,6 +869,10 @@ background-repeat: no-repeat;
   -ms-overflow-style: none;
 
   width: 100%;
+
+  margin-top: -8px;
+
+margin-bottom: 28px;
 }
 
 .premium-feature-list::-webkit-scrollbar {
@@ -1267,7 +1271,7 @@ box-shadow:
   padding:
     0 34px;
 
-  margin-top: 10px;
+  margin-top: 0;
   margin-bottom: 36px;
 
   border: none !important;
