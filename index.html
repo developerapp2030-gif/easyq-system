@@ -1612,32 +1612,43 @@ window.logError = logError;
 
 // تسجيل مطعم جديد - مودال
 function openRegisterModal() {
-  // إزالة أي مودال مفتوح مسبقاً
   closeRegisterModal()
   
-  // إخفاء مودال تسجيل الدخول (جعله غير مرئي ولكن يبقى في الخلفية)
-  const loginOverlay = document.getElementById('loginOverlay')
-  if (loginOverlay) {
-    loginOverlay.style.opacity = '0'
-    loginOverlay.style.pointerEvents = 'none'
-    loginOverlay.style.transition = 'opacity 0.3s ease'
+  // إخفاء محتوى النظام مع بقاء الخلفية
+  const appContainer = document.querySelector('.app-container')
+  const topbar = document.querySelector('.topbar')
+  if (appContainer) {
+    appContainer.style.visibility = 'hidden'
+    appContainer.style.opacity = '0'
+  }
+  if (topbar) {
+    topbar.style.visibility = 'hidden'
+    topbar.style.opacity = '0'
   }
   
+  // إخفاء مودال تسجيل الدخول
+  const loginOverlay = document.getElementById('loginOverlay')
+  if (loginOverlay) {
+    loginOverlay.style.visibility = 'hidden'
+    loginOverlay.style.opacity = '0'
+  }
+  
+  // إضافة طبقة خلفية بنفس صورة الثيم + تمويه
   const modalHtml = `
-    <div id="registerModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 100000; display: flex; align-items: center; justify-content: center;">
-      <div style="max-width: 500px; width: 90%; background: white; border-radius: 28px; padding: 32px 28px; box-shadow: 0 30px 60px rgba(0,0,0,0.4); direction: rtl; transform: scale(1); transition: all 0.3s ease;">
-        <div style="font-size: 26px; font-weight: 800; margin-bottom: 8px; text-align: center; color: #06372E;">تسجيل مطعم جديد</div>
+    <div id="registerModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(2,20,16,0.65), rgba(3,31,26,0.55), rgba(6,55,46,0.48)), url('../images/login-bg.jpg'); background-size: cover; background-position: center; z-index: 100000; display: flex; align-items: center; justify-content: center;">
+      <div style="max-width: 500px; width: 90%; background: white; border-radius: 32px; padding: 36px 28px; box-shadow: 0 30px 60px rgba(0,0,0,0.5); direction: rtl; transform: scale(1);">
+        <div style="font-size: 28px; font-weight: 800; margin-bottom: 8px; text-align: center; color: #06372E;">تسجيل مطعم جديد</div>
         <div style="color: #6B7280; margin-bottom: 28px; text-align: center; font-size: 14px;">أنشئ حساباً جديداً لمطعمك وابدأ إدارة طاولاتك</div>
         <div>
-          <input type="text" id="regBusinessName" placeholder="اسم المطعم" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; transition: all 0.2s;">
-          <input type="text" id="regDisplayName" placeholder="اسم المدير" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
-          <input type="email" id="regEmail" placeholder="البريد الإلكتروني" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
-          <input type="password" id="regPassword" placeholder="كلمة المرور (8 أحرف على الأقل)" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
-          <input type="tel" id="regPhone" placeholder="رقم الجوال (اختياري)" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
-          <input type="text" id="regCity" placeholder="المدينة (اختياري)" style="width: 100%; padding: 14px; margin-bottom: 24px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
+          <input type="text" id="regBusinessName" placeholder="اسم المطعم" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
+          <input type="text" id="regDisplayName" placeholder="اسم المدير" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
+          <input type="email" id="regEmail" placeholder="البريد الإلكتروني" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
+          <input type="password" id="regPassword" placeholder="كلمة المرور (8 أحرف على الأقل)" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
+          <input type="tel" id="regPhone" placeholder="رقم الجوال (اختياري)" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
+          <input type="text" id="regCity" placeholder="المدينة (اختياري)" style="width: 100%; padding: 14px; margin-bottom: 28px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
           <div style="display: flex; gap: 12px;">
-            <button onclick="submitRegistration()" style="flex: 1; background: linear-gradient(135deg, #06372E, #0A4B3D); color: white; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s;">تسجيل</button>
-            <button onclick="closeRegisterModal()" style="flex: 1; background: #F3F4F6; color: #1F2937; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s;">إلغاء</button>
+            <button onclick="submitRegistration()" style="flex: 1; background: linear-gradient(135deg, #06372E, #0A4B3D); color: white; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer;">تسجيل</button>
+            <button onclick="closeRegisterModal()" style="flex: 1; background: #F3F4F6; color: #1F2937; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer;">إلغاء</button>
           </div>
         </div>
       </div>
@@ -1650,11 +1661,23 @@ function closeRegisterModal() {
   const modal = document.getElementById('registerModal')
   if (modal) modal.remove()
   
-  // استعادة مودال تسجيل الدخول
+  // إظهار محتوى النظام مرة أخرى
+  const appContainer = document.querySelector('.app-container')
+  const topbar = document.querySelector('.topbar')
+  if (appContainer) {
+    appContainer.style.visibility = ''
+    appContainer.style.opacity = ''
+  }
+  if (topbar) {
+    topbar.style.visibility = ''
+    topbar.style.opacity = ''
+  }
+  
+  // إظهار مودال تسجيل الدخول
   const loginOverlay = document.getElementById('loginOverlay')
   if (loginOverlay) {
+    loginOverlay.style.visibility = ''
     loginOverlay.style.opacity = ''
-    loginOverlay.style.pointerEvents = ''
   }
 }
 
@@ -1667,14 +1690,17 @@ async function submitRegistration() {
   const city = document.getElementById('regCity')?.value.trim() || null
 
   if (!business_name || !display_name || !email || !password) {
-    alert('يرجى ملء جميع الحقول المطلوبة')
+    showNotification('يرجى ملء جميع الحقول المطلوبة', 'error')
     return
   }
 
   if (password.length < 8) {
-    alert('كلمة المرور يجب أن تكون 8 أحرف على الأقل')
+    showNotification('كلمة المرور يجب أن تكون 8 أحرف على الأقل', 'error')
     return
   }
+
+  // إظهار أيقونة التحميل
+  showNotification('جاري تسجيل المطعم...', 'loading')
 
   try {
     const { data, error } = await supabase.functions.invoke('register-business', {
@@ -1684,13 +1710,21 @@ async function submitRegistration() {
     if (error) throw error
     if (!data.success) throw new Error(data.message)
 
-    alert('✅ تم تسجيل المطعم بنجاح! يمكنك تسجيل الدخول الآن')
-    closeRegisterModal()
+    // إخفاء أي إشعار سابق
+    hideNotification()
     
-    const loginUsername = document.getElementById('loginUsername')
-    if (loginUsername) loginUsername.value = email
+    // إظهار أيقونة النجاح في المنتصف
+    showSuccessCenter('✅', 'تم تسجيل المطعم بنجاح!')
+    
+    setTimeout(() => {
+      closeRegisterModal()
+      const loginUsername = document.getElementById('loginUsername')
+      if (loginUsername) loginUsername.value = email
+    }, 2000)
+    
   } catch (err) {
-    alert('❌ فشل التسجيل: ' + err.message)
+    hideNotification()
+    showNotification('❌ فشل التسجيل: ' + err.message, 'error')
   }
 }
 
@@ -1700,6 +1734,84 @@ document.getElementById('registerNowBtn')?.addEventListener('click', (e) => {
 })
 
 console.log("✅ جميع دوال النظام تم تصديرها بنجاح");
+
+
+// إشعار مؤقت في الأعلى (للأخطاء والتحميل)
+let notificationTimeout = null
+
+function showNotification(message, type = 'info') {
+  hideNotification()
+  
+  const colors = {
+    loading: '#3B82F6',
+    error: '#EF4444',
+    info: '#6B7280'
+  }
+  
+  const notification = document.createElement('div')
+  notification.id = 'tempNotification'
+  notification.style.cssText = `
+    position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+    background: ${colors[type] || colors.info}; color: white;
+    padding: 12px 24px; border-radius: 40px; font-size: 14px;
+    z-index: 100001; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    direction: rtl; text-align: center; white-space: nowrap;
+  `
+  notification.textContent = message
+  document.body.appendChild(notification)
+  
+  notificationTimeout = setTimeout(() => {
+    hideNotification()
+  }, 3000)
+}
+
+function hideNotification() {
+  const notif = document.getElementById('tempNotification')
+  if (notif) notif.remove()
+  if (notificationTimeout) clearTimeout(notificationTimeout)
+}
+
+function showSuccessCenter(icon, message) {
+  // إزالة أي إشعار سابق
+  hideNotification()
+  
+  const overlay = document.createElement('div')
+  overlay.id = 'successOverlay'
+  overlay.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    z-index: 100002; display: flex; align-items: center; justify-content: center;
+  `
+  
+  const box = document.createElement('div')
+  box.style.cssText = `
+    background: white; border-radius: 60px; padding: 40px 60px;
+    text-align: center; direction: rtl; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    animation: fadeInScale 0.3s ease;
+  `
+  box.innerHTML = `
+    <div style="font-size: 64px; margin-bottom: 16px;">${icon}</div>
+    <div style="font-size: 20px; font-weight: 700; color: #06372E;">${message}</div>
+  `
+  overlay.appendChild(box)
+  document.body.appendChild(overlay)
+  
+  // إضافة حركة fadeIn
+  const style = document.createElement('style')
+  style.textContent = `
+    @keyframes fadeInScale {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  `
+  document.head.appendChild(style)
+  
+  // إزالة بعد 2 ثانية
+  setTimeout(() => {
+    if (overlay) overlay.remove()
+    if (style) style.remove()
+  }, 2000)
+}
 
 // ✅ أضف الكود الجديد هنا
 (async function() {
