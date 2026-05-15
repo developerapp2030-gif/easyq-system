@@ -1226,40 +1226,68 @@ box-shadow:
   }
 }
 
-/* FREE TRIAL BUTTON */
+/* GOLD TRIAL BUTTON */
 
 .premium-trial-btn {
 
-  width: 100%;
-  height: 56px;
+  display: inline-flex;
 
-  margin-top: 14px;
+  align-items: center;
+  justify-content: center;
 
-  border-radius: 14px;
+  width: fit-content;
 
-  border:
-    1px solid rgba(198,146,58,0.35);
+  min-width: 200px;
+
+  height: 58px;
+
+  padding:
+    0 34px;
+
+  margin-top: 10px;
+  margin-bottom: 36px;
+
+  border: none !important;
+
+  border-radius: 16px;
 
   background:
-    rgba(198,146,58,0.10);
+    linear-gradient(
+      135deg,
+      #D6A63D 0%,
+      #F0C76A 100%
+    ) !important;
 
-  color: #C6923A;
+  color: #111111 !important;
 
-  font-size: 15px;
+  opacity: 1 !important;
+
+  font-size: 16px;
   font-weight: 800;
 
   cursor: pointer;
 
-  transition: all .22s ease;
+  box-shadow:
+    0 22px 50px rgba(198,146,58,0.34);
+
+  transition:
+    transform .18s ease,
+    box-shadow .18s ease;
 }
 
 .premium-trial-btn:hover {
 
-  background:
-    rgba(198,146,58,0.16);
+  transform: translateY(-2px);
 
-  border-color:
-    rgba(198,146,58,0.55);
+  background:
+    linear-gradient(
+      135deg,
+      #C6923A 0%,
+      #E8BC59 100%
+    ) !important;
+
+  box-shadow:
+    0 28px 60px rgba(198,146,58,0.42);
 }
 
 /* REGISTER */
