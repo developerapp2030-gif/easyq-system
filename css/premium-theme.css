@@ -1312,3 +1312,49 @@ body:has(.premium-login-overlay)::before {
 
   pointer-events: none;
 }
+
+/* HERO TRIAL BUTTON */
+
+.premium-hero-trial-btn {
+
+  margin-top: 8px;
+  margin-bottom: 38px;
+
+  height: 58px;
+
+  padding:
+    0 34px;
+
+  border: none;
+
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #C6923A 0%,
+      #E2BC67 100%
+    );
+
+  color: #111111;
+
+  font-size: 16px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 16px 34px rgba(198,146,58,0.24);
+
+  transition:
+    transform .18s ease,
+    box-shadow .18s ease;
+}
+
+.premium-hero-trial-btn:hover {
+
+  transform: translateY(-2px);
+
+  box-shadow:
+    0 22px 42px rgba(198,146,58,0.34);
+}
