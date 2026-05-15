@@ -876,6 +876,15 @@ background-repeat: no-repeat;
   color: rgba(255,255,255,0.92);
 
   white-space: nowrap;
+
+  flex-wrap: nowrap;
+
+  direction: ltr;
+}
+
+.premium-feature-item span {
+
+  direction: rtl;
 }
 
 .premium-feature-item i {
