@@ -809,26 +809,43 @@ background-repeat: no-repeat;
   font-weight: 600;
 }
 
+/* HERO TITLE */
+
 .premium-hero-title {
 
-  font-size: 58px;
-  line-height: 1.15;
+  max-width: 720px;
+
+  font-size: 56px;
+
+  line-height: 1.18;
 
   font-weight: 800;
 
-  margin-bottom: 24px;
+  letter-spacing: -1.5px;
+
+  margin-bottom: 26px;
+
+  color: #FFFFFF;
+
+  text-shadow:
+    0 4px 18px rgba(0,0,0,0.35);
 }
+
+/* HERO DESCRIPTION */
 
 .premium-hero-description {
 
-  max-width: 620px;
+  max-width: 640px;
 
   font-size: 18px;
-  line-height: 1.9;
+
+  line-height: 2;
+
+  font-weight: 400;
 
   color: rgba(255,255,255,0.82);
 
-  margin-bottom: 36px;
+  margin-bottom: 26px;
 }
 
 .premium-feature-list {
@@ -881,11 +898,11 @@ background-repeat: no-repeat;
     38px
     34px;
 
-  border:
-    1px solid rgba(255,255,255,0.65);
+border:
+  1px solid rgba(255,255,255,0.52);
 
-  box-shadow:
-    0 30px 80px rgba(0,0,0,0.35);
+box-shadow:
+  0 40px 100px rgba(0,0,0,0.50);
 
   backdrop-filter: blur(14px);
 }
@@ -1161,6 +1178,7 @@ background-repeat: no-repeat;
 
     width: 100%;
     max-width: 440px;
+    transform: translateY(24px);
   }
 
   .premium-login-card {
@@ -1313,30 +1331,42 @@ body:has(.premium-login-overlay)::before {
   pointer-events: none;
 }
 
-/* HERO TRIAL BUTTON */
+/* HERO CTA BUTTON */
 
 .premium-hero-trial-btn {
 
-  margin-top: 8px;
-  margin-bottom: 38px;
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  width: fit-content;
+
+  min-width: 250px;
 
   height: 58px;
 
   padding:
     0 34px;
 
-  border: none;
+  margin-top: 10px;
+  margin-bottom: 46px;
 
-  border-radius: 14px;
+  border-radius: 16px;
+
+  border:
+    1px solid rgba(198,146,58,0.32);
 
   background:
     linear-gradient(
       135deg,
-      #C6923A 0%,
-      #E2BC67 100%
+      rgba(198,146,58,0.16),
+      rgba(198,146,58,0.08)
     );
 
-  color: #111111;
+  backdrop-filter: blur(8px);
+
+  color: #E7C16F;
 
   font-size: 16px;
   font-weight: 800;
@@ -1344,17 +1374,29 @@ body:has(.premium-login-overlay)::before {
   cursor: pointer;
 
   box-shadow:
-    0 16px 34px rgba(198,146,58,0.24);
+    0 14px 34px rgba(0,0,0,0.22);
 
   transition:
     transform .18s ease,
-    box-shadow .18s ease;
+    border-color .18s ease,
+    box-shadow .18s ease,
+    background .18s ease;
 }
 
 .premium-hero-trial-btn:hover {
 
   transform: translateY(-2px);
 
+  border-color:
+    rgba(198,146,58,0.58);
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(198,146,58,0.22),
+      rgba(198,146,58,0.12)
+    );
+
   box-shadow:
-    0 22px 42px rgba(198,146,58,0.34);
+    0 20px 42px rgba(198,146,58,0.16);
 }
