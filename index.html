@@ -1615,21 +1615,29 @@ function openRegisterModal() {
   // إزالة أي مودال مفتوح مسبقاً
   closeRegisterModal()
   
+  // إخفاء مودال تسجيل الدخول (جعله غير مرئي ولكن يبقى في الخلفية)
+  const loginOverlay = document.getElementById('loginOverlay')
+  if (loginOverlay) {
+    loginOverlay.style.opacity = '0'
+    loginOverlay.style.pointerEvents = 'none'
+    loginOverlay.style.transition = 'opacity 0.3s ease'
+  }
+  
   const modalHtml = `
-    <div id="registerModal" class="modal-backdrop show" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 100000; display: flex; align-items: flex-start; justify-content: center; padding-top: 80px;">
-      <div class="modal" style="max-width: 500px; width: 90%; background: var(--card-bg); border-radius: 20px; padding: 24px;">
-        <div class="modal-title" style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">تسجيل مطعم جديد</div>
-        <div class="modal-sub" style="color: var(--gray-500); margin-bottom: 20px;">أنشئ حساباً جديداً لمطعمك</div>
-        <div class="walkin-form">
-          <input type="text" id="regBusinessName" class="walkin-input" placeholder="اسم المطعم" style="margin-bottom: 12px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
-          <input type="text" id="regDisplayName" class="walkin-input" placeholder="اسم المدير" style="margin-bottom: 12px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
-          <input type="email" id="regEmail" class="walkin-input" placeholder="البريد الإلكتروني" style="margin-bottom: 12px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
-          <input type="password" id="regPassword" class="walkin-input" placeholder="كلمة المرور (8 أحرف على الأقل)" style="margin-bottom: 12px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
-          <input type="tel" id="regPhone" class="walkin-input" placeholder="رقم الجوال (اختياري)" style="margin-bottom: 12px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
-          <input type="text" id="regCity" class="walkin-input" placeholder="المدينة (اختياري)" style="margin-bottom: 12px; width: 100%; padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
-          <div style="display: flex; gap: 12px; margin-top: 8px;">
-            <button class="settings-save" onclick="submitRegistration()" style="flex: 1; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 12px; cursor: pointer;">تسجيل</button>
-            <button class="settings-close" onclick="closeRegisterModal()" style="flex: 1; background: var(--gray-200); border: none; padding: 12px; border-radius: 12px; cursor: pointer;">إلغاء</button>
+    <div id="registerModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 100000; display: flex; align-items: center; justify-content: center;">
+      <div style="max-width: 500px; width: 90%; background: white; border-radius: 28px; padding: 32px 28px; box-shadow: 0 30px 60px rgba(0,0,0,0.4); direction: rtl; transform: scale(1); transition: all 0.3s ease;">
+        <div style="font-size: 26px; font-weight: 800; margin-bottom: 8px; text-align: center; color: #06372E;">تسجيل مطعم جديد</div>
+        <div style="color: #6B7280; margin-bottom: 28px; text-align: center; font-size: 14px;">أنشئ حساباً جديداً لمطعمك وابدأ إدارة طاولاتك</div>
+        <div>
+          <input type="text" id="regBusinessName" placeholder="اسم المطعم" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; transition: all 0.2s;">
+          <input type="text" id="regDisplayName" placeholder="اسم المدير" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
+          <input type="email" id="regEmail" placeholder="البريد الإلكتروني" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
+          <input type="password" id="regPassword" placeholder="كلمة المرور (8 أحرف على الأقل)" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
+          <input type="tel" id="regPhone" placeholder="رقم الجوال (اختياري)" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
+          <input type="text" id="regCity" placeholder="المدينة (اختياري)" style="width: 100%; padding: 14px; margin-bottom: 24px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none;">
+          <div style="display: flex; gap: 12px;">
+            <button onclick="submitRegistration()" style="flex: 1; background: linear-gradient(135deg, #06372E, #0A4B3D); color: white; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s;">تسجيل</button>
+            <button onclick="closeRegisterModal()" style="flex: 1; background: #F3F4F6; color: #1F2937; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer; transition: all 0.2s;">إلغاء</button>
           </div>
         </div>
       </div>
@@ -1639,7 +1647,15 @@ function openRegisterModal() {
 }
 
 function closeRegisterModal() {
-  document.getElementById('registerModal')?.remove()
+  const modal = document.getElementById('registerModal')
+  if (modal) modal.remove()
+  
+  // استعادة مودال تسجيل الدخول
+  const loginOverlay = document.getElementById('loginOverlay')
+  if (loginOverlay) {
+    loginOverlay.style.opacity = ''
+    loginOverlay.style.pointerEvents = ''
+  }
 }
 
 async function submitRegistration() {
