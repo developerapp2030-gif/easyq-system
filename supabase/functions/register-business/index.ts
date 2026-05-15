@@ -1,121 +1,125 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-client-info, apikey",
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
+}
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    if (req.method !== "POST") {
-      return json({ success: false, message: "Method not allowed" }, 405);
-    }
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SVC_ROLE_KEY')!
+    )
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const serviceKey = Deno.env.get("SVC_ROLE_KEY");
+    const { email, password, business_name, phone, city, display_name } = await req.json()
 
-    if (!supabaseUrl || !serviceKey) {
-      return json({ success: false, message: "Server configuration error" }, 500);
-    }
-
-    const admin = createClient(supabaseUrl, serviceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    });
-
-    const body = await req.json();
-
-    const businessName = String(body.business_name || "").trim();
-    const displayName = String(body.display_name || "").trim();
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password || "");
-    const phone = body.phone ? String(body.phone).trim() : null;
-    const city = body.city ? String(body.city).trim() : null;
-
-    if (businessName.length < 2) {
-      return json({ success: false, message: "اسم المطعم غير صحيح" }, 400);
-    }
-
-    if (displayName.length < 2) {
-      return json({ success: false, message: "اسم المدير غير صحيح" }, 400);
-    }
-
-    if (!email || !email.includes("@")) {
-      return json({ success: false, message: "البريد الإلكتروني غير صحيح" }, 400);
+    if (!email || !password || !business_name || !display_name) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'جميع الحقول المطلوبة غير مكتملة' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     if (password.length < 8) {
-      return json({ success: false, message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }, 400);
+      return new Response(
+        JSON.stringify({ success: false, message: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
-    const { data: createdUser, error: createUserError } =
-      await admin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          display_name: displayName,
-          business_name: businessName,
-          role: "admin",
-        },
-      });
+    // 1. إنشاء مستخدم في Supabase Auth
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { business_name, display_name, role: 'admin' }
+    })
 
-    if (createUserError || !createdUser.user) {
-      return json({
-        success: false,
-        message: createUserError?.message || "فشل إنشاء حساب المستخدم",
-      }, 400);
-    }
+    if (authError) throw authError
 
-    const authId = createdUser.user.id;
+    // 2. إنشاء سجل في جدول businesses
+    const { data: business, error: businessError } = await supabaseAdmin
+      .from('businesses')
+      .insert({
+        name: business_name,
+        phone: phone || null,
+        city: city || null,
+        created_at: new Date().toISOString()
+      })
+      .select()
+      .single()
 
-    const { data: result, error: rpcError } = await admin.rpc("register_business_core", {
-      p_business_name: businessName,
-      p_admin_email: email,
-      p_admin_display_name: displayName,
-      p_auth_id: authId,
-      p_phone: phone,
-      p_city: city,
-    });
+    if (businessError) throw businessError
 
-    if (rpcError || !result?.success) {
-      await admin.auth.admin.deleteUser(authId);
+    // 3. إنشاء سجل في app_users (مدير المطعم)
+    const { error: userError } = await supabaseAdmin
+      .from('app_users')
+      .insert({
+        username: email,
+        display_name: display_name,
+        role: 'admin',
+        business_id: business.id,
+        auth_id: authUser.user.id,
+        is_active: true
+      })
 
-      return json({
-        success: false,
-        message: rpcError?.message || result?.message || "فشل إنشاء بيانات المطعم",
-      }, 400);
-    }
+    if (userError) throw userError
 
-    return json({
-      success: true,
-      message: "تم إنشاء المطعم بنجاح",
-      business_id: result.business_id,
-      license_key: result.license_key,
-    }, 200);
+    // 4. إنشاء ترخيص تجريبي (14 يوم)
+    const { error: licenseError } = await supabaseAdmin
+      .from('licenses')
+      .insert({
+        business_id: business.id,
+        license_key: crypto.randomUUID(),
+        plan_type: 'trial',
+        max_tables: 20,
+        max_users: 5,
+        starts_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        is_active: true
+      })
+
+    if (licenseError) throw licenseError
+
+    // 5. إنشاء إعدادات افتراضية للمطعم
+    const { error: settingsError } = await supabaseAdmin
+      .from('business_settings')
+      .insert({
+        business_id: business.id,
+        ready_mode: 'any_match',
+        alert_sound_enabled: true,
+        alert_vibration_enabled: true,
+        expired_sound_enabled: true,
+        expired_vibration_enabled: true,
+        expired_panel_enabled: true,
+        expired_list_limit: 5,
+        reservation_hold_minutes: 10,
+        pending_hold_minutes: 5,
+        cleaning_hold_minutes: 10
+      })
+
+    if (settingsError) throw settingsError
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        business_id: business.id,
+        message: 'تم تسجيل المطعم بنجاح'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
 
   } catch (error) {
-    return json({
-      success: false,
-      message: error?.message || "Unexpected error",
-    }, 500);
+    return new Response(
+      JSON.stringify({ success: false, message: error.message }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
-});
-
-function json(payload: unknown, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json",
-    },
-  });
-}
+})

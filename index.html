@@ -255,12 +255,7 @@
 
   <span>ليس لديك حساب؟</span>
 
-  <button
-    type="button"
-    class="premium-register-link"
-  >
-    سجل الآن
-  </button>
+<button type="button" id="registerNowBtn" class="premium-register-link">سجل الآن</button>
 
 </div>
 
@@ -1613,6 +1608,77 @@ window.toggleFloorMenu = toggleFloorMenu;
 window.selectZone = selectZone;
 window.selectFloor = selectFloor;
 window.logError = logError;
+
+
+// تسجيل مطعم جديد - مودال
+function openRegisterModal() {
+  const modalHtml = `
+    <div id="registerModal" class="modal-backdrop show" style="align-items: flex-start; padding-top: 80px;">
+      <div class="modal" style="max-width: 500px; width: 90%;">
+        <div class="modal-title">تسجيل مطعم جديد</div>
+        <div class="modal-sub">أنشئ حساباً جديداً لمطعمك</div>
+        <div class="walkin-form">
+          <input type="text" id="regBusinessName" class="walkin-input" placeholder="اسم المطعم" style="margin-bottom: 12px;">
+          <input type="text" id="regDisplayName" class="walkin-input" placeholder="اسم المدير" style="margin-bottom: 12px;">
+          <input type="email" id="regEmail" class="walkin-input" placeholder="البريد الإلكتروني" style="margin-bottom: 12px;">
+          <input type="password" id="regPassword" class="walkin-input" placeholder="كلمة المرور (8 أحرف على الأقل)" style="margin-bottom: 12px;">
+          <input type="tel" id="regPhone" class="walkin-input" placeholder="رقم الجوال (اختياري)" style="margin-bottom: 12px;">
+          <input type="text" id="regCity" class="walkin-input" placeholder="المدينة (اختياري)" style="margin-bottom: 12px;">
+          <div style="display: flex; gap: 12px; margin-top: 8px;">
+            <button class="settings-save" onclick="submitRegistration()" style="flex: 1;">تسجيل</button>
+            <button class="settings-close" onclick="closeRegisterModal()" style="flex: 1;">إلغاء</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+  document.body.insertAdjacentHTML('beforeend', modalHtml)
+}
+
+function closeRegisterModal() {
+  document.getElementById('registerModal')?.remove()
+}
+
+async function submitRegistration() {
+  const business_name = document.getElementById('regBusinessName')?.value.trim()
+  const display_name = document.getElementById('regDisplayName')?.value.trim()
+  const email = document.getElementById('regEmail')?.value.trim()
+  const password = document.getElementById('regPassword')?.value
+  const phone = document.getElementById('regPhone')?.value.trim() || null
+  const city = document.getElementById('regCity')?.value.trim() || null
+
+  if (!business_name || !display_name || !email || !password) {
+    alert('يرجى ملء جميع الحقول المطلوبة')
+    return
+  }
+
+  if (password.length < 8) {
+    alert('كلمة المرور يجب أن تكون 8 أحرف على الأقل')
+    return
+  }
+
+  try {
+    const { data, error } = await supabase.functions.invoke('register-business', {
+      body: { email, password, business_name, display_name, phone, city }
+    })
+
+    if (error) throw error
+    if (!data.success) throw new Error(data.message)
+
+    alert('✅ تم تسجيل المطعم بنجاح! يمكنك تسجيل الدخول الآن')
+    closeRegisterModal()
+    
+    const loginUsername = document.getElementById('loginUsername')
+    if (loginUsername) loginUsername.value = email
+  } catch (err) {
+    alert('❌ فشل التسجيل: ' + err.message)
+  }
+}
+
+document.getElementById('registerNowBtn')?.addEventListener('click', (e) => {
+  e.preventDefault()
+  openRegisterModal()
+})
 
 console.log("✅ جميع دوال النظام تم تصديرها بنجاح");
 
