@@ -15,9 +15,7 @@ async function doLogin() {
   }
   
   try {
-    // 1. تسجيل الدخول عبر Supabase Auth (بدلاً من قراءة app_users مباشرة)
-    // نحتاج إلى تحويل username إلى email, نفترض أن username هو نفس البريد
-    const email = username; // أو يمكن أن يكون username@domain.com حسب نظامك
+    const email = username;
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: email,
       password: password
@@ -29,7 +27,7 @@ async function doLogin() {
       return;
     }
     
-    // 2. جلب بيانات المستخدم من app_users باستخدام auth_id
+    // جلب بيانات المستخدم
     const { data: user, error: userError } = await supabase
       .from('app_users')
       .select('*')
@@ -43,33 +41,28 @@ async function doLogin() {
       return;
     }
     
-    // 3. ضبط business_id في جلسة قاعدة البيانات (لـ RLS)
-    await supabase.rpc('set_current_business_id', { 
-        p_business_id: user.business_id 
-    });
-    
-    // 4. تعيين BUSINESS_ID العام في Frontend
-    if (typeof setCurrentBusinessId === 'function') {
-        setCurrentBusinessId(user.business_id);
+    // 🔥 الشرط هنا بعد جلب user (المكان الصحيح)
+    if (user.role === 'super_admin') {
+      currentUser = user;
+      localStorage.setItem('easyq_user', JSON.stringify(user));
+      const loginOverlay = document.getElementById('loginOverlay');
+      if (loginOverlay) loginOverlay.style.display = 'none';
+      document.body.classList.add('logged-in');
+      showSuperAdminDashboard();
+      return;
     }
     
-    // 5. حفظ بيانات المستخدم
+    // باقي الكود للمستخدمين العاديين
+    await supabase.rpc('set_current_business_id', { p_business_id: user.business_id });
+    if (typeof setCurrentBusinessId === 'function') setCurrentBusinessId(user.business_id);
     currentUser = user;
     localStorage.setItem('easyq_user', JSON.stringify(user));
-    
-    // 6. إخفاء شاشة الدخول وإظهار النظام
     const loginOverlay = document.getElementById('loginOverlay');
     if (loginOverlay) loginOverlay.style.display = 'none';
     document.body.classList.add('logged-in');
-    
-    // 7. تحميل الصلاحيات
     await loadUserPermissions();
-    
-    // 8. عرض اسم المستخدم في الواجهة
     const currentUserNameSpan = document.getElementById('currentUserName');
     if (currentUserNameSpan) currentUserNameSpan.innerText = user.display_name;
-    
-    // 9. رسالة ترحيب
     showSuccessNotification(`مرحباً ${user.display_name}`);
     
   } catch (err) {
@@ -140,6 +133,8 @@ async function logoutAndClean() {
   // 7. رسالة تأكيد
   showSuccessNotification('تم تسجيل الخروج بنجاح');
 }
+
+
 
 
 // ============================================================
@@ -253,9 +248,17 @@ function cancelAddUser() {
 }
 
 async function loadUsers() {
+  const businessId = currentUser?.business_id;
+  
+  if (!businessId) {
+    console.warn('لا يمكن تحديد المطعم للمستخدم الحالي');
+    return;
+  }
+  
   const { data: users, error } = await supabase
     .from('app_users')
     .select('*')
+    .eq('business_id', businessId)
     .order('created_at', { ascending: false });
   
   if (error) return;
@@ -278,40 +281,45 @@ async function loadUsers() {
 }
 
 async function saveUser() {
-  const username = document.getElementById('newUsername').value.trim();
+  const email = document.getElementById('newUsername').value.trim();
   const displayName = document.getElementById('newDisplayName').value.trim();
   const password = document.getElementById('newPassword').value;
   const role = document.getElementById('newRole').value;
   
-  if (!username || !displayName || !password) {
+  if (!email || !displayName || !password) {
     showAlert('جميع الحقول مطلوبة');
     return;
   }
   
-  const hashedPassword = await hashPassword(password);
-  
-  const { error } = await supabase
-    .from('app_users')
-    .insert({
-      username,
-      password_hash: hashedPassword,
-      display_name: displayName,
-      role,
-      business_id: BUSINESS_ID
+  try {
+    const session = await supabase.auth.getSession();
+    const accessToken = session.data.session?.access_token;
+    
+    const { data, error } = await supabase.functions.invoke('create-user', {
+      body: {
+        email: email,
+        password: password,
+        display_name: displayName,
+        role: role,
+        business_id: currentUser?.business_id
+      },
+      headers: { Authorization: `Bearer ${accessToken}` }
     });
-  
-  if (error) {
-    showAlert('فشل إضافة المستخدم: ' + error.message);
-    return;
+    
+    if (error) throw new Error(error.message);
+    if (!data.success) throw new Error(data.message);
+    
+    showSuccessNotification('تم إضافة المستخدم بنجاح');
+    cancelAddUser();
+    loadUsers();
+  } catch (err) {
+    console.error(err);
+    showAlert('فشل إضافة المستخدم: ' + err.message);
   }
-  
-  showSuccessNotification('تم إضافة المستخدم بنجاح');
-  cancelAddUser();
-  loadUsers();
 }
 
 async function deleteUser(userId, username) {
-  if (username === 'admin') {
+  if (username === 'admin' || username === 'super_admin') {
     showAlert('لا يمكن حذف المدير الرئيسي');
     return;
   }
@@ -433,6 +441,239 @@ async function savePermissions() {
     closePermissionsModal();
     showSuccessNotification('✅ تم حفظ الصلاحيات بنجاح');
   }, 500);
+}
+
+
+// ============================================================
+// SUPER ADMIN DASHBOARD
+// ============================================================
+
+function showSuperAdminDashboard() {
+  // إخفاء العناصر العادية
+  const appContainer = document.querySelector('.app-container');
+  const topbar = document.querySelector('.topbar');
+  if (appContainer) appContainer.style.display = 'none';
+  if (topbar) topbar.style.display = 'none';
+  
+  // إزالة أي داشبورد موجود مسبقاً
+  const existingDashboard = document.getElementById('superAdminDashboard');
+  if (existingDashboard) existingDashboard.remove();
+  
+  // إنشاء لوحة التحكم
+  const dashboardHtml = `
+    <div id="superAdminDashboard" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--gray-100); z-index: 10000; overflow-y: auto;">
+      <div style="background: var(--primary); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h2 style="color: white; margin: 0;"><i class="fas fa-crown"></i> لوحة تحكم المدير العام</h2>
+          <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0;">مرحباً ${currentUser?.display_name || 'Super Admin'}</p>
+        </div>
+        <button onclick="logoutAndClean()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 10px 20px; border-radius: 10px; cursor: pointer;">
+          <i class="fas fa-sign-out-alt"></i> تسجيل خروج
+        </button>
+      </div>
+      
+      <div style="padding: 24px;">
+        <!-- الإحصائيات -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+          <div style="background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            <i class="fas fa-store" style="font-size: 40px; color: var(--primary);"></i>
+            <h3 id="totalBusinesses">0</h3>
+            <p style="color: var(--gray-500);">إجمالي المطاعم</p>
+          </div>
+          <div style="background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            <i class="fas fa-users" style="font-size: 40px; color: var(--primary);"></i>
+            <h3 id="totalUsers">0</h3>
+            <p style="color: var(--gray-500);">إجمالي المستخدمين</p>
+          </div>
+          <div style="background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            <i class="fas fa-check-circle" style="font-size: 40px; color: #10B981;"></i>
+            <h3 id="activeLicenses">0</h3>
+            <p style="color: var(--gray-500);">تراخيص نشطة</p>
+          </div>
+          <div style="background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+            <i class="fas fa-clock" style="font-size: 40px; color: #F59E0B;"></i>
+            <h3 id="expiringSoon">0</h3>
+            <p style="color: var(--gray-500);">تنتهي خلال 7 أيام</p>
+          </div>
+        </div>
+        
+        <!-- جدول المطاعم -->
+        <div style="background: white; border-radius: 16px; overflow-x: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: var(--primary); color: white;">
+              <tr>
+                <th style="padding: 12px;">#</th>
+                <th style="padding: 12px;">اسم المطعم</th>
+                <th style="padding: 12px;">رقم الجوال</th>
+                <th style="padding: 12px;">الخطة</th>
+                <th style="padding: 12px;">تاريخ الانتهاء</th>
+                <th style="padding: 12px;">المستخدمين</th>
+                <th style="padding: 12px;">الحالة</th>
+                <th style="padding: 12px;">إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="businessesTable">
+              <tr><td colspan="8" style="text-align: center; padding: 40px;">جاري التحميل...</td></tr>
+            </tbody>
+           </table>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', dashboardHtml);
+  
+  // تحميل البيانات
+  loadSuperAdminData();
+}
+
+async function loadSuperAdminData() {
+  try {
+    // جلب جميع المطاعم مع التراخيص وعدد المستخدمين
+    const { data: businesses, error } = await supabase
+      .from('businesses')
+      .select(`
+        *,
+        licenses (plan_type, expires_at, is_active),
+        app_users (count)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    // تحديث الإحصائيات
+    const totalBusinesses = businesses.length;
+    let totalUsers = 0;
+    let activeLicenses = 0;
+    let expiringSoon = 0;
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    
+    businesses.forEach(b => {
+      if (b.app_users && b.app_users.length) {
+        totalUsers += b.app_users.length;
+      }
+      if (b.licenses && b.licenses.is_active) {
+        activeLicenses++;
+        if (new Date(b.licenses.expires_at) <= sevenDaysFromNow) {
+          expiringSoon++;
+        }
+      }
+    });
+    
+    const totalBusinessesEl = document.getElementById('totalBusinesses');
+    const totalUsersEl = document.getElementById('totalUsers');
+    const activeLicensesEl = document.getElementById('activeLicenses');
+    const expiringSoonEl = document.getElementById('expiringSoon');
+    
+    if (totalBusinessesEl) totalBusinessesEl.innerText = totalBusinesses;
+    if (totalUsersEl) totalUsersEl.innerText = totalUsers;
+    if (activeLicensesEl) activeLicensesEl.innerText = activeLicenses;
+    if (expiringSoonEl) expiringSoonEl.innerText = expiringSoon;
+    
+    // عرض الجدول
+    const tableBody = document.getElementById('businessesTable');
+    if (!tableBody) return;
+    
+    if (businesses.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">لا توجد مطاعم مسجلة بعد</td></tr>';
+      return;
+    }
+    
+    tableBody.innerHTML = businesses.map((b, index) => `
+      <tr style="border-bottom: 1px solid var(--border-color);">
+        <td style="padding: 12px; text-align: center;">${index + 1}</td>
+        <td style="padding: 12px; font-weight: 500;">${b.name || '-'}</td>
+        <td style="padding: 12px;">${b.phone || '-'}</td>
+        <td style="padding: 12px;">
+          <span style="background: ${b.licenses?.plan_type === 'enterprise' ? '#8B5CF6' : b.licenses?.plan_type === 'pro' ? '#3B82F6' : '#10B981'}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px;">
+            ${b.licenses?.plan_type || 'بدون'}
+          </span>
+        </td>
+        <td style="padding: 12px;">${b.licenses?.expires_at ? new Date(b.licenses.expires_at).toLocaleDateString('ar-EG') : '-'}</td>
+        <td style="padding: 12px; text-align: center;">${b.app_users?.length || 0}</td>
+        <td style="padding: 12px;">
+          <span style="background: ${b.licenses?.is_active ? '#10B981' : '#EF4444'}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px;">
+            ${b.licenses?.is_active ? 'نشط' : 'منتهي'}
+          </span>
+        </td>
+        <td style="padding: 12px;">
+          <button onclick="viewBusinessDetails('${b.id}')" style="background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; margin-left: 8px;">
+            <i class="fas fa-eye"></i>
+          </button>
+          <button onclick="toggleBusinessStatus('${b.id}')" style="background: #F59E0B; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
+            <i class="fas fa-power-off"></i>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+    
+  } catch (err) {
+    console.error('خطأ في تحميل بيانات super admin:', err);
+    const tableBody = document.getElementById('businessesTable');
+    if (tableBody) {
+      tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: red;">فشل تحميل البيانات</td></tr>';
+    }
+  }
+}
+
+async function viewBusinessDetails(businessId) {
+  // يمكن تطويرها لاحقاً لعرض تفاصيل كاملة عن المطعم
+  alert(`سيتم عرض تفاصيل المطعم (قيد التطوير): ${businessId}`);
+}
+
+async function toggleBusinessStatus(businessId) {
+  if (!confirm('هل أنت متأكد من تغيير حالة هذا المطعم؟')) return;
+  
+  // جلب الترخيص الحالي
+  const { data: license, error: fetchError } = await supabase
+    .from('licenses')
+    .select('is_active')
+    .eq('business_id', businessId)
+    .maybeSingle();
+  
+  if (fetchError) {
+    console.error('خطأ في جلب الترخيص:', fetchError);
+    alert('فشل تغيير حالة المطعم');
+    return;
+  }
+  
+  if (license) {
+    const { error } = await supabase
+      .from('licenses')
+      .update({ is_active: !license.is_active })
+      .eq('business_id', businessId);
+    
+    if (error) {
+      console.error('خطأ في تحديث الترخيص:', error);
+      alert('فشل تغيير حالة المطعم');
+    } else {
+      alert('✅ تم تغيير حالة المطعم بنجاح');
+      loadSuperAdminData(); // إعادة تحميل البيانات
+    }
+  } else {
+    // إذا لم يكن هناك ترخيص، ننشئ ترخيصاً جديداً
+    const { error } = await supabase
+      .from('licenses')
+      .insert({
+        business_id: businessId,
+        license_key: 'TRIAL-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        plan_type: 'trial',
+        max_tables: 20,
+        max_users: 5,
+        starts_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        is_active: true
+      });
+    
+    if (error) {
+      console.error('خطأ في إنشاء الترخيص:', error);
+      alert('فشل إنشاء ترخيص جديد للمطعم');
+    } else {
+      alert('✅ تم إنشاء ترخيص جديد للمطعم');
+      loadSuperAdminData();
+    }
+  }
 }
 
 // ============================================================
