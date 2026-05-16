@@ -817,7 +817,7 @@ background-repeat: no-repeat;
 
   white-space: nowrap;
 
-  font-size: 46px;
+  font-size: 35px;
 
   line-height: 1.18;
 
@@ -890,7 +890,7 @@ background-repeat: no-repeat;
 
   direction: rtl;
 
-  font-size: 14px;
+  font-size: 13px;
 
   font-weight: 600;
 
@@ -1185,7 +1185,7 @@ box-shadow:
 
   .premium-hero-title {
 
-    font-size: 46px;
+    font-size: 35px;
   }
 
   .premium-login-content {
