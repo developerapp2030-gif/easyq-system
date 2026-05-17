@@ -139,13 +139,70 @@ async function logoutAndClean() {
 // FORGOT PASSWORD
 // ============================================================
 
-async function resetPassword() {
-  const email = prompt('الرجاء إدخال بريدك الإلكتروني لإعادة تعيين كلمة المرور');
+// ============================================================
+// FORGOT PASSWORD MODAL (تحويل المودال الحالي)
+// ============================================================
+
+function resetPassword() {
+  // إخفاء محتوى البطاقة الحالية
+  const loginCard = document.querySelector('.premium-login-card');
+  const loginOverlay = document.getElementById('loginOverlay');
   
-  if (!email) return;
+  if (!loginCard) return;
+  
+  // حفظ المحتوى الأصلي للبطاقة (للعودة لاحقاً)
+  if (!window.originalLoginContent) {
+    window.originalLoginContent = loginCard.innerHTML;
+  }
+  
+  // عرض مودال استعادة كلمة المرور داخل نفس البطاقة
+  loginCard.innerHTML = `
+    <div style="text-align: center;">
+      <div style="font-size: 24px; font-weight: 800; margin-bottom: 16px; color: #06372E;">نسيت كلمة المرور؟</div>
+      <p style="color: #6B7280; margin-bottom: 24px; font-size: 14px;">أدخل بريدك الإلكتروني لإعادة تعيين كلمة المرور</p>
+      
+      <div class="premium-form-group">
+        <label>البريد الإلكتروني</label>
+        <div class="premium-input-wrapper">
+          <input type="email" id="resetEmail" class="premium-login-input" placeholder="example@restaurant.com" style="text-align: right;">
+          <i class="fas fa-envelope"></i>
+        </div>
+      </div>
+      
+      <div id="resetMessage" style="margin-bottom: 20px; font-size: 14px; display: none;"></div>
+      
+      <button id="sendResetBtn" class="premium-login-btn" style="margin-bottom: 12px;">إرسال رابط إعادة التعيين</button>
+      <button id="backToLoginBtn" class="premium-trial-btn" style="background: #F3F4F6; color: #1F2937;">العودة إلى تسجيل الدخول</button>
+    </div>
+  `;
+  
+  // ربط الأزرار
+  document.getElementById('sendResetBtn')?.addEventListener('click', sendResetEmail);
+  document.getElementById('backToLoginBtn')?.addEventListener('click', () => {
+    // استعادة المحتوى الأصلي
+    if (window.originalLoginContent) {
+      loginCard.innerHTML = window.originalLoginContent;
+    } else {
+      location.reload();
+    }
+  });
+}
+
+async function sendResetEmail() {
+  const email = document.getElementById('resetEmail')?.value.trim();
+  const messageDiv = document.getElementById('resetMessage');
+  
+  if (!email) {
+    messageDiv.style.color = '#EF4444';
+    messageDiv.innerHTML = '❌ الرجاء إدخال البريد الإلكتروني';
+    messageDiv.style.display = 'block';
+    return;
+  }
   
   if (!email.includes('@') || !email.includes('.')) {
-    alert('❌ البريد الإلكتروني غير صحيح');
+    messageDiv.style.color = '#EF4444';
+    messageDiv.innerHTML = '❌ البريد الإلكتروني غير صحيح';
+    messageDiv.style.display = 'block';
     return;
   }
   
@@ -156,10 +213,21 @@ async function resetPassword() {
     
     if (error) throw error;
     
-    alert('✅ تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني');
+    messageDiv.style.color = '#10B981';
+    messageDiv.innerHTML = '✅ تم إرسال بريد إلكتروني إلى البريد المسجل لاستعادة كلمة المرور. يرجى التحقق من بريدك الإلكتروني.';
+    messageDiv.style.display = 'block';
+    
+    const sendBtn = document.getElementById('sendResetBtn');
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = '0.6';
+    }
+    
   } catch (err) {
     console.error('Reset password error:', err);
-    alert('❌ فشل إرسال رابط إعادة التعيين: ' + err.message);
+    messageDiv.style.color = '#EF4444';
+    messageDiv.innerHTML = '❌ فشل إرسال رابط إعادة التعيين: ' + err.message;
+    messageDiv.style.display = 'block';
   }
 }
 
