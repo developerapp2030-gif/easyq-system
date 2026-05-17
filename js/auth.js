@@ -211,8 +211,15 @@ async function sendResetEmail() {
       redirectTo: `${window.location.origin}/reset-password.html`,
     });
     
-    if (error) throw error;
-    
+if (error) {
+  if (error.message.includes('rate limit')) {
+    messageDiv.style.color = '#F59E0B';
+    messageDiv.innerHTML = '⚠️ يرجى الانتظار دقيقة قبل إرسال طلب آخر لحماية حسابك.';
+    messageDiv.style.display = 'block';
+    return;
+  }
+  throw error;
+}    
     messageDiv.style.color = '#10B981';
     messageDiv.innerHTML = '✅ تم إرسال بريد إلكتروني إلى البريد المسجل لاستعادة كلمة المرور. يرجى التحقق من بريدك الإلكتروني.';
     messageDiv.style.display = 'block';
