@@ -229,13 +229,7 @@
 
           </label>
 
-          <button
-            type="button"
-            class="premium-forgot-btn"
-          >
-            نسيت كلمة المرور؟
-          </button>
-
+        <button type="button" id="forgotPasswordBtn" class="premium-forgot-btn" onclick="resetPassword()">نسيت كلمة المرور؟</button>
         </div>
 
         <button
@@ -1734,6 +1728,8 @@ document.getElementById('registerNowBtn')?.addEventListener('click', (e) => {
 })
 
 console.log("✅ جميع دوال النظام تم تصديرها بنجاح");
+
+document.getElementById('forgotPasswordBtn')?.addEventListener('click', resetPassword);
 
 
 // إشعار مؤقت في الأعلى (للأخطاء والتحميل)

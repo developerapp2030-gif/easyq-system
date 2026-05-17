@@ -135,7 +135,33 @@ async function logoutAndClean() {
 }
 
 
+// ============================================================
+// FORGOT PASSWORD
+// ============================================================
 
+async function resetPassword() {
+  const email = prompt('الرجاء إدخال بريدك الإلكتروني لإعادة تعيين كلمة المرور');
+  
+  if (!email) return;
+  
+  if (!email.includes('@') || !email.includes('.')) {
+    alert('❌ البريد الإلكتروني غير صحيح');
+    return;
+  }
+  
+  try {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password.html`,
+    });
+    
+    if (error) throw error;
+    
+    alert('✅ تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني');
+  } catch (err) {
+    console.error('Reset password error:', err);
+    alert('❌ فشل إرسال رابط إعادة التعيين: ' + err.message);
+  }
+}
 
 // ============================================================
 // USER PERMISSIONS
