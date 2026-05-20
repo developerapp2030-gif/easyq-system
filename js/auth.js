@@ -208,7 +208,7 @@ async function sendResetEmail() {
   
   try {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password.html`,
+      redirectTo: 'https://easyq-system.vercel.app/reset-password.html',
     });
     
 if (error) {
