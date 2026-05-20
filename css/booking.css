@@ -1,0 +1,427 @@
+/* ============================================================
+   EASY-Q BOOKING PAGE - MOBILE FIRST PREMIUM DESIGN
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(145deg, #0A0A0F 0%, #1A1A2A 100%);
+  min-height: 100vh;
+  padding: 20px;
+  color: #FFFFFF;
+}
+
+.container {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+
+.booking-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.restaurant-logo {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #8B0000, #C62828);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 10px 30px rgba(139, 0, 0, 0.3);
+}
+
+.restaurant-logo i {
+  font-size: 36px;
+  color: #FFD700;
+}
+
+.restaurant-name {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.restaurant-address {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 12px;
+}
+
+.datetime-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================================
+   WELCOME MESSAGE
+   ============================================================ */
+
+.welcome-message {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 16px;
+  text-align: center;
+  margin-bottom: 24px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+/* ============================================================
+   CURRENT QUEUE CARD
+   ============================================================ */
+
+.current-queue-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 28px;
+  padding: 24px;
+  text-align: center;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.current-queue-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 16px;
+}
+
+.current-number-circle {
+  width: 140px;
+  height: 140px;
+  background: linear-gradient(135deg, #8B0000, #C62828);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 15px 35px rgba(139, 0, 0, 0.4);
+}
+
+.current-number {
+  font-size: 56px;
+  font-weight: 800;
+  color: #FFD700;
+}
+
+.current-queue-sub {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================================
+   BOOKING FORM CARD
+   ============================================================ */
+
+.booking-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 28px;
+  padding: 24px;
+  border: 1px solid rgba(255, 215, 0, 0.15);
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.form-input {
+  width: 100%;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  font-size: 16px;
+  color: #FFFFFF;
+  font-family: 'Inter', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #FFD700;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.form-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+select.form-input {
+  cursor: pointer;
+}
+
+select.form-input option {
+  background: #1A1A2A;
+  color: #FFFFFF;
+}
+
+/* ============================================================
+   PARTY SIZE STEPPER
+   ============================================================ */
+
+.party-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 40px;
+  padding: 6px;
+}
+
+.stepper-btn {
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  border-radius: 40px;
+  font-size: 24px;
+  color: #FFD700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stepper-btn:active {
+  transform: scale(0.95);
+}
+
+.stepper-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+/* ============================================================
+   SUBMIT BUTTON
+   ============================================================ */
+
+.submit-btn {
+  width: 100%;
+  padding: 18px;
+  background: linear-gradient(135deg, #8B0000, #C62828);
+  border: none;
+  border-radius: 40px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+}
+
+.submit-btn:active {
+  transform: scale(0.98);
+}
+
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ============================================================
+   STATUS CARD (AFTER BOOKING)
+   ============================================================ */
+
+.status-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 28px;
+  padding: 32px 24px;
+  text-align: center;
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.queue-number-circle {
+  width: 160px;
+  height: 160px;
+  background: linear-gradient(135deg, #8B0000, #C62828);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  box-shadow: 0 15px 35px rgba(139, 0, 0, 0.4);
+}
+
+.queue-number {
+  font-size: 64px;
+  font-weight: 800;
+  color: #FFD700;
+}
+
+.current-serving {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 12px;
+}
+
+.current-serving span {
+  color: #FFD700;
+  font-weight: 700;
+  font-size: 20px;
+}
+
+.follow-message {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 16px;
+}
+
+/* ============================================================
+   CANCEL LINK
+   ============================================================ */
+
+.cancel-link {
+  display: block;
+  text-align: center;
+  margin-top: 20px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.cancel-link:active {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* ============================================================
+   NOTIFICATION BUTTON
+   ============================================================ */
+
+.notif-btn {
+  width: 100%;
+  padding: 14px;
+  background: rgba(255, 215, 0, 0.15);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFD700;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: all 0.2s;
+}
+
+.notif-btn:active {
+  background: rgba(255, 215, 0, 0.25);
+}
+
+/* ============================================================
+   LOADING SPINNER
+   ============================================================ */
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: inline-block;
+  margin-left: 8px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================
+   HIDDEN UTILITY
+   ============================================================ */
+
+.hidden {
+  display: none;
+}
+
+/* ============================================================
+   RESPONSIVE TOUCH OPTIMIZATIONS
+   ============================================================ */
+
+@media (max-width: 480px) {
+  body {
+    padding: 16px;
+  }
+  
+  .restaurant-logo {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .restaurant-logo i {
+    font-size: 30px;
+  }
+  
+  .restaurant-name {
+    font-size: 20px;
+  }
+  
+  .current-number-circle {
+    width: 120px;
+    height: 120px;
+  }
+  
+  .current-number {
+    font-size: 48px;
+  }
+  
+  .queue-number-circle {
+    width: 130px;
+    height: 130px;
+  }
+  
+  .queue-number {
+    font-size: 52px;
+  }
+  
+  .stepper-btn {
+    width: 44px;
+    height: 44px;
+  }
+  
+  .submit-btn {
+    padding: 16px;
+    font-size: 16px;
+  }
+}
+
+/* ============================================================
+   SAFE AREA FOR NOTCH DEVICES
+   ============================================================ */
+
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
+}

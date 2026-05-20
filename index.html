@@ -296,295 +296,284 @@
 <div class="app-container">
   
   <!-- Sidebar -->
-  <div class="sidebar" id="sidebar">
-    <div class="sidebar-nav">
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-nav">
 
-              <!-- Dashboard -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="dashboard">
-          <div class="menu-title">
-            <i class="fas fa-chart-line"></i>
-            <span>Dashboard</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
+    <!-- ==================== Dashboard ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="dashboard">
+        <div class="menu-title">
+          <i class="fas fa-chart-line"></i>
+          <span>Dashboard</span>
         </div>
-        <div class="sub-menu" data-submenu="dashboard">
-          <div class="sub-menu-item" data-view="dashboard-overview">
-            <i class="fas fa-chart-pie"></i> <span>نظرة عامة</span>
-          </div>
-          <div class="sub-menu-item" data-view="dashboard-today">
-            <i class="fas fa-calendar-day"></i> <span>ملخص اليوم</span>
-          </div>
-          <div class="sub-menu-item" data-view="dashboard-alerts">
-            <i class="fas fa-bell"></i> <span>تنبيهات</span>
-          </div>
-        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
       </div>
-
-      <!-- Queue / الطابور -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="queue">
-          <div class="menu-title">
-            <i class="fas fa-clock"></i>
-            <span>الطابور</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
+      <div class="sub-menu" data-submenu="dashboard">
+        <div class="sub-menu-item" data-view="dashboard-overview">
+          <i class="fas fa-chart-pie"></i> <span>نظرة عامة</span>
         </div>
-        <div class="sub-menu" data-submenu="queue">
-          <div class="sub-menu-item" data-view="queue-cancelled">
-            <i class="fas fa-times-circle"></i> <span>ملغي / لم يحضر</span>
-          </div>
-          <div class="sub-menu-item" data-view="queue-seated">
-            <i class="fas fa-user-check"></i> <span>تم الجلوس</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tables / الطاولات -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="tables">
-          <div class="menu-title">
-            <i class="fas fa-chair"></i>
-            <span>الطاولات</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="tables">
-          <div class="sub-menu-item" data-view="tables-list">
-            <i class="fas fa-table-list"></i> <span>قائمة الطاولات</span>
-          </div>
-          <div class="sub-menu-item" data-view="tables-status">
-            <i class="fas fa-chart-simple"></i> <span>حالة الطاولات</span>
-          </div>
-          <div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>
-          
-          <div class="menu-item" id="addTableBtn" onclick="openAddTableModal()" style="margin: 4px 0; background: #8B0000; color: white;">
-            <i class="fas fa-plus-circle"></i> <span id="addTableLabel">➕ إضافة طاولة</span>
-          </div>
-          <div class="menu-item" id="editTableBtn" onclick="enableTableEditMode()" style="margin: 4px 0;">
-            <i class="fas fa-edit"></i> <span id="editTableLabel">تعديل طاولة</span>
-          </div>
-          <div class="menu-item" id="deleteTableBtn" onclick="enableTableDeleteMode()" style="margin: 4px 0;">
-            <i class="fas fa-trash-alt"></i> <span id="deleteTableLabel">حذف طاولة</span>
-          </div>
-          <div class="menu-item" id="moveTableBtn" onclick="toggleMoveMode()" style="margin: 4px 0;">
-            <i class="fas fa-arrows-alt"></i> <span id="moveTableLabel">تحريك طاولات</span>
-          </div>
-          <div class="menu-item" id="savePositionsBtn" onclick="saveTablePositions()" style="display: none; margin: 4px 0;">
-            <i class="fas fa-save"></i> <span id="savePositionsLabel">حفظ المواقع</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Reservations / الحجوزات -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="reservations">
-          <div class="menu-title">
-            <i class="fas fa-calendar-alt"></i>
-            <span>الحجوزات</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="reservations">
-          <div class="sub-menu-item" data-view="res-calendar">
-            <i class="fas fa-calendar"></i> <span>عرض التقويم</span>
-          </div>
-          <div class="sub-menu-item" data-view="res-upcoming">
-            <i class="fas fa-arrow-right"></i> <span>القادمة</span>
-          </div>
-          <div class="sub-menu-item" data-view="res-confirmed">
-            <i class="fas fa-check-circle"></i> <span>المؤكدة</span>
-          </div>
-          <div class="sub-menu-item" data-view="res-add">
-            <i class="fas fa-plus-circle"></i> <span>إضافة حجز</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Customers / العملاء -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="customers">
-          <div class="menu-title">
-            <i class="fas fa-users"></i>
-            <span>العملاء</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="customers">
-          <div class="sub-menu-item" data-view="customers-list">
-            <i class="fas fa-list"></i> <span>قائمة العملاء</span>
-          </div>
-          <div class="sub-menu-item" data-view="customers-profiles">
-            <i class="fas fa-id-card"></i> <span>ملفات العملاء</span>
-          </div>
-          <div class="sub-menu-item" data-view="customers-segments">
-            <i class="fas fa-tags"></i> <span>شرائح العملاء</span>
-          </div>
-          <div class="sub-menu-item" data-view="customers-loyalty">
-            <i class="fas fa-gem"></i> <span>برنامج الولاء</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Reports / التقارير -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="reports">
-          <div class="menu-title">
-            <i class="fas fa-chart-bar"></i>
-            <span>التقارير</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="reports">
-          <div class="sub-menu-item" data-view="reports-waiting">
-            <i class="fas fa-hourglass"></i> <span>تحليل وقت الانتظار</span>
-          </div>
-          <div class="sub-menu-item" data-view="reports-peak">
-            <i class="fas fa-chart-line"></i> <span>ساعات الذروة</span>
-          </div>
-          <div class="sub-menu-item" data-view="reports-tables">
-            <i class="fas fa-chair"></i> <span>استغلال الطاولات</span>
-          </div>
-          <div class="sub-menu-item" data-view="reports-staff">
-            <i class="fas fa-user-tie"></i> <span>أداء الموظفين</span>
-          </div>
-          <div class="sub-menu-item" data-view="reports-export">
-            <i class="fas fa-download"></i> <span>تصدير التقارير</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="sidebar-divider"></div>
-
-      <!-- Notifications / الإشعارات (Admin) -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="notifications">
-          <div class="menu-title">
-            <i class="fas fa-bell"></i>
-            <span>الإشعارات</span>
-            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="notifications">
-          <div class="sub-menu-item" data-view="notif-whatsapp">
-            <i class="fab fa-whatsapp"></i> <span>واتساب API</span>
-          </div>
-          <div class="sub-menu-item" data-view="notif-logs" onclick="openWhatsAppLogsModal()">
-    <i class="fas fa-history"></i> <span>سجل الرسائل</span>
-</div>
-          <div class="sub-menu-item" data-view="notif-templates">
-            <i class="fas fa-file-alt"></i> <span>قوالب الرسائل</span>
-          </div>
-          <div class="sub-menu-item" data-view="notif-alerts">
-            <i class="fas fa-exclamation-triangle"></i> <span>تنبيهات الطابور</span>
-          </div>
-          <div class="sub-menu-item" data-view="notif-triggers">
-            <i class="fas fa-clock"></i> <span>مؤقتات تلقائية</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Branches & Zones / الفروع والمناطق (Admin) -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="branches">
-          <div class="menu-title">
-            <i class="fas fa-store"></i>
-            <span>الفروع والمناطق</span>
-            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="branches">
-          <div class="sub-menu-item" data-view="branches-list">
-            <i class="fas fa-list"></i> <span>إدارة الفروع</span>
-          </div>
-          <div class="sub-menu-item" data-view="zones-list" onclick="openZonesModal()">
-            <i class="fas fa-map"></i> <span>إدارة المناطق</span>
-          </div>
-          <div class="sub-menu-item" data-view="floors-list" onclick="openFloorsModal()">
-            <i class="fas fa-building"></i> <span>إدارة الطوابق</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Users & Roles / المستخدمين والصلاحيات (Admin) -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="users">
-          <div class="menu-title">
-            <i class="fas fa-user-shield"></i>
-            <span>المستخدمين</span>
-            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="users">
-          <div class="sub-menu-item" data-view="users-list" onclick="openUsersModal()">
-            <i class="fas fa-users"></i> <span>قائمة الموظفين</span>
-          </div>
-          <div class="sub-menu-item" data-view="users-roles" onclick="openPermissionsModal()">
-            <i class="fas fa-lock"></i> <span>الصلاحيات</span>
-          </div>
-          <div class="sub-menu-item" data-view="users-log">
-            <i class="fas fa-history"></i> <span>سجل النشاط</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Settings / الإعدادات (Admin) -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="settings">
-          <div class="menu-title">
-            <i class="fas fa-cog"></i>
-            <span>الإعدادات</span>
-            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="settings">
-          <div class="sub-menu-item" data-view="settings-general" onclick="openSettingsModal()">
-            <i class="fas fa-building"></i> <span>الإعدادات العامة</span>
-          </div>
-          <div class="sub-menu-item" data-view="settings-queue">
-            <i class="fas fa-clock"></i> <span>قواعد الطابور</span>
-          </div>
-          <div class="sub-menu-item" data-view="settings-tables">
-            <i class="fas fa-chair"></i> <span>أنواع الطاولات</span>
-          </div>
-          <div class="sub-menu-item" data-view="settings-preferences">
-            <i class="fas fa-sliders-h"></i> <span>تفضيلات النظام</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Timer Settings -->
-      <div class="sidebar-nav-section">
-        <div class="main-menu-item" data-menu="timers">
-          <div class="menu-title">
-            <i class="fas fa-hourglass-half"></i>
-            <span>المؤقتات</span>
-            <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
-          </div>
-          <i class="fas fa-chevron-right toggle-icon"></i>
-        </div>
-        <div class="sub-menu" data-submenu="timers">
-          <div class="sub-menu-item" data-view="timers-settings" onclick="openTimerSettingsModal()">
-            <i class="fas fa-sliders-h"></i> <span>إعدادات المؤقتات</span>
-          </div>
+        <div class="sub-menu-item" data-view="dashboard-today">
+          <i class="fas fa-calendar-day"></i> <span>ملخص اليوم</span>
         </div>
       </div>
     </div>
 
-    <div class="sidebar-footer">
-      <div class="sidebar-divider"></div>
-      <div class="menu-item" id="logoutBtn" onclick="logoutAndClean()" style="margin: 4px 8px;">
-        <i class="fas fa-sign-out-alt"></i> <span id="logoutLabel">تسجيل الخروج</span>
+    <!-- ==================== Queue / الطابور ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="queue">
+        <div class="menu-title">
+          <i class="fas fa-clock"></i>
+          <span>الطابور</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
       </div>
-      <div style="padding: 16px; text-align: center; font-size: 11px; color: var(--gray-500);">
-        <i class="fas fa-code-branch"></i> EasyQ v1.4
+      <div class="sub-menu" data-submenu="queue">
+        <div class="sub-menu-item" data-view="queue-cancelled">
+          <i class="fas fa-times-circle"></i> <span>ملغي / لم يحضر</span>
+        </div>
+        <div class="sub-menu-item" data-view="queue-seated">
+          <i class="fas fa-user-check"></i> <span>تم الجلوس</span>
+        </div>
       </div>
+    </div>
+
+    <!-- ==================== Tables / الطاولات ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="tables">
+        <div class="menu-title">
+          <i class="fas fa-chair"></i>
+          <span>الطاولات</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
+      </div>
+      <div class="sub-menu" data-submenu="tables">
+        <div class="sub-menu-item" data-view="tables-list">
+          <i class="fas fa-table-list"></i> <span>قائمة الطاولات</span>
+        </div>
+        <div class="sub-menu-item" data-view="tables-status">
+          <i class="fas fa-chart-simple"></i> <span>حالة الطاولات</span>
+        </div>
+        <div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>
+        
+        <div class="menu-item" id="addTableBtn" onclick="openAddTableModal()" style="margin: 4px 0; background: #8B0000; color: white;">
+          <i class="fas fa-plus-circle"></i> <span>➕ إضافة طاولة</span>
+        </div>
+        <div class="menu-item" id="editTableBtn" onclick="enableTableEditMode()" style="margin: 4px 0;">
+          <i class="fas fa-edit"></i> <span>تعديل طاولة</span>
+        </div>
+        <div class="menu-item" id="deleteTableBtn" onclick="enableTableDeleteMode()" style="margin: 4px 0;">
+          <i class="fas fa-trash-alt"></i> <span>حذف طاولة</span>
+        </div>
+        <div class="menu-item" id="moveTableBtn" onclick="toggleMoveMode()" style="margin: 4px 0;">
+          <i class="fas fa-arrows-alt"></i> <span>تحريك طاولات</span>
+        </div>
+        <div class="menu-item" id="savePositionsBtn" onclick="saveTablePositions()" style="display: none; margin: 4px 0;">
+          <i class="fas fa-save"></i> <span>حفظ المواقع</span>
+        </div>
+        <div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>
+        
+        <div class="sub-menu-item" onclick="openTimerSettingsModal()">
+          <i class="fas fa-hourglass-half"></i> <span>إعداد المؤقتات</span>
+        </div>
+        <div class="sub-menu-item" onclick="openSettingsModal()">
+          <i class="fas fa-bell"></i> <span>إعداد التنبيهات</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== Reservations / الحجوزات ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="reservations">
+        <div class="menu-title">
+          <i class="fas fa-calendar-alt"></i>
+          <span>الحجوزات</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
+      </div>
+      <div class="sub-menu" data-submenu="reservations">
+        <div class="sub-menu-item" data-view="res-calendar">
+          <i class="fas fa-calendar"></i> <span>عرض التقويم</span>
+        </div>
+        <div class="sub-menu-item" data-view="res-upcoming">
+          <i class="fas fa-arrow-right"></i> <span>القادمة</span>
+        </div>
+        <div class="sub-menu-item" data-view="res-confirmed">
+          <i class="fas fa-check-circle"></i> <span>المؤكدة</span>
+        </div>
+        <div class="sub-menu-item" data-view="res-add">
+          <i class="fas fa-plus-circle"></i> <span>إضافة حجز</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== Customers / العملاء ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="customers">
+        <div class="menu-title">
+          <i class="fas fa-users"></i>
+          <span>العملاء</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
+      </div>
+      <div class="sub-menu" data-submenu="customers">
+        <div class="sub-menu-item" data-view="customers-list">
+          <i class="fas fa-list"></i> <span>قائمة العملاء</span>
+        </div>
+        <div class="sub-menu-item" data-view="customers-profiles">
+          <i class="fas fa-id-card"></i> <span>ملفات العملاء</span>
+        </div>
+        <div class="sub-menu-item" data-view="customers-segments">
+          <i class="fas fa-tags"></i> <span>شرائح العملاء</span>
+        </div>
+        <div class="sub-menu-item" data-view="customers-loyalty">
+          <i class="fas fa-gem"></i> <span>برنامج الولاء</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== Reports / التقارير ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="reports">
+        <div class="menu-title">
+          <i class="fas fa-chart-bar"></i>
+          <span>التقارير</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
+      </div>
+      <div class="sub-menu" data-submenu="reports">
+        <div class="sub-menu-item" data-view="reports-waiting">
+          <i class="fas fa-hourglass"></i> <span>تحليل وقت الانتظار</span>
+        </div>
+        <div class="sub-menu-item" data-view="reports-peak">
+          <i class="fas fa-chart-line"></i> <span>ساعات الذروة</span>
+        </div>
+        <div class="sub-menu-item" data-view="reports-tables">
+          <i class="fas fa-chair"></i> <span>استغلال الطاولات</span>
+        </div>
+        <div class="sub-menu-item" data-view="reports-staff">
+          <i class="fas fa-user-tie"></i> <span>أداء الموظفين</span>
+        </div>
+        <div class="sub-menu-item" data-view="reports-export">
+          <i class="fas fa-download"></i> <span>تصدير التقارير</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== Notifications (معطل حالياً) ==================== -->
+    <!-- تم تعطيل قسم الإشعارات بالكامل -->
+
+    <div class="sidebar-divider"></div>
+
+    <!-- ==================== Users / المستخدمين (Admin) ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="users">
+        <div class="menu-title">
+          <i class="fas fa-user-shield"></i>
+          <span>المستخدمين</span>
+          <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
+      </div>
+      <div class="sub-menu" data-submenu="users">
+        <div class="sub-menu-item" onclick="openUsersModal()">
+          <i class="fas fa-users"></i> <span>قائمة الموظفين</span>
+        </div>
+        <div class="sub-menu-item" onclick="openPermissionsModal()">
+          <i class="fas fa-lock"></i> <span>الصلاحيات</span>
+        </div>
+        <div class="sub-menu-item" data-view="users-log">
+          <i class="fas fa-history"></i> <span>سجل النشاط</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== Settings / الإعدادات (Admin) ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="settings">
+        <div class="menu-title">
+          <i class="fas fa-cog"></i>
+          <span>الإعدادات</span>
+          <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
+      </div>
+      <div class="sub-menu" data-submenu="settings">
+        <div class="sub-menu-item" onclick="openSettingsModal()">
+          <i class="fas fa-building"></i> <span>الإعدادات العامة</span>
+        </div>
+        <div class="sub-menu-item" data-view="settings-queue">
+          <i class="fas fa-clock"></i> <span>قواعد الطابور</span>
+        </div>
+        <div class="sub-menu-item" data-view="settings-tables">
+          <i class="fas fa-chair"></i> <span>أنواع الطاولات</span>
+        </div>
+        <div class="sub-menu-item" data-view="settings-preferences">
+          <i class="fas fa-sliders-h"></i> <span>تفضيلات النظام</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== الموظفين (Admin) - قسم منفصل ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="staff">
+        <div class="menu-title">
+          <i class="fas fa-user-tie"></i>
+          <span>الموظفين</span>
+          <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
+      </div>
+      <div class="sub-menu" data-submenu="staff">
+        <div class="sub-menu-item" onclick="openUsersModal()">
+          <i class="fas fa-users"></i> <span>قائمة الموظفين</span>
+        </div>
+        <div class="sub-menu-item" onclick="openPermissionsModal()">
+          <i class="fas fa-lock"></i> <span>الصلاحيات</span>
+        </div>
+        <div class="sub-menu-item" data-view="staff-log">
+          <i class="fas fa-history"></i> <span>سجل النشاط</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== إدارة الفرع (Admin) ==================== -->
+    <div class="sidebar-nav-section">
+      <div class="main-menu-item" data-menu="branch">
+        <div class="menu-title">
+          <i class="fas fa-store"></i>
+          <span>إدارة الفرع</span>
+          <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+        </div>
+        <i class="fas fa-chevron-right toggle-icon"></i>
+      </div>
+      <div class="sub-menu" data-submenu="branch">
+        <div class="sub-menu-item" onclick="openZonesModal()">
+          <i class="fas fa-map"></i> <span>إدارة المناطق</span>
+        </div>
+        <div class="sub-menu-item" onclick="openFloorsModal()">
+          <i class="fas fa-building"></i> <span>إدارة الطوابق</span>
+        </div>
+        <div class="sub-menu-item" data-view="branch-account">
+          <i class="fas fa-credit-card"></i> <span>إدارة الحساب والاشتراكات</span>
+        </div>
+        <div class="sub-menu-item" data-view="branch-booking">
+          <i class="fas fa-qrcode"></i> <span>إدارة واجهة الحجز</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-divider"></div>
+    <div class="menu-item" id="logoutBtn" onclick="logoutAndClean()" style="margin: 4px 8px;">
+      <i class="fas fa-sign-out-alt"></i> <span>تسجيل الخروج</span>
+    </div>
+    <div style="padding: 16px; text-align: center; font-size: 11px; color: var(--gray-500);">
+      <i class="fas fa-code-branch"></i> EasyQ v1.5
     </div>
   </div>
+</div>
 
   <!-- Main Content -->
   <div class="main-content">
