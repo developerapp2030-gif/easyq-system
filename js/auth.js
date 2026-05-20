@@ -135,6 +135,22 @@ async function logoutAndClean() {
 }
 
 
+async function resetPassword() {
+  const email = document.getElementById('loginUsername').value.trim();
+  if (!email) {
+    showAlert('الرجاء إدخال البريد الإلكتروني');
+    return;
+  }
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://easyq-system.vercel.app/reset-password.html'
+  });
+  if (error) {
+    showAlert('فشل إرسال الرابط: ' + error.message);
+    return;
+  }
+  showSuccessNotification('✅ تم إرسال رابط إعادة التعيين إلى بريدك');
+}
+
 // ============================================================
 // FORGOT PASSWORD
 // ============================================================
