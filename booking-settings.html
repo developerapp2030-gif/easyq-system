@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>EASY-Q | إعدادات واجهة الحجز</title>
+  
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://zjdfadkonftkgljvzxoy.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGZhZGtvbmZ0a2dsanZ6eG95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NTQ3NTQsImV4cCI6MjA4ODMzMDc1NH0.XZaHGtz3PdBh08m2P9ZM7Xsg3tCG4nskzsoc3wPT-_Q';
+    const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #F5F6FA;
+      color: #1F2937;
+    }
+    
+    /* Top Bar */
+    .topbar {
+      background: #8B0000;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .topbar a {
+      color: white;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    
+    .topbar h1 {
+      color: white;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 30px 24px;
+    }
+    
+    /* Page Header */
+    .page-header {
+      margin-bottom: 30px;
+    }
+    
+    .page-header h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #8B0000;
+      margin-bottom: 8px;
+    }
+    
+    .page-header p {
+      color: #6B7280;
+      font-size: 14px;
+    }
+    
+    /* Settings Grid */
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 24px;
+    }
+    
+    /* Settings Card */
+    .settings-card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      border: 1px solid #E5E7EB;
+    }
+    
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #8B0000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .card-title i {
+      color: #8B0000;
+      font-size: 20px;
+    }
+    
+    /* Form Groups */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    
+    .form-label {
+      font-weight: 600;
+      font-size: 14px;
+      color: #374151;
+      flex: 1;
+    }
+    
+    .form-label small {
+      display: block;
+      font-weight: 400;
+      font-size: 12px;
+      color: #9CA3AF;
+      margin-top: 4px;
+    }
+    
+    .form-input {
+      padding: 10px 14px;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      font-size: 14px;
+      width: 200px;
+      background: white;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: #8B0000;
+    }
+    
+    .form-input.large {
+      width: 100%;
+    }
+    
+    /* Toggle Switch */
+    .toggle-switch {
+      width: 50px;
+      height: 28px;
+      background: #D1D5DB;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      border: none;
+    }
+    
+    .toggle-switch.active {
+      background: #8B0000;
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s;
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(22px);
+    }
+    
+    /* Color Picker */
+    .color-preview {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .color-input {
+      width: 40px;
+      height: 40px;
+      border: 2px solid #E5E7EB;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    
+    /* Buttons */
+    .btn {
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: #8B0000;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #6B0000;
+    }
+    
+    .btn-secondary {
+      background: #F3F4F6;
+      color: #374151;
+    }
+    
+    .btn-secondary:hover {
+      background: #E5E7EB;
+    }
+    
+    .btn-outline {
+      background: transparent;
+      border: 1px solid #8B0000;
+      color: #8B0000;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+    
+    /* QR Code Area */
+    .qr-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 16px;
+      background: #F9FAFB;
+      border-radius: 16px;
+      margin-top: 16px;
+    }
+    
+    .qr-placeholder {
+      width: 150px;
+      height: 150px;
+      background: #E5E7EB;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9CA3AF;
+    }
+    
+    .url-box {
+      background: #F3F4F6;
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      word-break: break-all;
+      font-family: monospace;
+    }
+    
+    /* Stats */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+    
+    .stat-box {
+      background: #F9FAFB;
+      padding: 16px;
+      border-radius: 16px;
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 28px;
+      font-weight: 800;
+      color: #8B0000;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #6B7280;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .settings-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .form-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .form-input {
+        width: 100%;
+      }
+      
+      .container {
+        padding: 20px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <a href="/">
+    <i class="fas fa-arrow-right"></i>
+    العودة إلى لوحة التحكم
+  </a>
+  <h1><i class="fas fa-qrcode"></i> إعدادات واجهة الحجز</h1>
+  <div style="width: 100px;"></div>
+</div>
+
+<div class="container">
+  <div class="page-header">
+    <h2>⚙️ إعدادات واجهة حجز العملاء</h2>
+    <p>تحكم في إعدادات صفحة الحجز الذاتي للعملاء (QR Code / رابط مباشر)</p>
+  </div>
+  
+  <div class="settings-grid" id="settingsGrid">
+    <!-- سيتم ملء المحتوى عبر JavaScript -->
+    <div style="text-align: center; padding: 50px;">
+      <i class="fas fa-spinner fa-spin" style="font-size: 32px; color: #8B0000;"></i>
+      <p>جاري تحميل الإعدادات...</p>
+    </div>
+  </div>
+  
+  <div class="btn-group">
+    <button class="btn btn-secondary" onclick="resetToDefault()">
+      <i class="fas fa-undo"></i> إعادة ضبط الإعدادات الافتراضية
+    </button>
+    <button class="btn btn-primary" onclick="saveAllSettings()">
+      <i class="fas fa-save"></i> حفظ جميع الإعدادات
+    </button>
+  </div>
+</div>
+
+<script src="js/booking-settings.js"></script>
+</body>
+</html>

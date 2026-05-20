@@ -537,30 +537,33 @@
     </div>
 
     <!-- ==================== إدارة الفرع (Admin) ==================== -->
-    <div class="sidebar-nav-section">
-      <div class="main-menu-item" data-menu="branch">
-        <div class="menu-title">
-          <i class="fas fa-store"></i>
-          <span>إدارة الفرع</span>
-          <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
-        </div>
-        <i class="fas fa-chevron-right toggle-icon"></i>
-      </div>
-      <div class="sub-menu" data-submenu="branch">
-        <div class="sub-menu-item" onclick="openZonesModal()">
-          <i class="fas fa-map"></i> <span>إدارة المناطق</span>
-        </div>
-        <div class="sub-menu-item" onclick="openFloorsModal()">
-          <i class="fas fa-building"></i> <span>إدارة الطوابق</span>
-        </div>
-        <div class="sub-menu-item" data-view="branch-account">
-          <i class="fas fa-credit-card"></i> <span>إدارة الحساب والاشتراكات</span>
-        </div>
-        <div class="sub-menu-item" data-view="branch-booking">
-          <i class="fas fa-qrcode"></i> <span>إدارة واجهة الحجز</span>
-        </div>
-      </div>
+<div class="sidebar-nav-section">
+  <div class="main-menu-item" data-menu="branch">
+    <div class="menu-title">
+      <i class="fas fa-store"></i>
+      <span>إدارة الفرع</span>
+      <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
     </div>
+    <i class="fas fa-chevron-right toggle-icon"></i>
+  </div>
+  <div class="sub-menu" data-submenu="branch">
+    <div class="sub-menu-item" onclick="openZonesModal()">
+      <i class="fas fa-map"></i> <span>إدارة المناطق</span>
+    </div>
+    <div class="sub-menu-item" onclick="openFloorsModal()">
+      <i class="fas fa-building"></i> <span>إدارة الطوابق</span>
+    </div>
+    <div class="sub-menu-item" data-view="branch-account">
+      <i class="fas fa-credit-card"></i> <span>إدارة الحساب والاشتراكات</span>
+    </div>
+<div class="sub-menu-item" onclick="openBookingSettingsModal()">
+  <i class="fas fa-sliders-h"></i> <span>إعدادات واجهة الحجز</span>
+</div>
+    <div class="sub-menu-item" onclick="openBookingPage()" style="background: rgba(139,0,0,0.1); margin-top: 5px;">
+      <i class="fas fa-qrcode"></i> <span>📱 فتح واجهة الحجز (QR)</span>
+    </div>
+  </div>
+</div>
 
   </div>
 
@@ -908,6 +911,26 @@
     <div class="settings-actions">
       <button class="settings-save" onclick="saveTimerSettings()">💾 حفظ</button>
       <button class="settings-close" onclick="closeTimerSettingsModal()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ==================== مودال إعدادات واجهة الحجز ==================== -->
+<div class="modal-backdrop" id="bookingSettingsModal">
+  <div class="booking-settings-modal">
+    <div class="booking-settings-header">
+      <span class="booking-settings-title"><i class="fas fa-qrcode"></i> إعدادات واجهة الحجز</span>
+      <button class="booking-settings-close" onclick="closeBookingSettingsModal()">&times;</button>
+    </div>
+    <div class="booking-settings-body" id="bookingSettingsBody">
+      <div style="text-align: center; padding: 40px;">
+        <i class="fas fa-spinner fa-spin"></i> جاري تحميل الإعدادات...
+      </div>
+    </div>
+    <div class="booking-settings-footer">
+      <button class="btn-save" onclick="saveBookingSettings()">💾 حفظ الإعدادات</button>
+      <button class="btn-cancel" onclick="closeBookingSettingsModal()">إلغاء</button>
     </div>
   </div>
 </div>
@@ -1592,6 +1615,458 @@ window.selectZone = selectZone;
 window.selectFloor = selectFloor;
 window.logError = logError;
 
+// فتح مودال إعدادات واجهة الحجز
+function openBookingSettingsModal() {
+  const modal = document.getElementById('bookingSettingsModal');
+  if (modal) {
+    modal.classList.add('show');
+    loadBookingSettingsToModal();
+  }
+}
+
+// إغلاق المودال
+function closeBookingSettingsModal() {
+  const modal = document.getElementById('bookingSettingsModal');
+  if (modal) {
+    modal.classList.remove('show');
+  }
+}
+
+async function loadBookingSettingsToModal() {
+  const body = document.getElementById('bookingSettingsBody');
+  const businessId = currentUser?.business_id || BUSINESS_ID || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
+  const bookingUrl = `${window.location.origin}/booking.html?business_id=${businessId}`;
+  
+  body.innerHTML = `<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل الإعدادات...</div>`;
+  
+  const { data } = await supabase
+    .from('restaurant_settings')
+    .select('setting_value')
+    .eq('business_id', businessId)
+    .eq('setting_key', 'booking_settings')
+    .maybeSingle();
+  
+  const settings = data?.setting_value ? JSON.parse(data.setting_value) : {
+    // الإعدادات العامة
+    booking_enabled: true,
+    direct_link_enabled: true,
+    qr_code_enabled: true,
+    advance_booking_days: 3,
+    booking_interval_minutes: 30,
+    // الطابور الحالي
+    show_current_queue: true,
+    show_waiting_count: true,
+    show_avg_wait_time: true,
+    show_last_called: true,
+    queue_display_style: 'circle',
+    // حقول النموذج
+    show_name_field: true,
+    show_phone_field: true,
+    show_party_size_field: true,
+    show_zone_field: true,
+    show_notes_field: false,
+    show_preferred_time_field: false,
+    // النصوص
+    page_title: 'EASY-Q | حجز وانتظار',
+    welcome_message: 'مرحباً بك، احجز دورك بسهولة وتابع حالة انتظارك مباشرة.',
+    submit_button_text: 'تأكيد الحجز',
+    success_message: 'تم إضافة طلبك بنجاح',
+    error_message: 'حدث خطأ، حاول مرة أخرى',
+    // الإشعارات
+    enable_notification_prompt: true,
+    notify_when_near: true,
+    notify_when_table_ready: true,
+    notify_when_number_changed: true,
+    notify_when_cancelled: true,
+    notification_sound: 'default',
+    // المظهر
+    primary_color: '#8B0000',
+    secondary_color: '#FFD700',
+    text_color: '#FFFFFF',
+    // التكامل
+    whatsapp_confirmation: true,
+    google_maps_link: '',
+    google_analytics_id: '',
+    // القيود
+    prevent_duplicate_minutes: 10,
+    max_party_size: 20,
+    min_party_size: 1,
+    enable_captcha: false
+  };
+  
+  // سنضيف باقي الأقسام في الخطوات القادمة
+  body.innerHTML = `
+    <div style="padding: 20px;">
+      <h3>📱 الإعدادات العامة</h3>
+      <hr>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>تفعيل واجهة الحجز للعملاء</span>
+          <button class="toggle-switch ${settings.booking_enabled ? 'active' : ''}" id="booking_enabled_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>تفعيل الحجز عبر الرابط المباشر</span>
+          <button class="toggle-switch ${settings.direct_link_enabled ? 'active' : ''}" id="direct_link_enabled_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>تفعيل الحجز عبر QR Code</span>
+          <button class="toggle-switch ${settings.qr_code_enabled ? 'active' : ''}" id="qr_code_enabled_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>عدد أيام الحجز المسبق المسموح بها</label>
+        <input type="number" id="advance_booking_days" value="${settings.advance_booking_days}" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>الفاصل الزمني بين الحجوزات (دقائق)</label>
+        <input type="number" id="booking_interval_minutes" value="${settings.booking_interval_minutes}" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+    </div>
+          <div style="padding: 20px; margin-top: 20px; border-top: 2px solid var(--border-color);">
+        <h3>👁️ الطابور الحالي (عرض للعملاء)</h3>
+        <hr>
+        <div style="margin-bottom: 15px;">
+          <label style="display: flex; justify-content: space-between;">
+            <span>إظهار الطابور الحالي للعملاء</span>
+            <button class="toggle-switch ${settings.show_current_queue ? 'active' : ''}" id="show_current_queue_toggle" onclick="this.classList.toggle('active')"></button>
+          </label>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: flex; justify-content: space-between;">
+            <span>إظهار عدد الأشخاص المنتظرين</span>
+            <button class="toggle-switch ${settings.show_waiting_count ? 'active' : ''}" id="show_waiting_count_toggle" onclick="this.classList.toggle('active')"></button>
+          </label>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: flex; justify-content: space-between;">
+            <span>إظهار متوسط وقت الانتظار</span>
+            <button class="toggle-switch ${settings.show_avg_wait_time ? 'active' : ''}" id="show_avg_wait_time_toggle" onclick="this.classList.toggle('active')"></button>
+          </label>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label style="display: flex; justify-content: space-between;">
+            <span>إظهار آخر 5 أرقام تم استدعاؤها</span>
+            <button class="toggle-switch ${settings.show_last_called ? 'active' : ''}" id="show_last_called_toggle" onclick="this.classList.toggle('active')"></button>
+          </label>
+        </div>
+        <div style="margin-bottom: 15px;">
+          <label>تنسيق عرض الرقم الحالي</label>
+          <select id="queue_display_style" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+            <option value="circle" ${settings.queue_display_style === 'circle' ? 'selected' : ''}>دائري كبير</option>
+            <option value="square" ${settings.queue_display_style === 'square' ? 'selected' : ''}>مربع</option>
+            <option value="bar" ${settings.queue_display_style === 'bar' ? 'selected' : ''}>شريط علوي</option>
+          </select>
+        </div>
+      </div>
+  `;
+    // ========== قسم نموذج الحجز ==========
+  body.innerHTML += `
+    <div style="padding: 20px; margin-top: 20px; border-top: 2px solid var(--border-color);">
+      <h3>📝 نموذج الحجز (الحقول الظاهرة للعميل)</h3>
+      <hr>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>☑️ الاسم (إجباري)</span>
+          <button class="toggle-switch ${settings.show_name_field ? 'active' : ''}" id="show_name_field_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>☑️ رقم الجوال (إجباري)</span>
+          <button class="toggle-switch ${settings.show_phone_field ? 'active' : ''}" id="show_phone_field_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>☑️ عدد الأشخاص</span>
+          <button class="toggle-switch ${settings.show_party_size_field ? 'active' : ''}" id="show_party_size_field_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>☑️ المنطقة (إذا كانت المناطق مفعلة)</span>
+          <button class="toggle-switch ${settings.show_zone_field ? 'active' : ''}" id="show_zone_field_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>☑️ ملاحظات إضافية للطلب</span>
+          <button class="toggle-switch ${settings.show_notes_field ? 'active' : ''}" id="show_notes_field_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>☑️ وقت الحجز المفضل</span>
+          <button class="toggle-switch ${settings.show_preferred_time_field ? 'active' : ''}" id="show_preferred_time_field_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+    </div>
+  `;
+   
+    // ========== قسم النصوص والترجمة ==========
+  body.innerHTML += `
+    <div style="padding: 20px; margin-top: 20px; border-top: 2px solid var(--border-color);">
+      <h3>💬 النصوص والترجمة</h3>
+      <hr>
+      <div style="margin-bottom: 15px;">
+        <label>عنوان الصفحة</label>
+        <input type="text" id="page_title" value="${settings.page_title.replace(/"/g, '&quot;')}" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>رسالة الترحيب</label>
+        <input type="text" id="welcome_message_input" value="${settings.welcome_message.replace(/"/g, '&quot;')}" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>نص زر الحجز</label>
+        <input type="text" id="submit_button_text" value="${settings.submit_button_text}" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>رسالة النجاح</label>
+        <input type="text" id="success_message" value="${settings.success_message}" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>رسالة الخطأ</label>
+        <input type="text" id="error_message" value="${settings.error_message}" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+    </div>
+  `;
+
+  // ========== قسم الإشعارات ==========
+  body.innerHTML += `
+    <div style="padding: 20px; margin-top: 20px; border-top: 2px solid var(--border-color);">
+      <h3>🔔 الإشعارات للعميل</h3>
+      <hr>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>طلب إذن الإشعارات عند فتح الصفحة</span>
+          <button class="toggle-switch ${settings.enable_notification_prompt ? 'active' : ''}" id="enable_notification_prompt_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>إشعار عند اقتراب الدور</span>
+          <button class="toggle-switch ${settings.notify_when_near ? 'active' : ''}" id="notify_when_near_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>إشعار عند جاهزية الطاولة</span>
+          <button class="toggle-switch ${settings.notify_when_table_ready ? 'active' : ''}" id="notify_when_table_ready_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>صوت الإشعار</label>
+        <select id="notification_sound" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+          <option value="default" ${settings.notification_sound === 'default' ? 'selected' : ''}>افتراضي</option>
+          <option value="gentle" ${settings.notification_sound === 'gentle' ? 'selected' : ''}>ناعم</option>
+          <option value="none" ${settings.notification_sound === 'none' ? 'selected' : ''}>بدون صوت</option>
+        </select>
+      </div>
+    </div>
+  `;
+
+  // ========== قسم تخصيص المظهر ==========
+  body.innerHTML += `
+    <div style="padding: 20px; margin-top: 20px; border-top: 2px solid var(--border-color);">
+      <h3>🎨 تخصيص المظهر</h3>
+      <hr>
+      <div style="margin-bottom: 15px;">
+        <label>اللون الرئيسي</label>
+        <input type="color" id="primary_color_input" value="${settings.primary_color}" style="width: 100%; margin-top: 5px; height: 45px; border-radius: 10px;">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>اللون الثانوي</label>
+        <input type="color" id="secondary_color_input" value="${settings.secondary_color}" style="width: 100%; margin-top: 5px; height: 45px; border-radius: 10px;">
+      </div>
+    </div>
+  `;
+    // ========== قسم الروابط و QR Code ==========
+  body.innerHTML += `
+    <div style="padding: 20px; margin-top: 20px; border-top: 2px solid var(--border-color);">
+      <h3>🔗 الروابط و QR Code</h3>
+      <hr>
+      <div style="margin-bottom: 15px; background: var(--gray-200); padding: 12px; border-radius: 10px; word-break: break-all;">
+        <strong>رابط الحجز:</strong><br>
+        <span style="direction: ltr; font-size: 12px;">${bookingUrl}</span>
+      </div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <button onclick="copyBookingUrl()" style="flex: 1; padding: 10px; background: #8B0000; color: white; border: none; border-radius: 10px; cursor: pointer;">
+          📋 نسخ الرابط
+        </button>
+        <button onclick="generateQRCode()" style="flex: 1; padding: 10px; background: #6B7280; color: white; border: none; border-radius: 10px; cursor: pointer;">
+          📱 تحميل QR Code
+        </button>
+        <button onclick="printQRCode()" style="flex: 1; padding: 10px; background: #6B7280; color: white; border: none; border-radius: 10px; cursor: pointer;">
+          🖨️ طباعة QR
+        </button>
+      </div>
+      <div style="margin-top: 15px;">
+        <label>لون QR Code</label>
+        <input type="color" id="qr_color" value="#000000" style="width: 100%; margin-top: 5px; height: 40px; border-radius: 10px;">
+      </div>
+    </div>
+  `;
+  function copyBookingUrl() {
+  const businessId = currentUser?.business_id || BUSINESS_ID || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
+  const url = `${window.location.origin}/booking.html?business_id=${businessId}`;
+  navigator.clipboard.writeText(url);
+  alert('✅ تم نسخ الرابط');
+}
+
+function generateQRCode() {
+  alert('سيتم إضافة ميزة إنشاء QR Code قريباً');
+}
+
+function printQRCode() {
+  alert('سيتم إضافة ميزة طباعة QR Code قريباً');
+}
+  // ========== قسم القيود والحماية ==========
+  body.innerHTML += `
+    <div style="padding: 20px; margin-top: 20px; border-top: 2px solid var(--border-color);">
+      <h3>🛡️ القيود والحماية</h3>
+      <hr>
+      <div style="margin-bottom: 15px;">
+        <label>منع الحجوزات المكررة من نفس الرقم خلال (دقائق)</label>
+        <input type="number" id="prevent_duplicate_minutes" value="${settings.prevent_duplicate_minutes || 10}" min="0" max="60" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>الحد الأقصى لعدد الأشخاص</label>
+        <input type="number" id="max_party_size" value="${settings.max_party_size || 20}" min="1" max="50" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>الحد الأدنى لعدد الأشخاص</label>
+        <input type="number" id="min_party_size" value="${settings.min_party_size || 1}" min="1" max="20" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>🔐 تفعيل رمز التحقق (Captcha)</span>
+          <button class="toggle-switch ${settings.enable_captcha ? 'active' : ''}" id="enable_captcha_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+    </div>
+  `;
+    // ========== قسم التكامل مع الأنظمة الأخرى ==========
+  body.innerHTML += `
+    <div style="padding: 20px; margin-top: 20px; border-top: 2px solid var(--border-color);">
+      <h3>🔄 التكامل مع الأنظمة الأخرى</h3>
+      <hr>
+      <div style="margin-bottom: 15px;">
+        <label style="display: flex; justify-content: space-between;">
+          <span>🤖 إرسال تأكيد الحجز عبر واتساب</span>
+          <button class="toggle-switch ${settings.whatsapp_confirmation !== undefined ? (settings.whatsapp_confirmation ? 'active' : '') : 'active'}" id="whatsapp_confirmation_toggle" onclick="this.classList.toggle('active')"></button>
+        </label>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>🔗 Google Maps رابط موقع المطعم</label>
+        <input type="text" id="google_maps_link" value="${settings.google_maps_link || ''}" placeholder="https://maps.google.com/..." style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label>📊 Google Analytics ID</label>
+        <input type="text" id="google_analytics_id" value="${settings.google_analytics_id || ''}" placeholder="UA-XXXXXX-X" style="width: 100%; padding: 10px; margin-top: 5px; border-radius: 10px; border: 1px solid var(--border-color);">
+      </div>
+    </div>
+  `;
+}
+
+async function saveBookingSettings() {
+  const businessId = currentUser?.business_id || BUSINESS_ID || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
+  
+  // الإعدادات العامة
+  const booking_enabled = document.getElementById('booking_enabled_toggle')?.classList.contains('active') || false;
+  const direct_link_enabled = document.getElementById('direct_link_enabled_toggle')?.classList.contains('active') || false;
+  const qr_code_enabled = document.getElementById('qr_code_enabled_toggle')?.classList.contains('active') || false;
+  const advance_booking_days = parseInt(document.getElementById('advance_booking_days')?.value) || 3;
+  const booking_interval_minutes = parseInt(document.getElementById('booking_interval_minutes')?.value) || 30;
+  
+  // الطابور الحالي
+  const show_current_queue = document.getElementById('show_current_queue_toggle')?.classList.contains('active') || false;
+  const show_waiting_count = document.getElementById('show_waiting_count_toggle')?.classList.contains('active') || false;
+  const show_avg_wait_time = document.getElementById('show_avg_wait_time_toggle')?.classList.contains('active') || false;
+  const show_last_called = document.getElementById('show_last_called_toggle')?.classList.contains('active') || false;
+  const queue_display_style = document.getElementById('queue_display_style')?.value || 'circle';
+  
+  // نموذج الحجز
+  const show_name_field = document.getElementById('show_name_field_toggle')?.classList.contains('active') || false;
+  const show_phone_field = document.getElementById('show_phone_field_toggle')?.classList.contains('active') || false;
+  const show_party_size_field = document.getElementById('show_party_size_field_toggle')?.classList.contains('active') || false;
+  const show_zone_field = document.getElementById('show_zone_field_toggle')?.classList.contains('active') || false;
+  const show_notes_field = document.getElementById('show_notes_field_toggle')?.classList.contains('active') || false;
+  const show_preferred_time_field = document.getElementById('show_preferred_time_field_toggle')?.classList.contains('active') || false;
+  
+  // النصوص
+  const page_title = document.getElementById('page_title')?.value || 'EASY-Q | حجز وانتظار';
+  const welcome_message = document.getElementById('welcome_message_input')?.value || '';
+  const submit_button_text = document.getElementById('submit_button_text')?.value || 'تأكيد الحجز';
+  const success_message = document.getElementById('success_message')?.value || 'تم إضافة طلبك بنجاح';
+  const error_message = document.getElementById('error_message')?.value || 'حدث خطأ، حاول مرة أخرى';
+  
+  // الإشعارات
+  const enable_notification_prompt = document.getElementById('enable_notification_prompt_toggle')?.classList.contains('active') || false;
+  const notify_when_near = document.getElementById('notify_when_near_toggle')?.classList.contains('active') || false;
+  const notify_when_table_ready = document.getElementById('notify_when_table_ready_toggle')?.classList.contains('active') || false;
+  const notification_sound = document.getElementById('notification_sound')?.value || 'default';
+  
+  // المظهر
+  const primary_color = document.getElementById('primary_color_input')?.value || '#8B0000';
+  const secondary_color = document.getElementById('secondary_color_input')?.value || '#FFD700';
+  
+  // القيود
+  const prevent_duplicate_minutes = parseInt(document.getElementById('prevent_duplicate_minutes')?.value) || 10;
+  const max_party_size = parseInt(document.getElementById('max_party_size')?.value) || 20;
+  const min_party_size = parseInt(document.getElementById('min_party_size')?.value) || 1;
+  const enable_captcha = document.getElementById('enable_captcha_toggle')?.classList.contains('active') || false;
+  
+  // التكامل
+  const whatsapp_confirmation = document.getElementById('whatsapp_confirmation_toggle')?.classList.contains('active') || false;
+  const google_maps_link = document.getElementById('google_maps_link')?.value || '';
+  const google_analytics_id = document.getElementById('google_analytics_id')?.value || '';
+  
+  const settings = {
+    booking_enabled, direct_link_enabled, qr_code_enabled, advance_booking_days, booking_interval_minutes,
+    show_current_queue, show_waiting_count, show_avg_wait_time, show_last_called, queue_display_style,
+    show_name_field, show_phone_field, show_party_size_field, show_zone_field, show_notes_field, show_preferred_time_field,
+    page_title, welcome_message, submit_button_text, success_message, error_message,
+    enable_notification_prompt, notify_when_near, notify_when_table_ready, notification_sound,
+    primary_color, secondary_color,
+    prevent_duplicate_minutes, max_party_size, min_party_size, enable_captcha,
+    whatsapp_confirmation, google_maps_link, google_analytics_id
+  };
+  
+  const { error } = await supabase
+    .from('restaurant_settings')
+    .upsert({
+      business_id: businessId,
+      setting_key: 'booking_settings',
+      setting_value: JSON.stringify(settings),
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'business_id,setting_key' });
+  
+  if (error) {
+    alert('❌ فشل حفظ الإعدادات: ' + error.message);
+  } else {
+    alert('✅ تم حفظ الإعدادات بنجاح');
+    closeBookingSettingsModal();
+  }
+}
+
+function copyBookingUrl() {
+  const businessId = currentUser?.business_id || BUSINESS_ID || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
+  const url = `${window.location.origin}/booking.html?business_id=${businessId}`;
+  navigator.clipboard.writeText(url);
+  alert('✅ تم نسخ الرابط');
+}
+
+
+
+function openBookingPage() {
+  const businessId = currentUser?.business_id || BUSINESS_ID || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
+  const url = `/booking.html?business_id=${businessId}`;
+  window.open(url, '_blank');
+}
 
 // تسجيل مطعم جديد - مودال
 function openRegisterModal() {

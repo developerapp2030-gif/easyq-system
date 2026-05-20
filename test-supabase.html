@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Test Supabase Connection</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>اختبار اتصال Supabase</h1>
+    <pre id="result">جاري الاختبار...</pre>
+
+    <script>
+        (async function testConnection() {
+            const SUPABASE_URL = 'https://zjdfadkonftkgljvzxoy.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGZhZGtvbmZ0a2dsanZ6eG95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NTQ3NTQsImV4cCI6MjA4ODMzMDc1NH0.XZaHGtz3PdBh08m2P9ZM7Xsg3tCG4nskzsoc3wPT-_Q';
+            
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            
+            document.getElementById('result').innerHTML = '✅ supabase client created\nجاري اختبار الاتصال...';
+            
+            try {
+                // اختبار قراءة من جدول restaurant_settings
+                const { data, error } = await supabase
+                    .from('restaurant_settings')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) {
+                    document.getElementById('result').innerHTML = '❌ خطأ: ' + error.message;
+                } else {
+                    document.getElementById('result').innerHTML = '✅ نجاح! الاتصال يعمل.\nالبيانات: ' + JSON.stringify(data, null, 2);
+                }
+            } catch (err) {
+                document.getElementById('result').innerHTML = '❌ استثناء: ' + err.message;
+            }
+        })();
+    </script>
+</body>
+</html>

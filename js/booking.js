@@ -2,6 +2,10 @@
 // EASY-Q BOOKING & QUEUE PAGE (Mobile First)
 // ============================================================
 
+const SUPABASE_URL = 'https://zjdfadkonftkgljvzxoy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGZhZGtvbmZ0a2dsanZ6eG95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NTQ3NTQsImV4cCI6MjA4ODMzMDc1NH0.XZaHGtz3PdBh08m2P9ZM7Xsg3tCG4nskzsoc3wPT-_Q';
+const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 
 // Global state
 let currentRequestId = null;
@@ -12,6 +16,28 @@ let realtimeChannel = null;
 let showCurrentQueueConfig = false;
 let zonesEnabled = false;
 let availableZones = [];
+
+
+function updateDateTime() {
+    const now = new Date();
+    const dateEl = document.getElementById('currentDate');
+    const timeEl = document.getElementById('currentTime');
+    if (dateEl) dateEl.innerText = now.toLocaleDateString('ar-SA');
+    if (timeEl) timeEl.innerText = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+}
+
+function requestNotificationPermission() {
+    // سيتم تفعيلها لاحقاً
+}
+
+function changePartySize(delta) {
+    const span = document.getElementById('partySizeValue');
+    if (span) {
+        let val = parseInt(span.innerText) || 2;
+        val = Math.max(1, Math.min(20, val + delta));
+        span.innerText = val;
+    }
+}
 
 // DOM Elements
 const app = document.getElementById('app');
@@ -357,7 +383,11 @@ function setupRealtime() {
 }
 
 // Start
-init();
-
+// تأكد من أن الصفحة جاهزة قبل التشغيل
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 // Make functions global for inline onclick
 window.changePartySize = changePartySize;
