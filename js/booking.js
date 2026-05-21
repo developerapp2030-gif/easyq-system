@@ -2,10 +2,7 @@
 // EASY-Q BOOKING & QUEUE PAGE (Mobile First)
 // ============================================================
 
-const SUPABASE_URL = 'https://zjdfadkonftkgljvzxoy.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGZhZGtvbmZ0a2dsanZ6eG95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NTQ3NTQsImV4cCI6MjA4ODMzMDc1NH0.XZaHGtz3PdBh08m2P9ZM7Xsg3tCG4nskzsoc3wPT-_Q';
-const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+// تعريف supabase مباشرة من window
 
 // Global state
 let currentRequestId = null;
@@ -17,7 +14,10 @@ let showCurrentQueueConfig = false;
 let zonesEnabled = false;
 let availableZones = [];
 
+// DOM Elements
+let app = null;
 
+// ========== الدوال المساعدة ==========
 function updateDateTime() {
     const now = new Date();
     const dateEl = document.getElementById('currentDate');
@@ -39,71 +39,57 @@ function changePartySize(delta) {
     }
 }
 
-// DOM Elements
-const app = document.getElementById('app');
+// ========== الدوال الأساسية ==========
 
-// Initialize
-async function init() {
-  await getBusinessSettings();
-  await getCurrentQueueNumber();
-  renderUI();
-  setupRealtime();
-  updateDateTime();
-  setInterval(updateDateTime, 1000);
-  requestNotificationPermission();
-}
 
 async function getBusinessSettings() {
-  // Get business_id from URL or use default
-  const urlParams = new URLSearchParams(window.location.search);
-  currentBusinessId = urlParams.get('business_id') || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
-  
-  // Get show_current_queue setting
-  const { data: queueSetting } = await supabase
-    .from('restaurant_settings')
-    .select('setting_value')
-    .eq('business_id', currentBusinessId)
-    .eq('setting_key', 'show_current_queue')
-    .maybeSingle();
-  
-  showCurrentQueueConfig = queueSetting?.setting_value === 'true';
-  
-  // Get zones enabled and zones list
-  const { data: zonesSetting } = await supabase
-    .from('restaurant_settings')
-    .select('setting_value')
-    .eq('business_id', currentBusinessId)
-    .eq('setting_key', 'active_zones')
-    .maybeSingle();
-  
-  if (zonesSetting?.setting_value) {
-    zonesEnabled = true;
-    availableZones = JSON.parse(zonesSetting.setting_value);
-  }
+    const urlParams = new URLSearchParams(window.location.search);
+    currentBusinessId = urlParams.get('business_id') || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
+    
+    const { data: queueSetting } = await supabase
+        .from('restaurant_settings')
+        .select('setting_value')
+        .eq('business_id', currentBusinessId)
+        .eq('setting_key', 'show_current_queue')
+        .maybeSingle();
+    
+    showCurrentQueueConfig = queueSetting?.setting_value === 'true';
+    
+    const { data: zonesSetting } = await supabase
+        .from('restaurant_settings')
+        .select('setting_value')
+        .eq('business_id', currentBusinessId)
+        .eq('setting_key', 'active_zones')
+        .maybeSingle();
+    
+    if (zonesSetting?.setting_value) {
+        zonesEnabled = true;
+        availableZones = JSON.parse(zonesSetting.setting_value);
+    }
 }
 
 async function getCurrentQueueNumber() {
-  const { data } = await supabase
-    .from('table_requests')
-    .select('queue_position')
-    .eq('business_id', currentBusinessId)
-    .eq('status', 'waiting')
-    .order('queue_position', { ascending: true })
-    .limit(1);
-  
-  if (data && data.length > 0) {
-    currentQueueNumber = data[0].queue_position;
-  }
+    const { data } = await supabase
+        .from('table_requests')
+        .select('queue_position')
+        .eq('business_id', currentBusinessId)
+        .eq('status', 'waiting')
+        .order('queue_position', { ascending: true })
+        .limit(1);
+    
+    if (data && data.length > 0) {
+        currentQueueNumber = data[0].queue_position;
+    }
 }
 
 async function renderUI() {
-  const hasActiveBooking = currentRequestId && !sessionStorage.getItem('booking_cancelled');
-  
-  if (hasActiveBooking) {
-    await renderStatusPage();
-  } else {
-    await renderBookingForm();
-  }
+    const hasActiveBooking = currentRequestId && !sessionStorage.getItem('booking_cancelled');
+    
+    if (hasActiveBooking) {
+        await renderStatusPage();
+    } else {
+        await renderBookingForm();
+    }
 }
 
 async function renderBookingForm() {
@@ -184,17 +170,35 @@ async function renderBookingForm() {
 }
 
 async function renderStatusPage() {
-  const { data: request } = await supabase
+  // جلب بيانات الطلب فقط (بدون join)
+  const { data: request, error } = await supabase
     .from('table_requests')
-    .select('*, customers(name, phone)')
+    .select('*')
     .eq('id', currentRequestId)
     .single();
   
+  if (error) {
+    console.error('Error fetching request:', error);
+    return;
+  }
+  
   if (!request || request.status === 'cancelled') {
     sessionStorage.removeItem('booking_cancelled');
+    sessionStorage.removeItem('current_booking_id');
     currentRequestId = null;
     renderBookingForm();
     return;
+  }
+  
+  // جلب بيانات العميل بشكل منفصل
+  let customerName = 'ضيف';
+  if (request.customer_id) {
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('name')
+      .eq('id', request.customer_id)
+      .single();
+    if (customer) customerName = customer.name;
   }
   
   app.innerHTML = `
@@ -254,43 +258,38 @@ async function submitBooking() {
   submitBtn.innerHTML = '<div class="spinner"></div> جاري الحجز...';
   
   try {
-    // Get or create customer
-    let { data: customer } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('phone', phone)
-      .maybeSingle();
+    // استخدام RPC لإنشاء عميل
+    const { data: customerId, error: customerError } = await supabase.rpc('create_customer_safe', {
+    p_name: name,
+    p_phone: phone,
+    p_business_id: currentBusinessId
+});
     
-    if (!customer) {
-      const { data: newCustomer } = await supabase
-        .from('customers')
-        .insert({ name, phone, whatsapp_number: phone })
-        .select()
-        .single();
-      customer = newCustomer;
-    }
+    if (customerError) throw new Error(customerError.message);
+    if (!customerId) throw new Error('فشل إنشاء العميل');
     
-    // Create table request
-    const { data: request, error } = await supabase
-      .from('table_requests')
-      .insert({
-        customer_id: customer.id,
-        business_id: currentBusinessId,
-        requested_party_size: partySize,
-        zone_name: zone,
-        request_source: 'web_booking',
-        status: 'waiting'
-      })
-      .select()
-      .single();
+    // استخدام RPC لإنشاء طلب حجز
+    const { data: booking, error: bookingError } = await supabase.rpc('create_booking_safe', {
+        p_customer_id: customerId,
+        p_business_id: currentBusinessId,
+        p_party_size: partySize,
+        p_zone_name: zone
+    });
     
-    if (error) throw error;
+    if (bookingError) throw new Error(bookingError.message);
     
-    currentRequestId = request.id;
+    currentRequestId = booking.request_id;
     sessionStorage.setItem('booking_cancelled', 'false');
+    sessionStorage.setItem('current_booking_id', currentRequestId);
     
-    showNotificationPermissionButton();
-    renderStatusPage();
+    await getCurrentQueueNumber();
+console.log('🔍 checking request in DB:', currentRequestId);
+const { data: check, error: checkErr } = await supabase
+    .from('table_requests')
+    .select('id')
+    .eq('id', currentRequestId);
+console.log('🔍 result:', check, checkErr);
+    await renderStatusPage();
     
   } catch (err) {
     alert('فشل الحجز: ' + err.message);
@@ -383,11 +382,26 @@ function setupRealtime() {
 }
 
 // Start
-// تأكد من أن الصفحة جاهزة قبل التشغيل
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
+async function startBookingPage() {
+
+    app = document.getElementById('app');
+
+    if (!app) {
+        console.error("❌ app container not found");
+        return;
+    }
+
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+
+    await getBusinessSettings();
+    await getCurrentQueueNumber();
+    await renderUI();
 }
-// Make functions global for inline onclick
-window.changePartySize = changePartySize;
+
+// تأكد من جاهزية الصفحة
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startBookingPage);
+} else {
+    startBookingPage();
+}

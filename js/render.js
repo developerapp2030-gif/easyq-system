@@ -347,6 +347,14 @@ if (w.zone_name && w.zone_name !== "") {
       sourceLabel = currentLang === 'ar' ? 'مسترجع' : 'Restored';
       sourceIcon = "fa-undo-alt";
       iconClass = "fas";
+} else if (w.request_source === "web_booking") {
+  sourceLabel = currentLang === 'ar' ? 'أونلاين' : 'Online';
+  sourceIcon = "fa-globe";
+  iconClass = "fas";
+    } else if (w.request_source === "qr_code") {
+      sourceLabel = currentLang === 'ar' ? 'QR Code' : 'QR Code';
+      sourceIcon = "fa-qrcode";
+      iconClass = "fas";
     } else {
       sourceLabel = currentLang === 'ar' ? 'واتس' : 'WSP';
       sourceIcon = "fa-whatsapp";
