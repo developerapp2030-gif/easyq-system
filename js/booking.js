@@ -211,64 +211,206 @@ async function renderStatusPage(requestData = null) {
     request = data;
   }
 
+  // إذا تم إلغاء الحجز
   if (!request || request.status === 'cancelled') {
+
     sessionStorage.removeItem('booking_cancelled');
     sessionStorage.removeItem('current_booking_id');
+
     currentRequestId = null;
+
     renderBookingForm();
+
     return;
   }
 
+
+
+  // =========================
+  // حساب التقدم
+  // =========================
+
+  const originalQueueNumber =
+    request?.queue_position || 1;
+
+  const remainingCount = Math.max(
+    0,
+    originalQueueNumber - currentQueueNumber
+  );
+
+  const progressPercent =
+    remainingCount / originalQueueNumber;
+
+  const circleLength = 590;
+
+  const dashOffset =
+    circleLength - (
+      circleLength * progressPercent
+    );
+
+
+
+  // =========================
+  // Render
+  // =========================
+
   app.innerHTML = `
+
     <div class="container">
+
       <div class="booking-header">
+
         <div class="restaurant-logo">
           <i class="fas fa-utensils"></i>
         </div>
-        <div class="restaurant-name">المطعم الرئيسي</div>
-        <div class="restaurant-address">الرياض، المملكة العربية السعودية</div>
-      </div>
 
-      <div class="status-card">
-        <div class="queue-number-circle">
-          <div class="queue-number">${request.queue_position || '--'}</div>
+        <div class="restaurant-name">
+          المطعم الرئيسي
         </div>
 
+        <div class="restaurant-address">
+          الرياض، المملكة العربية السعودية
+        </div>
+
+      </div>
+
+
+
+      <div class="status-card">
+
+        <div class="queue-progress-wrapper">
+
+          <svg
+            class="queue-progress-ring"
+            width="220"
+            height="220"
+            viewBox="0 0 220 220"
+          >
+
+            <circle
+              class="queue-progress-bg"
+              cx="110"
+              cy="110"
+              r="94"
+              fill="none"
+              stroke="rgba(255,255,255,0.12)"
+              stroke-width="12"
+            />
+
+            <circle
+              class="queue-progress-fill"
+              cx="110"
+              cy="110"
+              r="94"
+              id="queueProgressCircle"
+              fill="none"
+              stroke="#D4AF37"
+              stroke-width="12"
+              stroke-linecap="round"
+              style="
+                stroke-dasharray:590;
+                stroke-dashoffset:${dashOffset};
+              "
+            />
+
+          </svg>
+
+
+
+          <div class="queue-progress-content">
+
+            <div
+              class="queue-progress-number"
+              id="remainingCount"
+            >
+
+              ${
+                remainingCount <= 0
+                  ? 'وصل دورك'
+                  : remainingCount
+              }
+
+            </div>
+
+            <div class="queue-progress-label">
+              المتبقي
+            </div>
+
+          </div>
+
+        </div>
+
+
+
         <div class="current-serving">
+
           الرقم الحالي:
+
           <span id="currentServingNumber">
             ${currentQueueNumber || '--'}
           </span>
+
         </div>
 
+
+
         <div class="follow-message">
+
           <i class="fas fa-mobile-alt"></i>
+
           يرجى متابعة حالة الحجز من هذه الصفحة وعدم إغلاقها.
+
         </div>
+
       </div>
+
+
 
       <button
         class="submit-btn"
         id="refreshStatusBtn"
         style="background: rgba(255,255,255,0.1);"
       >
+
         <i class="fas fa-sync-alt"></i>
+
         تحديث
+
       </button>
 
-      <div class="cancel-link" id="cancelBookingLink">
+
+
+      <div
+        class="cancel-link"
+        id="cancelBookingLink"
+      >
+
         إلغاء الحجز
+
       </div>
+
     </div>
   `;
 
+
+
+  // =========================
+  // Events
+  // =========================
+
   document
     .getElementById('refreshStatusBtn')
-    ?.addEventListener('click', () => renderStatusPage());
+    ?.addEventListener(
+      'click',
+      () => renderStatusPage()
+    );
 
   document
     .getElementById('cancelBookingLink')
-    ?.addEventListener('click', cancelBooking);
+    ?.addEventListener(
+      'click',
+      cancelBooking
+    );
 }
 
 async function submitBooking() {
