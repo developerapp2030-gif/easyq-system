@@ -69,16 +69,37 @@ async function getBusinessSettings() {
 }
 
 async function getCurrentQueueNumber() {
-    const { data } = await supabase
-        .from('table_requests')
-        .select('queue_position')
-        .eq('business_id', currentBusinessId)
-        .eq('status', 'waiting')
-        .order('queue_position', { ascending: true })
-        .limit(1);
-    
-    if (data && data.length > 0) {
-        currentQueueNumber = data[0].queue_position;
+
+    const { data, error } = await supabase
+        .rpc('get_current_queue', {
+            p_business_id: currentBusinessId
+        });
+
+    if (error) {
+        console.error('Queue RPC Error:', error);
+        return;
+    }
+
+    currentQueueNumber = data?.current_queue || '--';
+
+
+
+    // تحديث الرقم الحالي في الواجهة مباشرة
+    const queueEl =
+        document.getElementById('liveQueueNumber');
+
+    if (queueEl) {
+        queueEl.innerText = currentQueueNumber;
+    }
+
+
+
+    // تحديث الرقم الحالي في صفحة الحالة
+    const servingEl =
+        document.getElementById('currentServingNumber');
+
+    if (servingEl) {
+        servingEl.innerText = currentQueueNumber;
     }
 }
 
@@ -169,19 +190,27 @@ async function renderBookingForm() {
   document.getElementById('enableNotifBtn')?.addEventListener('click', () => requestNotificationPermission(true));
 }
 
-async function renderStatusPage() {
-  // جلب بيانات الطلب فقط (بدون join)
-  const { data: request, error } = await supabase
-    .from('table_requests')
-    .select('*')
-    .eq('id', currentRequestId)
-    .single();
-  
-  if (error) {
-    console.error('Error fetching request:', error);
-    return;
+async function renderStatusPage(requestData = null) {
+
+  let request = requestData;
+
+  // فقط إذا لم يتم تمرير البيانات
+  if (!request) {
+
+    const { data, error } = await supabase
+      .from('table_requests')
+      .select('*')
+      .eq('id', currentRequestId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching request:', error);
+      return;
+    }
+
+    request = data;
   }
-  
+
   if (!request || request.status === 'cancelled') {
     sessionStorage.removeItem('booking_cancelled');
     sessionStorage.removeItem('current_booking_id');
@@ -189,18 +218,7 @@ async function renderStatusPage() {
     renderBookingForm();
     return;
   }
-  
-  // جلب بيانات العميل بشكل منفصل
-  let customerName = 'ضيف';
-  if (request.customer_id) {
-    const { data: customer } = await supabase
-      .from('customers')
-      .select('name')
-      .eq('id', request.customer_id)
-      .single();
-    if (customer) customerName = customer.name;
-  }
-  
+
   app.innerHTML = `
     <div class="container">
       <div class="booking-header">
@@ -210,31 +228,47 @@ async function renderStatusPage() {
         <div class="restaurant-name">المطعم الرئيسي</div>
         <div class="restaurant-address">الرياض، المملكة العربية السعودية</div>
       </div>
-      
+
       <div class="status-card">
         <div class="queue-number-circle">
           <div class="queue-number">${request.queue_position || '--'}</div>
         </div>
+
         <div class="current-serving">
-          الرقم الحالي: <span id="currentServingNumber">${currentQueueNumber || '--'}</span>
+          الرقم الحالي:
+          <span id="currentServingNumber">
+            ${currentQueueNumber || '--'}
+          </span>
         </div>
+
         <div class="follow-message">
-          <i class="fas fa-mobile-alt"></i> يرجى متابعة حالة الحجز من هذه الصفحة وعدم إغلاقها.
+          <i class="fas fa-mobile-alt"></i>
+          يرجى متابعة حالة الحجز من هذه الصفحة وعدم إغلاقها.
         </div>
       </div>
-      
-      <button class="submit-btn" id="refreshStatusBtn" style="background: rgba(255,255,255,0.1);">
-        <i class="fas fa-sync-alt"></i> تحديث
+
+      <button
+        class="submit-btn"
+        id="refreshStatusBtn"
+        style="background: rgba(255,255,255,0.1);"
+      >
+        <i class="fas fa-sync-alt"></i>
+        تحديث
       </button>
-      
+
       <div class="cancel-link" id="cancelBookingLink">
         إلغاء الحجز
       </div>
     </div>
   `;
-  
-  document.getElementById('refreshStatusBtn')?.addEventListener('click', () => renderStatusPage());
-  document.getElementById('cancelBookingLink')?.addEventListener('click', cancelBooking);
+
+  document
+    .getElementById('refreshStatusBtn')
+    ?.addEventListener('click', () => renderStatusPage());
+
+  document
+    .getElementById('cancelBookingLink')
+    ?.addEventListener('click', cancelBooking);
 }
 
 async function submitBooking() {
@@ -275,21 +309,24 @@ async function submitBooking() {
         p_party_size: partySize,
         p_zone_name: zone
     });
+
+
+
+
     
     if (bookingError) throw new Error(bookingError.message);
     
-    currentRequestId = booking.request_id;
+    currentRequestId = booking.request_id || booking;
     sessionStorage.setItem('booking_cancelled', 'false');
     sessionStorage.setItem('current_booking_id', currentRequestId);
     
     await getCurrentQueueNumber();
-console.log('🔍 checking request in DB:', currentRequestId);
-const { data: check, error: checkErr } = await supabase
-    .from('table_requests')
-    .select('id')
-    .eq('id', currentRequestId);
-console.log('🔍 result:', check, checkErr);
-    await renderStatusPage();
+
+    await renderStatusPage({
+    id: booking.request_id,
+    queue_position: booking.queue_position,
+    status: 'waiting'
+});
     
   } catch (err) {
     alert('فشل الحجز: ' + err.message);
@@ -397,6 +434,11 @@ async function startBookingPage() {
     await getBusinessSettings();
     await getCurrentQueueNumber();
     await renderUI();
+    setInterval(async () => {
+
+    await getCurrentQueueNumber();
+
+}, 5000);
 }
 
 // تأكد من جاهزية الصفحة
