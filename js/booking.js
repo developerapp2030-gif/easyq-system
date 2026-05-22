@@ -70,21 +70,24 @@ async function getBusinessSettings() {
 
 async function getCurrentQueueNumber() {
 
-    const { data, error } = await supabase
-        .rpc('get_current_queue', {
-            p_business_id: currentBusinessId
-        });
+    if (!currentRequestId) return;
 
-    if (error) {
-        console.error('Queue RPC Error:', error);
-        return;
-    }
+    const { data: request, error } = await supabase
+        .from('table_requests')
+        .select('queue_position, status')
+        .eq('id', currentRequestId)
+        .maybeSingle()
 
-    currentQueueNumber = data?.current_queue || '--';
+if (error) {
+    console.error('Queue Fetch Error:', error);
+    return;
+}
 
+if (!request) return;
 
+currentQueueNumber =
+    request?.queue_position || '--';
 
-    // تحديث الرقم الحالي في الواجهة مباشرة
     const queueEl =
         document.getElementById('liveQueueNumber');
 
@@ -92,9 +95,6 @@ async function getCurrentQueueNumber() {
         queueEl.innerText = currentQueueNumber;
     }
 
-
-
-    // تحديث الرقم الحالي في صفحة الحالة
     const servingEl =
         document.getElementById('currentServingNumber');
 
@@ -234,7 +234,7 @@ async function renderStatusPage(requestData = null) {
       .from('table_requests')
       .select('*')
       .eq('id', currentRequestId)
-      .single();
+      .maybeSingle()
 
     if (error) {
       console.error('Error fetching request:', error);
@@ -507,11 +507,7 @@ async function submitBooking() {
     
     await getCurrentQueueNumber();
 
-    await renderStatusPage({
-    id: booking.request_id,
-    queue_position: booking.queue_position,
-    status: 'waiting'
-});
+await renderStatusPage();
     
   } catch (err) {
     alert('فشل الحجز: ' + err.message);
@@ -580,9 +576,18 @@ function setupRealtime() {
     .on('postgres_changes', 
       { event: '*', schema: 'public', table: 'table_requests' },
       async (payload) => {
-        if (payload.new?.id === currentRequestId) {
-          await renderStatusPage();
-        }
+        if (
+  payload.new?.id === currentRequestId ||
+  payload.old?.id === currentRequestId
+) {
+
+  console.log('🔥 REALTIME UPDATE:', payload);
+
+  await getCurrentQueueNumber();
+
+  await renderStatusPage();
+
+}
         if (payload.eventType === 'UPDATE' && payload.new?.queue_position) {
           if (payload.new.queue_position <= 3 && payload.new.queue_position > 0) {
             if (Notification.permission === 'granted') {
