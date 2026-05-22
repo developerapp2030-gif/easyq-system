@@ -104,15 +104,21 @@ async function getCurrentQueueNumber() {
 }
 
 async function renderUI() {
-    const hasActiveBooking = currentRequestId && !sessionStorage.getItem('booking_cancelled');
-    
+
+    const hasActiveBooking =
+      currentRequestId &&
+      !sessionStorage.getItem('booking_cancelled');
+
     if (hasActiveBooking) {
+
         await renderStatusPage();
+
     } else {
+
         await renderBookingForm();
+
     }
 }
-
 async function renderBookingForm() {
   app.innerHTML = `
     <div class="container">
@@ -190,6 +196,33 @@ async function renderBookingForm() {
   document.getElementById('enableNotifBtn')?.addEventListener('click', () => requestNotificationPermission(true));
 }
 
+
+function getTimelineStatus(step, requestStatus, remainingCount, isFinished = false) {
+  if (requestStatus === 'cancelled') return '';
+  if (step === 0) return 'completed';
+  if (step === 1) {
+    if (remainingCount > 0) return 'active';
+    if (isFinished) return 'completed';
+    return '';
+  }
+  if (step === 2) {
+    if (remainingCount === 1 && !isFinished) return 'active';
+    if (isFinished) return 'completed';
+    return '';
+  }
+  if (step === 3) {
+    if (isFinished) return 'active completed';
+    return '';
+  }
+  return '';
+}
+
+function formatTime(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+}
+
 async function renderStatusPage(requestData = null) {
 
   let request = requestData;
@@ -230,26 +263,51 @@ async function renderStatusPage(requestData = null) {
   // حساب التقدم
   // =========================
 
-  const originalQueueNumber =
-    request?.queue_position || 1;
+const remainingCount =
+  request?.queue_position || 1;
 
-  const remainingCount = Math.max(
-    0,
-    originalQueueNumber - currentQueueNumber
-  );
+const isFinished =
+  request.status === 'reserved' ||
+  request.status === 'called' ||
+  request.status === 'ready' ||
+  request.status === 'occupied';
 
-  const progressPercent =
-    remainingCount / originalQueueNumber;
+const originalQueueNumber =
+  remainingCount || 1;
 
-  const circleLength = 590;
+const progressPercent = isFinished
+  ? 100
+  : 100;
 
-  const dashOffset =
-    circleLength - (
-      circleLength * progressPercent
-    );
+const circleLength = 578;
 
+const dashOffset =
+  circleLength -
+  ((circleLength * progressPercent) / 100);
 
+const fillColor =
+  isFinished ? '#10B981' : '#D4AF37';
 
+let numberText = remainingCount;
+
+let labelText = 'رقمك في الانتظار';
+
+if (remainingCount === 2 && !isFinished) {
+  labelText = 'اقترب دورك';
+}
+
+if (remainingCount === 1 && !isFinished) {
+  labelText = 'أنت التالي، كن جاهزًا';
+}
+
+if (isFinished) {
+  numberText = 'حان دورك';
+  labelText = '';
+}
+
+const numberClass = isFinished
+  ? 'queue-progress-number finished'
+  : 'queue-progress-number';
   // =========================
   // Render
   // =========================
@@ -276,93 +334,78 @@ async function renderStatusPage(requestData = null) {
 
 
 
-      <div class="status-card">
+<div class="premium-waiting-card">
 
-        <div class="queue-progress-wrapper">
+  <div class="premium-waiting-header">
 
-          <svg
-            class="queue-progress-ring"
-            width="220"
-            height="220"
-            viewBox="0 0 220 220"
-          >
+    <span class="premium-line"></span>
 
-            <circle
-              class="queue-progress-bg"
-              cx="110"
-              cy="110"
-              r="94"
-              fill="none"
-              stroke="rgba(255,255,255,0.12)"
-              stroke-width="12"
-            />
+    <h2>متابعة الحجز</h2>
 
-            <circle
-              class="queue-progress-fill"
-              cx="110"
-              cy="110"
-              r="94"
-              id="queueProgressCircle"
-              fill="none"
-              stroke="#D4AF37"
-              stroke-width="12"
-              stroke-linecap="round"
-              style="
-                stroke-dasharray:590;
-                stroke-dashoffset:${dashOffset};
-              "
-            />
+    <span class="premium-line"></span>
 
-          </svg>
+  </div>
 
+  <div class="premium-queue-wrapper">
 
+<div
+  class="premium-queue-ring"
+  id="premiumQueueRing"
+  style="--progress:${progressPercent};"
+>
 
-          <div class="queue-progress-content">
+      <svg class="premium-ring-svg" viewBox="0 0 220 220">
 
-            <div
-              class="queue-progress-number"
-              id="remainingCount"
-            >
+        <circle
+          class="premium-ring-bg"
+          cx="110"
+          cy="110"
+          r="92"
+        />
 
-              ${
-                remainingCount <= 0
-                  ? 'وصل دورك'
-                  : remainingCount
-              }
+        <circle
+          class="premium-ring-progress"
+          cx="110"
+          cy="110"
+          r="92"
+        />
 
-            </div>
+      </svg>
 
-            <div class="queue-progress-label">
-              المتبقي
-            </div>
+      <div class="premium-ring-content">
 
-          </div>
-
+        <div class="premium-ring-label">
+          رقمك في القائمة
         </div>
 
+        <div
+  class="premium-ring-number"
+  id="remainingCount"
+>
+  ${remainingCount}
+</div>
 
-
-        <div class="current-serving">
-
-          الرقم الحالي:
-
-          <span id="currentServingNumber">
-            ${currentQueueNumber || '--'}
-          </span>
-
-        </div>
-
-
-
-        <div class="follow-message">
-
-          <i class="fas fa-mobile-alt"></i>
-
-          يرجى متابعة حالة الحجز من هذه الصفحة وعدم إغلاقها.
-
+        <div class="premium-ring-sub">
+          مجموعة أمامك
         </div>
 
       </div>
+
+    </div>
+
+  </div>
+
+  <div class="premium-queue-status">
+
+    <i class="fas fa-heart"></i>
+
+    <span>
+      دورك يتقدم، شكرًا لصبرك
+    </span>
+
+  </div>
+
+</div>
 
 
 
