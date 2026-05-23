@@ -224,17 +224,33 @@ function formatTime(timestamp) {
 }
 
 async function renderStatusPage(requestData = null) {
+  console.log('🔄 renderStatusPage called');
+  console.log('currentRequestId:', currentRequestId);
+
+  // جلب الرقم الحالي من الطابور (أول رقم في الانتظار)
+  const { data: currentServingData } = await supabase
+    .from('table_requests')
+    .select('queue_position')
+    .eq('business_id', currentBusinessId)
+    .eq('status', 'waiting')
+    .order('queue_position', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  
+  const currentServingNumber = currentServingData?.queue_position || 1;
+  window.currentServingNumber = currentServingNumber;
+  
+  console.log('currentServingNumber:', currentServingNumber);
 
   let request = requestData;
 
-  // فقط إذا لم يتم تمرير البيانات
+  // فقط إذا لم يتم تمرير البيانات (لحالة إعادة التحميل)
   if (!request) {
-
     const { data, error } = await supabase
       .from('table_requests')
       .select('*')
       .eq('id', currentRequestId)
-      .maybeSingle()
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching request:', error);
@@ -246,216 +262,113 @@ async function renderStatusPage(requestData = null) {
 
   // إذا تم إلغاء الحجز
   if (!request || request.status === 'cancelled') {
-
     sessionStorage.removeItem('booking_cancelled');
     sessionStorage.removeItem('current_booking_id');
-
     currentRequestId = null;
-
     renderBookingForm();
-
     return;
   }
 
-
-
   // =========================
-  // حساب التقدم
+  // حساب التقدم باستخدام queue_position الحقيقي
   // =========================
 
-const remainingCount =
-  request?.queue_position || 1;
+  const userQueueNumber = request.queue_position || 1;
+  const remainingCount = Math.max(0, userQueueNumber - currentServingNumber);
+  const isFinished = remainingCount <= 0 || request.status === 'reserved' || request.status === 'occupied';
 
-const isFinished =
-  request.status === 'reserved' ||
-  request.status === 'called' ||
-  request.status === 'ready' ||
-  request.status === 'occupied';
+  const total = userQueueNumber;
+  const progressPercent = isFinished ? 100 : ((total - remainingCount) / total) * 100;
+  const circleLength = 578;
+  const dashOffset = circleLength - ((circleLength * progressPercent) / 100);
+  const fillColor = isFinished ? '#10B981' : '#D4AF37';
 
-const originalQueueNumber =
-  remainingCount || 1;
+  let numberText = remainingCount;
+  let labelText = 'متبقي حتى دورك';
 
-const progressPercent = isFinished
-  ? 100
-  : 100;
+  if (remainingCount === 1 && !isFinished) {
+      labelText = 'أنت التالي، كن جاهزًا';
+  }
+  if (remainingCount === 2 && !isFinished) {
+      labelText = 'اقترب دورك';
+  }
+  if (isFinished) {
+      numberText = 'حان دورك';
+      labelText = '';
+  }
 
-const circleLength = 578;
+  const numberClass = isFinished ? 'queue-progress-number finished' : 'queue-progress-number';
 
-const dashOffset =
-  circleLength -
-  ((circleLength * progressPercent) / 100);
-
-const fillColor =
-  isFinished ? '#10B981' : '#D4AF37';
-
-let numberText = remainingCount;
-
-let labelText = 'رقمك في الانتظار';
-
-if (remainingCount === 2 && !isFinished) {
-  labelText = 'اقترب دورك';
-}
-
-if (remainingCount === 1 && !isFinished) {
-  labelText = 'أنت التالي، كن جاهزًا';
-}
-
-if (isFinished) {
-  numberText = 'حان دورك';
-  labelText = '';
-}
-
-const numberClass = isFinished
-  ? 'queue-progress-number finished'
-  : 'queue-progress-number';
   // =========================
-  // Render
+  // Render HTML
   // =========================
 
   app.innerHTML = `
-
     <div class="container">
-
       <div class="booking-header">
-
         <div class="restaurant-logo">
           <i class="fas fa-utensils"></i>
         </div>
-
         <div class="restaurant-name">
           المطعم الرئيسي
         </div>
-
         <div class="restaurant-address">
           الرياض، المملكة العربية السعودية
         </div>
-
       </div>
 
-
-
-<div class="premium-waiting-card">
-
-  <div class="premium-waiting-header">
-
-    <span class="premium-line"></span>
-
-    <h2>متابعة الحجز</h2>
-
-    <span class="premium-line"></span>
-
-  </div>
-
-  <div class="premium-queue-wrapper">
-
-<div
-  class="premium-queue-ring"
-  id="premiumQueueRing"
-  style="--progress:${progressPercent};"
->
-
-      <svg class="premium-ring-svg" viewBox="0 0 220 220">
-
-        <circle
-          class="premium-ring-bg"
-          cx="110"
-          cy="110"
-          r="92"
-        />
-
-        <circle
-          class="premium-ring-progress"
-          cx="110"
-          cy="110"
-          r="92"
-        />
-
-      </svg>
-
-      <div class="premium-ring-content">
-
-        <div class="premium-ring-label">
-          رقمك في القائمة
+      <div class="premium-waiting-card">
+        <div class="premium-waiting-header">
+          <span class="premium-line"></span>
+          <h2>متابعة الحجز</h2>
+          <span class="premium-line"></span>
         </div>
-
-        <div
-  class="premium-ring-number"
-  id="remainingCount"
->
-  ${remainingCount}
+        <div class="premium-queue-wrapper">
+          <div class="premium-queue-ring" id="premiumQueueRing" style="--progress:${progressPercent};">
+            <svg class="premium-ring-svg" viewBox="0 0 220 220">
+              <circle class="premium-ring-bg" cx="110" cy="110" r="92" />
+              <circle class="premium-ring-progress" cx="110" cy="110" r="92" />
+            </svg>
+            <div class="premium-ring-content">
+              <div class="premium-ring-label">
+                رقمك في القائمة
+              </div>
+              <div class="premium-ring-number" id="remainingCount">
+  ${userQueueNumber}
 </div>
-
-        <div class="premium-ring-sub">
-          مجموعة أمامك
+              <div class="premium-ring-sub">
+              
+              </div>
+            </div>
+          </div>
         </div>
-
+        <div class="premium-queue-status">
+          <i class="fas fa-heart"></i>
+          <span>
+            دورك يتقدم، شكرًا لصبرك
+          </span>
+        </div>
       </div>
 
-    </div>
-
-  </div>
-
-  <div class="premium-queue-status">
-
-    <i class="fas fa-heart"></i>
-
-    <span>
-      دورك يتقدم، شكرًا لصبرك
-    </span>
-
-  </div>
-
-</div>
-
-
-
-      <button
-        class="submit-btn"
-        id="refreshStatusBtn"
-        style="background: rgba(255,255,255,0.1);"
-      >
-
-        <i class="fas fa-sync-alt"></i>
-
-        تحديث
-
+      <button class="submit-btn" id="refreshStatusBtn" style="background: rgba(255,255,255,0.1);">
+        <i class="fas fa-sync-alt"></i> تحديث
       </button>
 
-
-
-      <div
-        class="cancel-link"
-        id="cancelBookingLink"
-      >
-
+      <div class="cancel-link" id="cancelBookingLink">
         إلغاء الحجز
-
       </div>
-
     </div>
   `;
-
-
 
   // =========================
   // Events
   // =========================
 
-  document
-    .getElementById('refreshStatusBtn')
-    ?.addEventListener(
-      'click',
-      () => renderStatusPage()
-    );
-
-  document
-    .getElementById('cancelBookingLink')
-    ?.addEventListener(
-      'click',
-      cancelBooking
-    );
+  document.getElementById('refreshStatusBtn')?.addEventListener('click', () => renderStatusPage());
+  document.getElementById('cancelBookingLink')?.addEventListener('click', cancelBooking);
+  
+  console.log('✅ renderStatusPage finished');
 }
-
 async function submitBooking() {
   const name = document.getElementById('customerName')?.value.trim();
   const phone = document.getElementById('customerPhone')?.value.trim();
@@ -479,35 +392,36 @@ async function submitBooking() {
   try {
     // استخدام RPC لإنشاء عميل
     const { data: customerId, error: customerError } = await supabase.rpc('create_customer_safe', {
-    p_name: name,
-    p_phone: phone,
-    p_business_id: currentBusinessId
-});
+        p_name: name,
+        p_phone: phone,
+        p_business_id: currentBusinessId
+    });
     
     if (customerError) throw new Error(customerError.message);
     if (!customerId) throw new Error('فشل إنشاء العميل');
     
-    // استخدام RPC لإنشاء طلب حجز
+    // استخدام RPC لإنشاء طلب حجز (ترجع الطلب كاملاً)
     const { data: booking, error: bookingError } = await supabase.rpc('create_booking_safe', {
         p_customer_id: customerId,
         p_business_id: currentBusinessId,
         p_party_size: partySize,
         p_zone_name: zone
     });
-
-
-
-
     
     if (bookingError) throw new Error(bookingError.message);
     
-    currentRequestId = booking.request_id || booking;
+    // ✅ تعيين المتغيرات من البيانات المرجعة مباشرة
+    currentRequestId = booking.id;
+    currentQueueNumber = booking.queue_position;
+    
     sessionStorage.setItem('booking_cancelled', 'false');
     sessionStorage.setItem('current_booking_id', currentRequestId);
     
-    await getCurrentQueueNumber();
-
-await renderStatusPage();
+    console.log('✅ currentRequestId:', currentRequestId);
+    console.log('✅ queue_position:', currentQueueNumber);
+    
+    // ✅ تمرير بيانات الطلب مباشرة إلى renderStatusPage
+    await renderStatusPage(booking);
     
   } catch (err) {
     alert('فشل الحجز: ' + err.message);
@@ -576,32 +490,15 @@ function setupRealtime() {
     .on('postgres_changes', 
       { event: '*', schema: 'public', table: 'table_requests' },
       async (payload) => {
-        if (
-  payload.new?.id === currentRequestId ||
-  payload.old?.id === currentRequestId
-) {
-
-  console.log('🔥 REALTIME UPDATE:', payload);
-
-  await getCurrentQueueNumber();
-
-  await renderStatusPage();
-
-}
-        if (payload.eventType === 'UPDATE' && payload.new?.queue_position) {
-          if (payload.new.queue_position <= 3 && payload.new.queue_position > 0) {
-            if (Notification.permission === 'granted') {
-              new Notification('🔔 دورك يقترب!', {
-                body: `رقم ${payload.new.queue_position} في قائمة الانتظار`,
-                icon: '/favicon.ico'
-              });
-            }
-          }
+        // تحديث إذا تغير الطلب الحالي أو تغير ترتيب الطابور
+        if (payload.new?.id === currentRequestId || payload.old?.id === currentRequestId) {
+          console.log('🔄 Realtime update for my request:', payload.eventType);
           await getCurrentQueueNumber();
-          const queueEl = document.getElementById('liveQueueNumber');
-          if (queueEl) queueEl.innerText = currentQueueNumber || '--';
-          const servingEl = document.getElementById('currentServingNumber');
-          if (servingEl) servingEl.innerText = currentQueueNumber || '--';
+          await renderStatusPage();
+        }
+        // تحديث الرقم الحالي للطابور
+        if (payload.new?.business_id === currentBusinessId && payload.new?.status === 'waiting') {
+          await getCurrentQueueNumber();
         }
       }
     )
