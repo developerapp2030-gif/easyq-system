@@ -227,6 +227,8 @@ async function renderStatusPage(requestData = null) {
   console.log('🔄 renderStatusPage called');
   console.log('currentRequestId:', currentRequestId);
 
+
+
   // جلب الرقم الحالي من الطابور (أول رقم في الانتظار)
   const { data: currentServingData } = await supabase
     .from('table_requests')
@@ -258,6 +260,8 @@ async function renderStatusPage(requestData = null) {
     }
 
     request = data;
+    console.log('REQUEST STATUS:', request?.status);
+
   }
 
   // إذا تم إلغاء الحجز
@@ -482,28 +486,49 @@ async function requestNotificationPermission(showAlert = false) {
   }
 }
 
+
 function setupRealtime() {
-  if (realtimeChannel) realtimeChannel.unsubscribe();
-  
-  realtimeChannel = supabase
-    .channel('booking-realtime')
-    .on('postgres_changes', 
-      { event: '*', schema: 'public', table: 'table_requests' },
-      async (payload) => {
-        // تحديث إذا تغير الطلب الحالي أو تغير ترتيب الطابور
-        if (payload.new?.id === currentRequestId || payload.old?.id === currentRequestId) {
-          console.log('🔄 Realtime update for my request:', payload.eventType);
-          await getCurrentQueueNumber();
-          await renderStatusPage();
+    console.log('📡 setupRealtime started');
+
+    if (realtimeChannel) {
+        realtimeChannel.unsubscribe();
+    }
+
+    realtimeChannel = supabase
+      .channel('booking-realtime', {
+        config: {
+          broadcast: { self: true }
         }
-        // تحديث الرقم الحالي للطابور
-        if (payload.new?.business_id === currentBusinessId && payload.new?.status === 'waiting') {
-          await getCurrentQueueNumber();
+      });
+
+    // الاستماع لأحداث التعديل فقط UPDATE
+    realtimeChannel.on(
+        'postgres_changes',
+        {
+            event: 'UPDATE', 
+            schema: 'public',
+            table: 'table_requests'
+        },
+        function(payload) {
+            console.log('🔥 EVENT RECEIVED VIA REALTIME:', payload);
+            console.log('NEW DATA:', payload.new);
+
+            // 🎯 الشرط السحري: نتحقق أن التحديث الحالي يخص رقم حجز هذا العميل تحديداً
+            if (payload.new && payload.new.id === currentRequestId) {
+                console.log(`🎯 رقم طابورك تغير في قاعدة البيانات إلى: ${payload.new.queue_position}`);
+                
+                // نقوم بتمرير السطر المحدث مباشرة للدالة لتحديث الدائرة فوراً 
+                // دون الحاجة لعمل SELECT جديدة من قاعدة البيانات عبر الشبكة
+                renderStatusPage(payload.new); 
+            }
         }
-      }
-    )
-    .subscribe();
+    );
+
+    realtimeChannel.subscribe(function(status) {
+        console.log('📡 realtime status:', status);
+    });
 }
+
 
 // Start
 async function startBookingPage() {
@@ -521,6 +546,7 @@ async function startBookingPage() {
     await getBusinessSettings();
     await getCurrentQueueNumber();
     await renderUI();
+    setupRealtime();
     setInterval(async () => {
 
     await getCurrentQueueNumber();
