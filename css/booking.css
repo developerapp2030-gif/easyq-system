@@ -661,3 +661,106 @@ select.form-input option {
   }
 
 }
+
+/* ============================================
+   RESPONSIVE TEXT - MOBILE FIRST
+   ============================================ */
+
+/* العناوين الرئيسية */
+.premium-waiting-header h2 {
+    font-size: clamp(14px, 5vw, 22px);
+    white-space: nowrap;
+}
+
+/* النص داخل الدائرة (مثل "طاولتك جاهزة") */
+.premium-ring-label {
+    font-size: clamp(10px, 3.5vw, 14px);
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* الرقم الكبير داخل الدائرة */
+.premium-ring-number {
+    font-size: clamp(28px, 12vw, 48px);
+}
+
+/* النص السفلي للدائرة */
+.premium-ring-sub {
+    font-size: clamp(9px, 3vw, 12px);
+    white-space: nowrap;
+}
+
+/* النص داخل بطاقة الحجز (مثل "دورك يتقدم...") */
+.premium-queue-status span {
+    font-size: clamp(10px, 3.5vw, 14px);
+    white-space: nowrap;
+}
+
+/* الروابط والأزرار */
+.cancel-link, .submit-btn {
+    font-size: clamp(12px, 4vw, 16px);
+    white-space: nowrap;
+}
+
+/* حقول الإدخال في نموذج الحجز */
+.form-input, .form-label {
+    font-size: clamp(12px, 4vw, 16px);
+}
+
+/* تأكد أن جميع النصوص لا تنزل لسطر جديد */
+.booking-header .restaurant-name {
+    font-size: clamp(16px, 6vw, 24px);
+    white-space: nowrap;
+}
+
+.booking-header .restaurant-address {
+    font-size: clamp(10px, 3vw, 13px);
+    white-space: nowrap;
+}
+
+.datetime-row {
+    font-size: clamp(10px, 3vw, 13px);
+    white-space: nowrap;
+}
+
+.welcome-message {
+    font-size: clamp(11px, 4vw, 14px);
+}
+
+/* للحالات القصوى جداً (شاشات أقل من 360px) */
+@media (max-width: 360px) {
+    .premium-ring-label {
+        white-space: normal;
+        line-height: 1.2;
+        max-width: 100px;
+    }
+    .booking-header .restaurant-address {
+        white-space: normal;
+        line-height: 1.2;
+    }
+}
+
+.booking-details {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 10px 0 15px;
+    font-size: clamp(11px, 3.5vw, 14px);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.booking-details .separator {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.booking-details i {
+    margin-left: 4px;
+    font-size: 11px;
+}
+
+.customer-name {
+    font-weight: 600;
+    color: #FFD700;
+}

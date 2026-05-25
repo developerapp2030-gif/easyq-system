@@ -224,29 +224,17 @@ function formatTime(timestamp) {
 }
 
 async function renderStatusPage(requestData = null) {
-  console.log('🔄 renderStatusPage called');
-  console.log('currentRequestId:', currentRequestId);
-
-
-
-  // جلب الرقم الحالي من الطابور (أول رقم في الانتظار)
-  const { data: currentServingData } = await supabase
-    .from('table_requests')
-    .select('queue_position')
-    .eq('business_id', currentBusinessId)
-    .eq('status', 'waiting')
-    .order('queue_position', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  
-  const currentServingNumber = currentServingData?.queue_position || 1;
-  window.currentServingNumber = currentServingNumber;
-  
-  console.log('currentServingNumber:', currentServingNumber);
-
   let request = requestData;
+  console.log('🔍 customer_name:', request?.customer_name, 'full request:', request);
+// جلب اسم العميل وعدد الأشخاص
+let customerName = request.customer_name || 'ضيف';
+let partySize = request.requested_party_size || 2;
+let bookingTime = formatTime(request.created_at);
 
-  // فقط إذا لم يتم تمرير البيانات (لحالة إعادة التحميل)
+// تقصير الاسم إذا تجاوز 15 حرف
+if (customerName.length > 15) {
+    customerName = customerName.substring(0, 15) + '...';
+}
   if (!request) {
     const { data, error } = await supabase
       .from('table_requests')
@@ -254,58 +242,62 @@ async function renderStatusPage(requestData = null) {
       .eq('id', currentRequestId)
       .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching request:', error);
-      return;
-    }
-
+    if (error || !data) return;
     request = data;
-    console.log('REQUEST STATUS:', request?.status);
-
   }
 
-  // إذا تم إلغاء الحجز
   if (!request || request.status === 'cancelled') {
-    sessionStorage.removeItem('booking_cancelled');
-    sessionStorage.removeItem('current_booking_id');
-    currentRequestId = null;
-    renderBookingForm();
+    // ... إلغاء الحجز
     return;
   }
 
-  // =========================
-  // حساب التقدم باستخدام queue_position الحقيقي
-  // =========================
+  // 🎯 الحسابات الذكية للتناسب التقسيمي للدائرة
+  
+  // الرقم الأصلي عند دخول الطابور
+  const originalQueueNumber = request.original_queue_position || request.queue_position || 1;
+  
+  // الرقم الحالي الحقيقي للعميل
+    const currentQueueNumber = request?.queue_position || window.currentQueueNumber || originalQueueNumber;
 
-  const userQueueNumber = request.queue_position || 1;
-  const remainingCount = Math.max(0, userQueueNumber - currentServingNumber);
-  const isFinished = remainingCount <= 0 || request.status === 'reserved' || request.status === 'occupied';
+  // هل تم تعيينه لطاولة؟
+  const isFinished = request.status === 'offered' || request.status === 'reserved' || request.status === 'occupied';
 
-  const total = userQueueNumber;
-  const progressPercent = isFinished ? 100 : ((total - remainingCount) / total) * 100;
+  // طول محيط الدائرة (المطابق للـ Radius 92)
   const circleLength = 578;
-  const dashOffset = circleLength - ((circleLength * progressPercent) / 100);
-  const fillColor = isFinished ? '#10B981' : '#D4AF37';
 
-  let numberText = remainingCount;
-  let labelText = 'متبقي حتى دورك';
-
-  if (remainingCount === 1 && !isFinished) {
-      labelText = 'أنت التالي، كن جاهزًا';
+  // حساب النسبة المئوية بشكل تناسبي بحت
+  let progressPercent = 100;
+  if (!isFinished) {
+    // التقسيم التناسبي المباشر: (الرقم الحالي ÷ الرقم الأصلي) × 100
+    progressPercent = (currentQueueNumber / originalQueueNumber) * 100;
+  } else {
+    progressPercent = 100;
   }
-  if (remainingCount === 2 && !isFinished) {
-      labelText = 'اقترب دورك';
+
+  // حساب الإزاحة الفعلية لإطار SVG للرسم بدقة
+  const dashOffset = circleLength - ((circleLength * progressPercent) / 100);
+
+  // النصوص الديناميكية الملاءمة للحالة
+
+  console.log('🔍 Debug - currentQueueNumber:', currentQueueNumber, 'isFinished:', isFinished);
+  let numberText = currentQueueNumber;
+  let labelText = 'رقمك في الانتظار';
+
+  if (currentQueueNumber === 3 && !isFinished) {
+    labelText = 'رقمك في الانتظار';
+  }
+  if (currentQueueNumber === 2 && !isFinished) {
+    labelText = 'اقترب دورك ';
+  }
+  if (currentQueueNumber === 1 && !isFinished) {
+    labelText = 'أنت التالي، كن جاهزاً';
   }
   if (isFinished) {
-      numberText = 'حان دورك';
-      labelText = '';
+    numberText = '0';
+    labelText = 'حان دورك ، تفضل بالدخول';
   }
 
-  const numberClass = isFinished ? 'queue-progress-number finished' : 'queue-progress-number';
-
-  // =========================
-  // Render HTML
-  // =========================
+ 
 
   app.innerHTML = `
     <div class="container">
@@ -327,18 +319,28 @@ async function renderStatusPage(requestData = null) {
           <h2>متابعة الحجز</h2>
           <span class="premium-line"></span>
         </div>
+        <div class="booking-details">
+  <span class="customer-name">${customerName}</span>
+  <span class="separator">-</span>
+  <span class="party-size"><i class="fas fa-user-friends"></i> ${partySize}</span>
+  <span class="separator">-</span>
+  <span class="booking-time"><i class="fas fa-clock"></i> ${bookingTime}</span>
+</div>
         <div class="premium-queue-wrapper">
           <div class="premium-queue-ring" id="premiumQueueRing" style="--progress:${progressPercent};">
             <svg class="premium-ring-svg" viewBox="0 0 220 220">
               <circle class="premium-ring-bg" cx="110" cy="110" r="92" />
-              <circle class="premium-ring-progress" cx="110" cy="110" r="92" />
+              <circle class="premium-ring-progress" cx="110" cy="110" r="92" 
+                      stroke-dasharray="578" 
+                      stroke-dashoffset="${dashOffset}"
+                      style="stroke: ${isFinished ? '#10B981' : '#D4AF37'}; transition: stroke-dashoffset 0.6s ease-in-out, stroke 0.4s ease;" />
             </svg>
             <div class="premium-ring-content">
-              <div class="premium-ring-label">
-                رقمك في القائمة
-              </div>
+           <div class="premium-ring-label">
+  ${labelText}
+</div>
               <div class="premium-ring-number" id="remainingCount">
-  ${userQueueNumber}
+                ${numberText}
 </div>
               <div class="premium-ring-sub">
               
@@ -417,6 +419,196 @@ async function submitBooking() {
     // ✅ تعيين المتغيرات من البيانات المرجعة مباشرة
     currentRequestId = booking.id;
     currentQueueNumber = booking.queue_position;
+    
+    sessionStorage.setItem('booking_cancelled', 'false');
+    sessionStorage.setItem('current_booking_id', currentRequestId);
+    
+    console.log('✅ currentRequestId:', currentRequestId);
+    console.log('✅ queue_position:', currentQueueNumber);
+    
+    // ✅ تمرير بيانات الطلب مباشرة إلى renderStatusPage
+    await renderStatusPage(booking);
+    
+  } catch (err) {
+    alert('فشل الحجز: ' + err.message);
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = 'تأكيد الحجز';
+  }
+}
+
+async function cancelBooking() {
+  const confirmed = confirm('هل أنت متأكد من إلغاء الحجز؟');
+  if (!confirmed) return;
+  
+  await supabase
+    .from('table_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', currentRequestId);
+  
+  sessionStorage.setItem('booking_cancelled', 'true');
+  currentRequestId = null;
+  renderBookingForm();
+}
+
+function changePartySize(delta) {
+  const span = document.getElementById('partySizeValue');
+  let val = parseInt(span.innerText);
+  val = Math.max(1, Math.min(20, val + delta));
+  span.innerText = val;
+}
+
+function updateDateTime() {
+  const now = new Date();
+  const dateEl = document.getElementById('currentDate');
+  const timeEl = document.getElementById('currentTime');
+  if (dateEl) dateEl.innerText = now.toLocaleDateString('ar-SA');
+  if (timeEl) timeEl.innerText = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+}
+
+function showNotificationPermissionButton() {
+  if (Notification.permission === 'default') {
+    const container = document.getElementById('notificationBtnContainer');
+    if (container) container.classList.remove('hidden');
+  }
+}
+
+async function requestNotificationPermission(showAlert = false) {
+  if (!('Notification' in window)) {
+    if (showAlert) alert('المتصفح لا يدعم الإشعارات');
+    return;
+  }
+  
+  const permission = await Notification.requestPermission();
+  if (permission === 'granted') {
+    if (showAlert) alert('✅ تم تفعيل الإشعارات');
+    const container = document.getElementById('notificationBtnContainer');
+    if (container) container.classList.add('hidden');
+  } else if (showAlert) {
+    alert('لم يتم تفعيل الإشعارات');
+  }
+}
+
+
+function setupRealtime() {
+    console.log('📡 setupRealtime started');
+
+    if (realtimeChannel) {
+        realtimeChannel.unsubscribe();
+    }
+
+    realtimeChannel = supabase
+      .channel('booking-realtime', {
+        config: {
+          broadcast: { self: true }
+        }
+      });
+
+    // الاستماع لأحداث التعديل فقط UPDATE
+    realtimeChannel.on(
+        'postgres_changes',
+        {
+            event: 'UPDATE', 
+            schema: 'public',
+            table: 'table_requests'
+        },
+        function(payload) {
+            console.log('🔥 EVENT RECEIVED VIA REALTIME:', payload);
+            console.log('NEW DATA:', payload.new);
+
+            // 🎯 الشرط السحري: نتحقق أن التحديث الحالي يخص رقم حجز هذا العميل تحديداً
+            if (payload.new && payload.new.id === currentRequestId) {
+                console.log(`🎯 رقم طابورك تغير في قاعدة البيانات إلى: ${payload.new.queue_position}`);
+                window.currentQueueNumber = payload.new.queue_position;
+                
+                // نقوم بتمرير السطر المحدث مباشرة للدالة لتحديث الدائرة فوراً 
+                // دون الحاجة لعمل SELECT جديدة من قاعدة البيانات عبر الشبكة
+                renderStatusPage(payload.new); 
+            }
+        }
+    );
+
+    realtimeChannel.subscribe(function(status) {
+        console.log('📡 realtime status:', status);
+    });
+}
+
+
+// Start
+async function startBookingPage() {
+
+    app = document.getElementById('app');
+
+    if (!app) {
+        console.error("❌ app container not found");
+        return;
+    }
+
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+
+    await getBusinessSettings();
+    await getCurrentQueueNumber();
+    await renderUI();
+    setupRealtime();
+    setInterval(async () => {
+
+    await getCurrentQueueNumber();
+
+}, 5000);
+}
+
+// تأكد من جاهزية الصفحة
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startBookingPage);
+} else {
+    startBookingPage();
+}
+
+async function submitBooking() {
+  const name = document.getElementById('customerName')?.value.trim();
+  const phone = document.getElementById('customerPhone')?.value.trim();
+  const partySize = parseInt(document.getElementById('partySizeValue')?.innerText || '2');
+  const zone = document.getElementById('customerZone')?.value || null;
+  
+  if (!name) {
+    alert('الرجاء إدخال الاسم');
+    return;
+  }
+  
+  if (!phone || phone.length !== 10 || !phone.startsWith('05')) {
+    alert('الرجاء إدخال رقم جوال صحيح (05xxxxxxxx)');
+    return;
+  }
+  
+  const submitBtn = document.getElementById('submitBookingBtn');
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<div class="spinner"></div> جاري الحجز...';
+  
+  try {
+    // استخدام RPC لإنشاء عميل
+    const { data: customerId, error: customerError } = await supabase.rpc('create_customer_safe', {
+        p_name: name,
+        p_phone: phone,
+        p_business_id: currentBusinessId
+    });
+    
+    if (customerError) throw new Error(customerError.message);
+    if (!customerId) throw new Error('فشل إنشاء العميل');
+    
+    // استخدام RPC لإنشاء طلب حجز (ترجع الطلب كاملاً)
+    const { data: booking, error: bookingError } = await supabase.rpc('create_booking_safe', {
+        p_customer_id: customerId,
+        p_business_id: currentBusinessId,
+        p_party_size: partySize,
+        p_zone_name: zone
+    });
+    
+    if (bookingError) throw new Error(bookingError.message);
+    
+    // ✅ تعيين المتغيرات من البيانات المرجعة مباشرة
+    currentRequestId = booking.id;
+   currentQueueNumber = booking.queue_position;
+window.originalQueueNumber = booking.original_queue_position || booking.queue_position;
     
     sessionStorage.setItem('booking_cancelled', 'false');
     sessionStorage.setItem('current_booking_id', currentRequestId);
