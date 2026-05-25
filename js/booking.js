@@ -104,19 +104,44 @@ currentQueueNumber =
 }
 
 async function renderUI() {
-
-    const hasActiveBooking =
-      currentRequestId &&
-      !sessionStorage.getItem('booking_cancelled');
-
+    const hasActiveBooking = currentRequestId && !sessionStorage.getItem('booking_cancelled');
+    
     if (hasActiveBooking) {
-
+        // ✅ التحقق من صحة الطلب في قاعدة البيانات
+        const { data: request, error } = await supabase
+            .from('table_requests')
+            .select('status')
+            .eq('id', currentRequestId)
+            .maybeSingle();
+        
+        if (error || !request) {
+            // الطلب غير موجود
+            console.log('❌ Booking not found, clearing localStorage');
+            localStorage.removeItem('current_booking_id');
+            sessionStorage.removeItem('current_booking_id');
+            sessionStorage.removeItem('booking_cancelled');
+            currentRequestId = null;
+            await renderBookingForm();
+            return;
+        }
+        
+        // ✅ التحقق من حالة الطلب
+        if (request.status === 'cancelled' || request.status === 'expired') {
+            // الطلب منتهي أو ملغي
+            console.log('❌ Booking is cancelled/expired, clearing localStorage');
+            localStorage.removeItem('current_booking_id');
+            sessionStorage.removeItem('current_booking_id');
+            sessionStorage.removeItem('booking_cancelled');
+            currentRequestId = null;
+            await renderBookingForm();
+            return;
+        }
+        
+        // ✅ طلب فعال، عرض صفحة المتابعة
+        console.log('✅ Active booking found, rendering status page');
         await renderStatusPage();
-
     } else {
-
         await renderBookingForm();
-
     }
 }
 async function renderBookingForm() {
@@ -419,7 +444,10 @@ async function submitBooking() {
     // ✅ تعيين المتغيرات من البيانات المرجعة مباشرة
     currentRequestId = booking.id;
     currentQueueNumber = booking.queue_position;
+    window.originalQueueNumber = booking.original_queue_position || booking.queue_position;
     
+    // ✅ حفظ في localStorage (للاسترداد بعد إغلاق الصفحة)
+    localStorage.setItem('current_booking_id', currentRequestId);
     sessionStorage.setItem('booking_cancelled', 'false');
     sessionStorage.setItem('current_booking_id', currentRequestId);
     
@@ -440,14 +468,38 @@ async function cancelBooking() {
   const confirmed = confirm('هل أنت متأكد من إلغاء الحجز؟');
   if (!confirmed) return;
   
-  await supabase
-    .from('table_requests')
-    .update({ status: 'cancelled' })
-    .eq('id', currentRequestId);
+  // ✅ استرجع الـ ID من localStorage إذا كان currentRequestId فارغاً
+  const requestId = currentRequestId || localStorage.getItem('current_booking_id');
   
-  sessionStorage.setItem('booking_cancelled', 'true');
+  console.log('❌ Cancelling request:', requestId);
+  
+  if (!requestId) {
+    alert('لا يوجد حجز نشط للإلغاء');
+    return;
+  }
+  
+  // ✅ حذف الطلب من قاعدة البيانات
+  const { error } = await supabase
+    .from('table_requests')
+    .delete()
+    .eq('id', requestId);
+  
+  if (error) {
+    console.error('❌ Delete error:', error);
+    alert('فشل إلغاء الحجز: ' + error.message);
+    return;
+  }
+  
+  console.log('✅ Request deleted successfully');
+  
+  // ✅ تنظيف جميع التخزينات
+  localStorage.removeItem('current_booking_id');
+  sessionStorage.removeItem('booking_cancelled');
+  sessionStorage.removeItem('current_booking_id');
   currentRequestId = null;
-  renderBookingForm();
+  
+  // ✅ العودة إلى صفحة الحجز
+  await renderBookingForm();
 }
 
 function changePartySize(delta) {
@@ -564,67 +616,7 @@ if (document.readyState === 'loading') {
     startBookingPage();
 }
 
-async function submitBooking() {
-  const name = document.getElementById('customerName')?.value.trim();
-  const phone = document.getElementById('customerPhone')?.value.trim();
-  const partySize = parseInt(document.getElementById('partySizeValue')?.innerText || '2');
-  const zone = document.getElementById('customerZone')?.value || null;
-  
-  if (!name) {
-    alert('الرجاء إدخال الاسم');
-    return;
-  }
-  
-  if (!phone || phone.length !== 10 || !phone.startsWith('05')) {
-    alert('الرجاء إدخال رقم جوال صحيح (05xxxxxxxx)');
-    return;
-  }
-  
-  const submitBtn = document.getElementById('submitBookingBtn');
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = '<div class="spinner"></div> جاري الحجز...';
-  
-  try {
-    // استخدام RPC لإنشاء عميل
-    const { data: customerId, error: customerError } = await supabase.rpc('create_customer_safe', {
-        p_name: name,
-        p_phone: phone,
-        p_business_id: currentBusinessId
-    });
-    
-    if (customerError) throw new Error(customerError.message);
-    if (!customerId) throw new Error('فشل إنشاء العميل');
-    
-    // استخدام RPC لإنشاء طلب حجز (ترجع الطلب كاملاً)
-    const { data: booking, error: bookingError } = await supabase.rpc('create_booking_safe', {
-        p_customer_id: customerId,
-        p_business_id: currentBusinessId,
-        p_party_size: partySize,
-        p_zone_name: zone
-    });
-    
-    if (bookingError) throw new Error(bookingError.message);
-    
-    // ✅ تعيين المتغيرات من البيانات المرجعة مباشرة
-    currentRequestId = booking.id;
-   currentQueueNumber = booking.queue_position;
-window.originalQueueNumber = booking.original_queue_position || booking.queue_position;
-    
-    sessionStorage.setItem('booking_cancelled', 'false');
-    sessionStorage.setItem('current_booking_id', currentRequestId);
-    
-    console.log('✅ currentRequestId:', currentRequestId);
-    console.log('✅ queue_position:', currentQueueNumber);
-    
-    // ✅ تمرير بيانات الطلب مباشرة إلى renderStatusPage
-    await renderStatusPage(booking);
-    
-  } catch (err) {
-    alert('فشل الحجز: ' + err.message);
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = 'تأكيد الحجز';
-  }
-}
+
 
 async function cancelBooking() {
   const confirmed = confirm('هل أنت متأكد من إلغاء الحجز؟');
@@ -724,7 +716,6 @@ function setupRealtime() {
 
 // Start
 async function startBookingPage() {
-
     app = document.getElementById('app');
 
     if (!app) {
@@ -735,15 +726,22 @@ async function startBookingPage() {
     updateDateTime();
     setInterval(updateDateTime, 1000);
 
+    // ✅ استعادة الحجز من localStorage (بعد إغلاق الصفحة)
+    const savedBookingId = localStorage.getItem('current_booking_id');
+    if (savedBookingId && !currentRequestId) {
+        currentRequestId = savedBookingId;
+        sessionStorage.setItem('booking_cancelled', 'false');
+        console.log('🔄 Restored booking ID from localStorage:', currentRequestId);
+    }
+
     await getBusinessSettings();
     await getCurrentQueueNumber();
     await renderUI();
     setupRealtime();
+    
     setInterval(async () => {
-
-    await getCurrentQueueNumber();
-
-}, 5000);
+        await getCurrentQueueNumber();
+    }, 5000);
 }
 
 // تأكد من جاهزية الصفحة
