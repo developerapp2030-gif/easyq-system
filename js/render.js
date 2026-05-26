@@ -369,13 +369,13 @@ if (w.zone_name && w.zone_name !== "") {
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span class="queue-number-badge">${queueNum}</span>
-          ${w.booking_code ? `<span style="background: rgba(255,68,68,0.15); color: #FF4444; padding: 2px 8px; border-radius: 15px; font-size: 10px;" title="رقم الحجز المرجعي">🔑 ${w.booking_code}</span>` : ''}
         </div>
       </div>
       <hr class="waiting-divider">
       <div class="waiting-row-bottom">
         <span class="detail-item"><i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}</span>
         <span class="detail-item"><i class="fas fa-user-friends"></i> ${w.requested_party_size || 0}</span>
+        ${w.booking_code ? `<span class="detail-item" style="color: #06372E;"><i class="fas fa-key"></i> ${w.booking_code}</span>` : ''}
         <span class="detail-item"><i class="fas fa-hourglass-half"></i> ${timeSince(w.local_time || w.created_at || w.request_time)}</span>
       </div>
     `;

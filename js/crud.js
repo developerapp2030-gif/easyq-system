@@ -112,6 +112,7 @@ async function assignRequestToTable(reqId, partySize, row) {
     
     clearSelection();
     await loadAll();
+    console.log('✅ بعد loadAll، waitingData:', waitingData);
   } catch (err) {
     console.error("Assignment error:", err);
     alert("فشل التعيين: " + err.message);

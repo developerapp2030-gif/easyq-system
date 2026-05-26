@@ -329,11 +329,58 @@
     .hidden {
       display: none;
     }
+
+/* مودال استعادة الحجز */
+#restoreModal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(4px) !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 10000 !important;
+}
+
+#restoreModal.show {
+    display: flex !important;
+}
+
+#restoreModal .modal {
+    background: var(--card-bg);
+    border-radius: 20px;
+    width: 400px;
+    max-width: 90vw;
+    padding: 24px;
+    position: relative;
+    margin: 0;
+}
+
   </style>
 </head>
 <body>
   <div class="container" id="app">
     <!-- سيتم ملء المحتوى ديناميكياً عبر JavaScript -->
   </div>
+
+  <!-- مودال عرض الحجز -->
+<div class="modal-backdrop" id="restoreModal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-title">عرض حجز نشط</div>
+    <div class="modal-sub">أدخل رقم الحجز المرجعي و رقم الجوال</div>
+    
+    <input type="text" id="restoreCode" class="form-input" placeholder="رقم الحجز المرجعي (مثال: A4821)" style="margin-bottom: 12px;">
+    <div style="text-align: center; margin: 10px 0;">و</div>
+    <input type="tel" id="restorePhone" class="form-input" placeholder="رقم الجوال (05xxxxxxxx)" maxlength="10">
+    
+    <div style="display: flex; gap: 12px; margin-top: 20px;">
+      <button class="settings-save" onclick="viewBooking()" style="flex: 1;">عرض الحجز</button>
+      <button class="settings-close" onclick="closeRestoreModal()" style="flex: 1;">إغلاق</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

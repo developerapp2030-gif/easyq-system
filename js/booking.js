@@ -153,8 +153,14 @@ async function renderBookingForm() {
       </div>
       
       <div class="welcome-message">
-        <i class="fas fa-hands-helping" style="margin-left: 8px; color: #FFD700;"></i>
+        <i class="fas fa-hands-helping" style="margin-left: 9px; color: #FFD700;"></i>
         مرحباً بك، احجز دورك بسهولة وتابع حالة انتظارك مباشرة.
+      </div>
+                 <!-- سطر استعادة الحجز -->
+      <div class="restore-hint" style="text-align: center; margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 20px; font-size: 13px;">
+        <span style="color: rgba(255,255,255,0.8);">إذا كان لديك حجز نشط </span>
+        <span onclick="openRestoreModal()" style="color: #10B981; font-weight: bold; cursor: pointer; text-decoration: underline;">اضغط هنا</span>
+        <span style="color: rgba(255,255,255,0.8);"> ... ولحجز جديد املأ البيانات أدناه</span>
       </div>
       
       ${showCurrentQueueConfig ? `
@@ -372,7 +378,14 @@ async function renderStatusPage(requestData = null) {
         </div>
 <div class="booking-ref-code" style="text-align: center; margin: 15px 0 10px;">
   <div style="color: #FF4444; font-weight: bold; font-size: 14px;">
-    📌 رقم حجزك المرجعي: <span style="font-size: 18px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px;">${request.booking_code || '---'}</span>
+    📌 رقم حجزك المرجعي: 
+    <span style="font-size: 18px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
+      ${request.booking_code || '---'}
+      <i onclick="copyBookingCode('${request.booking_code}')" 
+         style="cursor: pointer; font-size: 14px; color: #FF8888; transition: all 0.2s;" 
+         class="fas fa-copy" 
+         title="نسخ الرقم المرجعي"></i>
+    </span>
   </div>
   <div style="color: #FF8888; font-size: 11px; margin-top: 5px;">
     💡 قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها
@@ -505,47 +518,48 @@ async function submitBooking() {
 }
 
 async function cancelBooking() {
-  const confirmed = confirm('هل أنت متأكد من إلغاء الحجز؟');
-  if (!confirmed) return;
+  // ✅ تأكد من وجود requestId
+  if (!currentRequestId) {
+    currentRequestId = localStorage.getItem('current_booking_id');
+  }
   
-  const requestId = currentRequestId || localStorage.getItem('current_booking_id');
+  const requestId = currentRequestId;
+  
   if (!requestId) {
     alert('لا يوجد حجز نشط للإلغاء');
     return;
   }
   
+  console.log('🆔 Cancelling request ID:', requestId);
+  
+  const confirmed = confirm('هل أنت متأكد من إلغاء الحجز؟');
+  if (!confirmed) return;
+  
   try {
-    // تحديث الحالة مع إضافة .select() للتأكد من أن السيرفر قام بالتعديل فعلياً
-    const { data, error } = await supabase
-      .from('table_requests')
-      .update({ status: 'cancelled' })
-      .eq('id', requestId)
-      .select();
-      
+    const { data, error } = await supabase.rpc('delete_booking', {
+      p_request_id: requestId
+    });
+    
     if (error) throw error;
     
-    // كشف الفشل الصامت الناتجة عن حماية RLS
-    if (!data || data.length === 0) {
-      throw new Error("رفض السيرفر تحديث الطلب. هذا يعني غالباً أن صلاحيات الحماية (RLS) لعملية التعديل UPDATE غير مفعّلة للمستخدمين المجهولين في Supabase.");
-    }
+    console.log('✅ تم حذف الحجز بنجاح');
     
-    console.log('✅ تم إلغاء الحجز في قاعدة البيانات بنجاح، البيانات المحدثة:', data);
-    
-    // تنظيف شامل لكافة البيانات المحلية
     localStorage.removeItem('current_booking_id');
-    localStorage.removeItem('current_customer_name'); // تنظيف الاسم
     sessionStorage.removeItem('current_booking_id');
     sessionStorage.setItem('booking_cancelled', 'true');
     currentRequestId = null;
     
-    // العودة لنموذج الحجز
     await renderBookingForm();
     
   } catch (err) {
     console.error('❌ فشل إلغاء الحجز:', err);
-    alert('لم يتم إلغاء الحجز في النظام:\n' + err.message);
+    alert('لم يتم إلغاء الحجز: ' + err.message);
   }
 }
+
+
+
+
 
 function changePartySize(delta) {
   const span = document.getElementById('partySizeValue');
@@ -554,122 +568,19 @@ function changePartySize(delta) {
   span.innerText = val;
 }
 
-function updateDateTime() {
-  const now = new Date();
-  const dateEl = document.getElementById('currentDate');
-  const timeEl = document.getElementById('currentTime');
-  if (dateEl) dateEl.innerText = now.toLocaleDateString('ar-SA');
-  if (timeEl) timeEl.innerText = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-}
-
-function showNotificationPermissionButton() {
-  if (Notification.permission === 'default') {
-    const container = document.getElementById('notificationBtnContainer');
-    if (container) container.classList.remove('hidden');
-  }
-}
-
-async function requestNotificationPermission(showAlert = false) {
-  if (!('Notification' in window)) {
-    if (showAlert) alert('المتصفح لا يدعم الإشعارات');
-    return;
-  }
+function copyBookingCode(code) {
+  if (!code) return;
+  navigator.clipboard.writeText(code);
   
-  const permission = await Notification.requestPermission();
-  if (permission === 'granted') {
-    if (showAlert) alert('✅ تم تفعيل الإشعارات');
-    const container = document.getElementById('notificationBtnContainer');
-    if (container) container.classList.add('hidden');
-  } else if (showAlert) {
-    alert('لم يتم تفعيل الإشعارات');
-  }
-}
-
-
-function setupRealtime() {
-    console.log('📡 setupRealtime started');
-
-    if (realtimeChannel) {
-        realtimeChannel.unsubscribe();
-    }
-
-    realtimeChannel = supabase
-      .channel('booking-realtime', {
-        config: {
-          broadcast: { self: true }
-        }
-      });
-
-    // الاستماع لأحداث التعديل فقط UPDATE
-    realtimeChannel.on(
-        'postgres_changes',
-        {
-            event: 'UPDATE', 
-            schema: 'public',
-            table: 'table_requests'
-        },
-        function(payload) {
-            console.log('🔥 EVENT RECEIVED VIA REALTIME:', payload);
-            console.log('NEW DATA:', payload.new);
-
-            // 🎯 الشرط السحري: نتحقق أن التحديث الحالي يخص رقم حجز هذا العميل تحديداً
-            if (payload.new && payload.new.id === currentRequestId) {
-                console.log(`🎯 رقم طابورك تغير في قاعدة البيانات إلى: ${payload.new.queue_position}`);
-                window.currentQueueNumber = payload.new.queue_position;
-                
-                // نقوم بتمرير السطر المحدث مباشرة للدالة لتحديث الدائرة فوراً 
-                // دون الحاجة لعمل SELECT جديدة من قاعدة البيانات عبر الشبكة
-                renderStatusPage(payload.new); 
-            }
-        }
-    );
-
-    realtimeChannel.subscribe(function(status) {
-        console.log('📡 realtime status:', status);
-    });
-}
-
-
-// Start
-async function startBookingPage() {
-
-    app = document.getElementById('app');
-
-    if (!app) {
-        console.error("❌ app container not found");
-        return;
-    }
-
-    updateDateTime();
-    setInterval(updateDateTime, 1000);
-
-    await getBusinessSettings();
-    await getCurrentQueueNumber();
-    await renderUI();
-    setupRealtime();
-    setInterval(async () => {
-
-    await getCurrentQueueNumber();
-
-}, 5000);
-}
-
-// تأكد من جاهزية الصفحة
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startBookingPage);
-} else {
-    startBookingPage();
-}
-
-
-
-
-
-function changePartySize(delta) {
-  const span = document.getElementById('partySizeValue');
-  let val = parseInt(span.innerText);
-  val = Math.max(1, Math.min(20, val + delta));
-  span.innerText = val;
+  // إشعار مؤقت
+  const btn = event.target;
+  const originalClass = btn.className;
+  btn.className = 'fas fa-check';
+  setTimeout(() => {
+    btn.className = originalClass;
+  }, 1000);
+  
+  alert(`✅ تم نسخ الرقم المرجعي: ${code}`);
 }
 
 function updateDateTime() {
@@ -746,6 +657,50 @@ function setupRealtime() {
     });
 }
 
+function openRestoreModal() {
+  document.getElementById('restoreModal').classList.add('show');
+}
+
+function closeRestoreModal() {
+  document.getElementById('restoreModal').classList.remove('show');
+  document.getElementById('restoreCode').value = '';
+  document.getElementById('restorePhone').value = '';
+}
+
+async function viewBooking() {
+  const bookingCode = document.getElementById('restoreCode')?.value.trim().toUpperCase();
+  const phone = document.getElementById('restorePhone')?.value.trim();
+  
+  if (!bookingCode || !phone) {
+    alert('الرجاء إدخال رقم الحجز المرجعي ورقم الجوال');
+    return;
+  }
+  
+  if (!phone.startsWith('05') || phone.length !== 10) {
+    alert('رقم الجوال غير صحيح (05xxxxxxxx)');
+    return;
+  }
+  
+  const { data, error } = await supabase.rpc('view_booking_by_code_and_phone', {
+    p_booking_code: bookingCode,
+    p_phone: phone
+  });
+  
+  if (error || !data?.success) {
+    alert(data?.message || '❌ لم يتم العثور على حجز نشط');
+    return;
+  }
+  
+  const booking = data.booking;
+  
+  currentRequestId = booking.id;
+  currentQueueNumber = booking.queue_position;
+  localStorage.setItem('current_booking_id', currentRequestId);
+  sessionStorage.setItem('booking_cancelled', 'false');
+  
+  closeRestoreModal();
+  await renderStatusPage(booking);
+}
 
 // Start
 async function startBookingPage() {
