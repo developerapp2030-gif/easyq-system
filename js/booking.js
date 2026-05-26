@@ -104,42 +104,35 @@ currentQueueNumber =
 }
 
 async function renderUI() {
-    const hasActiveBooking = currentRequestId && !sessionStorage.getItem('booking_cancelled');
+    console.log('🔍 renderUI - currentRequestId:', currentRequestId);
+    const hasActiveBooking = currentRequestId && sessionStorage.getItem('booking_cancelled') !== 'true';
     
     if (hasActiveBooking) {
-        // ✅ التحقق من صحة الطلب في قاعدة البيانات
+        // جلب البيانات كاملة (*) لضمان عدم حدوث تضارب في الاسم
         const { data: request, error } = await supabase
             .from('table_requests')
-            .select('status')
+            .select('*')
             .eq('id', currentRequestId)
             .maybeSingle();
-        
+
         if (error || !request) {
-            // الطلب غير موجود
             console.log('❌ Booking not found, clearing localStorage');
             localStorage.removeItem('current_booking_id');
-            sessionStorage.removeItem('current_booking_id');
-            sessionStorage.removeItem('booking_cancelled');
             currentRequestId = null;
             await renderBookingForm();
             return;
         }
         
-        // ✅ التحقق من حالة الطلب
         if (request.status === 'cancelled' || request.status === 'expired') {
-            // الطلب منتهي أو ملغي
             console.log('❌ Booking is cancelled/expired, clearing localStorage');
             localStorage.removeItem('current_booking_id');
-            sessionStorage.removeItem('current_booking_id');
-            sessionStorage.removeItem('booking_cancelled');
             currentRequestId = null;
             await renderBookingForm();
             return;
         }
         
-        // ✅ طلب فعال، عرض صفحة المتابعة
-        console.log('✅ Active booking found, rendering status page');
-        await renderStatusPage();
+        // تمرير كائن الطلب كاملاً لمنع ظهور كلمة "ضيف"
+        await renderStatusPage(request);
     } else {
         await renderBookingForm();
     }
@@ -250,16 +243,8 @@ function formatTime(timestamp) {
 
 async function renderStatusPage(requestData = null) {
   let request = requestData;
-  console.log('🔍 customer_name:', request?.customer_name, 'full request:', request);
-// جلب اسم العميل وعدد الأشخاص
-let customerName = request.customer_name || 'ضيف';
-let partySize = request.requested_party_size || 2;
-let bookingTime = formatTime(request.created_at);
 
-// تقصير الاسم إذا تجاوز 15 حرف
-if (customerName.length > 15) {
-    customerName = customerName.substring(0, 15) + '...';
-}
+  // 1. جلب البيانات أولاً من قاعدة البيانات إذا لم تكن ممررة للدالة
   if (!request) {
     const { data, error } = await supabase
       .from('table_requests')
@@ -271,9 +256,21 @@ if (customerName.length > 15) {
     request = data;
   }
 
+  // 2. التحقق من حالة الطلب مباشرة بعد التأكد من أن كائن الحجز جاهز
   if (!request || request.status === 'cancelled') {
-    // ... إلغاء الحجز
     return;
+  }
+
+  // 3. الآن قراءة الخصائص ومعالجة النصوص بأمان تام
+  console.log('🔍 customer_name:', request?.customer_name, 'full request:', request);
+
+  let customerName = request.customer_name || 'ضيف';
+  let partySize = request.requested_party_size || 2;
+  let bookingTime = formatTime(request.created_at);
+
+  // تقصير الاسم إذا تجاوز 15 حرف
+  if (customerName.length > 15) {
+      customerName = customerName.substring(0, 15) + '...';
   }
 
   // 🎯 الحسابات الذكية للتناسب التقسيمي للدائرة
@@ -373,17 +370,24 @@ if (customerName.length > 15) {
             </div>
           </div>
         </div>
-        <div class="premium-queue-status">
-          <i class="fas fa-heart"></i>
-          <span>
-            دورك يتقدم، شكرًا لصبرك
-          </span>
-        </div>
+<div class="booking-ref-code" style="text-align: center; margin: 15px 0 10px;">
+  <div style="color: #FF4444; font-weight: bold; font-size: 14px;">
+    📌 رقم حجزك المرجعي: <span style="font-size: 18px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px;">${request.booking_code || '---'}</span>
+  </div>
+  <div style="color: #FF8888; font-size: 11px; margin-top: 5px;">
+    💡 قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها
+  </div>
+</div>
+
+<div class="premium-queue-status">
+  <i class="fas fa-heart"></i>
+  <span>
+    دورك يتقدم، شكرًا لصبرك
+  </span>
+</div>
       </div>
 
-      <button class="submit-btn" id="refreshStatusBtn" style="background: rgba(255,255,255,0.1);">
-        <i class="fas fa-sync-alt"></i> تحديث
-      </button>
+
 
       <div class="cancel-link" id="cancelBookingLink">
         إلغاء الحجز
@@ -418,9 +422,45 @@ async function submitBooking() {
   
   const submitBtn = document.getElementById('submitBookingBtn');
   submitBtn.disabled = true;
-  submitBtn.innerHTML = '<div class="spinner"></div> جاري الحجز...';
+  submitBtn.innerHTML = '<div class="spinner"></div> جاري التحقق...';
   
   try {
+    // ✅ الخطوة 1: التحقق من وجود حجز نشط لنفس الجوال
+    const { data: activeCheck, error: checkError } = await supabase
+      .rpc('check_active_booking_by_phone', {
+        p_phone: phone,
+        p_business_id: currentBusinessId
+      });
+    
+    if (checkError) throw new Error(checkError.message);
+    
+    // ✅ إذا وجد حجز نشط، استعد الحجز الحالي
+    if (activeCheck?.has_active === true) {
+      console.log('🔄 Active booking found:', activeCheck);
+      
+      currentRequestId = activeCheck.request_id;
+      currentQueueNumber = activeCheck.queue_position;
+      
+      localStorage.setItem('current_booking_id', currentRequestId);
+      sessionStorage.setItem('booking_cancelled', 'false');
+      sessionStorage.setItem('current_booking_id', currentRequestId);
+      
+      // جلب بيانات الطلب كاملة لعرضها
+      const { data: existingRequest } = await supabase
+        .from('table_requests')
+        .select('*')
+        .eq('id', currentRequestId)
+        .single();
+      
+      alert(`⚠️ لديك حجز نشط بالفعل!\nرقمك في الانتظار: ${activeCheck.queue_position}\nسيتم استعادة الحجز الحالي.`);
+      
+      await renderStatusPage(existingRequest);
+      return;
+    }
+    
+    // ✅ الخطوة 2: لا يوجد حجز نشط، تابع إنشاء حجز جديد
+    submitBtn.innerHTML = '<div class="spinner"></div> جاري الحجز...';
+    
     // استخدام RPC لإنشاء عميل
     const { data: customerId, error: customerError } = await supabase.rpc('create_customer_safe', {
         p_name: name,
@@ -431,7 +471,7 @@ async function submitBooking() {
     if (customerError) throw new Error(customerError.message);
     if (!customerId) throw new Error('فشل إنشاء العميل');
     
-    // استخدام RPC لإنشاء طلب حجز (ترجع الطلب كاملاً)
+    // استخدام RPC لإنشاء طلب حجز
     const { data: booking, error: bookingError } = await supabase.rpc('create_booking_safe', {
         p_customer_id: customerId,
         p_business_id: currentBusinessId,
@@ -441,20 +481,20 @@ async function submitBooking() {
     
     if (bookingError) throw new Error(bookingError.message);
     
-    // ✅ تعيين المتغيرات من البيانات المرجعة مباشرة
+    // تعيين المتغيرات
     currentRequestId = booking.id;
     currentQueueNumber = booking.queue_position;
     window.originalQueueNumber = booking.original_queue_position || booking.queue_position;
     
-    // ✅ حفظ في localStorage (للاسترداد بعد إغلاق الصفحة)
+    // حفظ في localStorage
     localStorage.setItem('current_booking_id', currentRequestId);
     sessionStorage.setItem('booking_cancelled', 'false');
     sessionStorage.setItem('current_booking_id', currentRequestId);
     
     console.log('✅ currentRequestId:', currentRequestId);
     console.log('✅ queue_position:', currentQueueNumber);
+    console.log('✅ booking_code:', booking.booking_code);
     
-    // ✅ تمرير بيانات الطلب مباشرة إلى renderStatusPage
     await renderStatusPage(booking);
     
   } catch (err) {
@@ -468,38 +508,43 @@ async function cancelBooking() {
   const confirmed = confirm('هل أنت متأكد من إلغاء الحجز؟');
   if (!confirmed) return;
   
-  // ✅ استرجع الـ ID من localStorage إذا كان currentRequestId فارغاً
   const requestId = currentRequestId || localStorage.getItem('current_booking_id');
-  
-  console.log('❌ Cancelling request:', requestId);
-  
   if (!requestId) {
     alert('لا يوجد حجز نشط للإلغاء');
     return;
   }
   
-  // ✅ حذف الطلب من قاعدة البيانات
-  const { error } = await supabase
-    .from('table_requests')
-    .delete()
-    .eq('id', requestId);
-  
-  if (error) {
-    console.error('❌ Delete error:', error);
-    alert('فشل إلغاء الحجز: ' + error.message);
-    return;
+  try {
+    // تحديث الحالة مع إضافة .select() للتأكد من أن السيرفر قام بالتعديل فعلياً
+    const { data, error } = await supabase
+      .from('table_requests')
+      .update({ status: 'cancelled' })
+      .eq('id', requestId)
+      .select();
+      
+    if (error) throw error;
+    
+    // كشف الفشل الصامت الناتجة عن حماية RLS
+    if (!data || data.length === 0) {
+      throw new Error("رفض السيرفر تحديث الطلب. هذا يعني غالباً أن صلاحيات الحماية (RLS) لعملية التعديل UPDATE غير مفعّلة للمستخدمين المجهولين في Supabase.");
+    }
+    
+    console.log('✅ تم إلغاء الحجز في قاعدة البيانات بنجاح، البيانات المحدثة:', data);
+    
+    // تنظيف شامل لكافة البيانات المحلية
+    localStorage.removeItem('current_booking_id');
+    localStorage.removeItem('current_customer_name'); // تنظيف الاسم
+    sessionStorage.removeItem('current_booking_id');
+    sessionStorage.setItem('booking_cancelled', 'true');
+    currentRequestId = null;
+    
+    // العودة لنموذج الحجز
+    await renderBookingForm();
+    
+  } catch (err) {
+    console.error('❌ فشل إلغاء الحجز:', err);
+    alert('لم يتم إلغاء الحجز في النظام:\n' + err.message);
   }
-  
-  console.log('✅ Request deleted successfully');
-  
-  // ✅ تنظيف جميع التخزينات
-  localStorage.removeItem('current_booking_id');
-  sessionStorage.removeItem('booking_cancelled');
-  sessionStorage.removeItem('current_booking_id');
-  currentRequestId = null;
-  
-  // ✅ العودة إلى صفحة الحجز
-  await renderBookingForm();
 }
 
 function changePartySize(delta) {
@@ -618,19 +663,7 @@ if (document.readyState === 'loading') {
 
 
 
-async function cancelBooking() {
-  const confirmed = confirm('هل أنت متأكد من إلغاء الحجز؟');
-  if (!confirmed) return;
-  
-  await supabase
-    .from('table_requests')
-    .update({ status: 'cancelled' })
-    .eq('id', currentRequestId);
-  
-  sessionStorage.setItem('booking_cancelled', 'true');
-  currentRequestId = null;
-  renderBookingForm();
-}
+
 
 function changePartySize(delta) {
   const span = document.getElementById('partySizeValue');

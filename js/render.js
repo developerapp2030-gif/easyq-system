@@ -367,8 +367,9 @@ if (w.zone_name && w.zone_name !== "") {
           <span class="source-badge"><i class="${iconClass} ${sourceIcon}"></i> ${sourceLabel}</span>
           <span class="customer-name-part">${(w.customer_name || "ضيف").substring(0, 18)}${phoneDisplay ? ` - ${phoneDisplay}` : ""}</span>
         </div>
-        <div>
+        <div style="display: flex; align-items: center; gap: 6px;">
           <span class="queue-number-badge">${queueNum}</span>
+          ${w.booking_code ? `<span style="background: rgba(255,68,68,0.15); color: #FF4444; padding: 2px 8px; border-radius: 15px; font-size: 10px;" title="رقم الحجز المرجعي">🔑 ${w.booking_code}</span>` : ''}
         </div>
       </div>
       <hr class="waiting-divider">
