@@ -58,14 +58,9 @@ async function changeTableStatus(tableId, newStatus) {
     }, holdMinutes * 60 * 1000);
   }
   
-  if (newStatus === 'reserved') {
-    const holdMinutes = Number(settings.reservation_hold_minutes || 10);
-    reservationTimers[tableId] = setTimeout(async () => {
-      console.log(`⏰ انتهى وقت الحجز للطاولة ${table.table_name}`);
-      await changeTableStatus(tableId, 'available');
-      showPersistentAlert(`⏰ انتهى وقت الحجز للطاولة ${table.table_name}`, '#F59E0B');
-    }, holdMinutes * 60 * 1000);
-  }
+if (newStatus === 'reserved') {
+  console.log(`⏳ الطاولة ${table.table_name} محجوزة. انتهاء الحجز سيتم عبر checkReservationTimers فقط.`);
+}
   
   await loadFloorPlan();
   renderFloorPlan();

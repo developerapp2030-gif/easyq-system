@@ -1300,12 +1300,20 @@ async function startApp() {
   setLanguage(savedLang);
   
   await loadAll();
-  await checkReservationTimers();
-  
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    updateAllTimers();
-  }, 1000);
+ await checkReservationTimers();
+
+if (window.reservationCheckInterval) {
+  clearInterval(window.reservationCheckInterval);
+}
+
+window.reservationCheckInterval = setInterval(() => {
+  checkReservationTimers();
+}, 10 * 1000);
+
+if (timerInterval) clearInterval(timerInterval);
+timerInterval = setInterval(() => {
+  updateAllTimers();
+}, 1000);
   
   setInterval(updateDate, 1000);
   optimizeForTouch();

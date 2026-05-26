@@ -178,8 +178,15 @@ async function loadAll() {
 }
 
 async function loadSettings() {
-  const { data, error } = await supabase.from("business_settings").select("*").limit(1).single();
-if (error) {
+  const businessId = currentUser?.business_id || BUSINESS_ID;
+
+  const { data, error } = await supabase
+    .from("business_settings")
+    .select("*")
+    .eq("business_id", businessId)
+    .single();
+
+  if (error) {
     settings = {
       ready_mode: "any_match",
       alert_sound_enabled: true,
@@ -191,11 +198,12 @@ if (error) {
       reservation_hold_minutes: 10,
       pending_hold_minutes: 5,
       cleaning_hold_minutes: 10,
-      business_id: currentUser?.business_id || null,
+      business_id: businessId,
       id: null
     };
     return;
-}
+  }
+
   settings = data;
 }
 
