@@ -330,6 +330,24 @@
       display: none;
     }
 
+#audioModal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(8px) !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 20000 !important;
+}
+
+#audioModal.show {
+    display: flex !important;
+}
+
 /* مودال استعادة الحجز */
 #restoreModal {
     position: fixed !important;
@@ -365,6 +383,25 @@
   <div class="container" id="app">
     <!-- سيتم ملء المحتوى ديناميكياً عبر JavaScript -->
   </div>
+
+  <!-- مودال تفعيل التنبيهات -->
+<div class="modal-backdrop" id="audioModal">
+  <div class="modal" style="max-width: 350px; text-align: center;">
+    <div class="modal-title" style="color: #FFD700;">🔔 تنبيهات صوتية</div>
+    <div class="modal-sub" style="margin-bottom: 20px;">
+      هل تريد تفعيل التنبيهات الصوتية؟<br>
+      <span style="font-size: 10px;">ستصدر تنبيهات عند اقتراب دورك ووصوله وجاهزية الطاولة</span>
+    </div>
+    <div style="display: flex; gap: 12px;">
+      <button class="settings-save" id="enableAudioYes" style="flex: 1; background: #10B981;">
+        <i class="fas fa-volume-up"></i> نعم، تفعيل
+      </button>
+      <button class="settings-close" id="enableAudioNo" style="flex: 1;">
+        <i class="fas fa-volume-mute"></i> لا، كتم
+      </button>
+    </div>
+  </div>
+</div>
 
   <!-- مودال عرض الحجز -->
 <div class="modal-backdrop" id="restoreModal">

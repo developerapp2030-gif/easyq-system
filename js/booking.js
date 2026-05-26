@@ -308,6 +308,36 @@ async function renderStatusPage(requestData = null) {
   // النصوص الديناميكية الملاءمة للحالة
 
   console.log('🔍 Debug - currentQueueNumber:', currentQueueNumber, 'isFinished:', isFinished);
+
+  // ========== التنبيهات الصوتية ==========
+  // تخزين القيمة السابقة للمقارنة
+  if (window.previousQueueNumber === undefined) {
+    window.previousQueueNumber = currentQueueNumber;
+  }
+  if (window.previousIsFinished === undefined) {
+    window.previousIsFinished = isFinished;
+  }
+  
+  // التحقق من التغيير وتشغيل التنبيه المناسب (فقط إذا تم تفعيل الصوت)
+  if (window.audioEnabled) {
+    if (window.previousQueueNumber !== currentQueueNumber && !isFinished) {
+      if (currentQueueNumber === 2) {
+        playBookingAlert('near');
+      } else if (currentQueueNumber === 1) {
+        playBookingAlert('next');
+      }
+    }
+    
+    // تنبيه عند التعيين (isFinished)
+    if (isFinished && !window.previousIsFinished) {
+      playBookingAlert('ready');
+    }
+  }
+  
+  // تحديث القيم السابقة
+  window.previousQueueNumber = currentQueueNumber;
+  window.previousIsFinished = isFinished;
+
   let numberText = currentQueueNumber;
   let labelText = 'رقمك في الانتظار';
 
@@ -401,7 +431,6 @@ async function renderStatusPage(requestData = null) {
       </div>
 
 
-
       <div class="cancel-link" id="cancelBookingLink">
         إلغاء الحجز
       </div>
@@ -413,7 +442,10 @@ async function renderStatusPage(requestData = null) {
   // =========================
 
   document.getElementById('refreshStatusBtn')?.addEventListener('click', () => renderStatusPage());
+  document.getElementById('enableAudioYes')?.addEventListener('click', enableAudio);
+document.getElementById('enableAudioNo')?.addEventListener('click', disableAudio);
   document.getElementById('cancelBookingLink')?.addEventListener('click', cancelBooking);
+  
   
   console.log('✅ renderStatusPage finished');
 }
@@ -509,6 +541,7 @@ async function submitBooking() {
     console.log('✅ booking_code:', booking.booking_code);
     
     await renderStatusPage(booking);
+    showAudioModal();
     
   } catch (err) {
     alert('فشل الحجز: ' + err.message);
@@ -581,6 +614,82 @@ function copyBookingCode(code) {
   }, 1000);
   
   alert(`✅ تم نسخ الرقم المرجعي: ${code}`);
+}
+
+function showAudioModal() {
+  const modal = document.getElementById('audioModal');
+  if (modal) modal.classList.add('show');
+}
+
+function hideAudioModal() {
+  const modal = document.getElementById('audioModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function enableAudio() {
+  window.audioEnabled = true;
+  hideAudioModal();
+  playBookingAlert('near');
+}
+
+function disableAudio() {
+  window.audioEnabled = false;
+  hideAudioModal();
+}
+
+function playBookingAlert(type = 'near') {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+    
+    const duration = 0.3;
+    const gainNode = audioContext.createGain();
+    gainNode.connect(audioContext.destination);
+    
+    let repeatCount = 1;
+    let frequency = 800;
+    
+    switch(type) {
+      case 'near':      // اقترب دورك (رقم 2)
+        repeatCount = 2;
+        frequency = 700;
+        break;
+      case 'next':      // أنت التالي (رقم 1)
+        repeatCount = 2;
+        frequency = 900;
+        break;
+      case 'ready':     // طاولتك جاهزة (offered)
+        repeatCount = 2;
+        frequency = 1200;
+        break;
+      default:
+        repeatCount = 1;
+        frequency = 600;
+    }
+    
+    for (let i = 0; i < repeatCount; i++) {
+      setTimeout(() => {
+        const oscillator = audioContext.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.value = frequency;
+        
+        const gain = audioContext.createGain();
+        gain.gain.setValueAtTime(0.2, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + duration);
+        
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + duration);
+      }, i * 400);
+    }
+  } catch(e) {
+    console.log('Audio not supported:', e);
+  }
 }
 
 function updateDateTime() {
@@ -700,6 +809,7 @@ async function viewBooking() {
   
   closeRestoreModal();
   await renderStatusPage(booking);
+  showAudioModal();
 }
 
 // Start
