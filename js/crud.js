@@ -73,6 +73,10 @@ if (newStatus === 'reserved') {
 // ASSIGN REQUEST TO TABLE
 // ============================================================
 
+// ============================================================
+// ASSIGN REQUEST TO TABLE
+// ============================================================
+
 async function assignRequestToTable(reqId, partySize, row) {
   if (!reqId) return;
   if (row.status !== "available") {
@@ -84,19 +88,22 @@ async function assignRequestToTable(reqId, partySize, row) {
     return;
   }
   try {
-    // 🔥 استدعاء الدالة الآمنة فقط - RPC ستقوم بكل شيء
+    // 1. استخراج وقت الحجز من إعدادات الواجهة الحالية
+    const holdMinutes = Number(settings.reservation_hold_minutes || 10);
+    
+    // 2. إرسال الدقائق مع الطلب إلى الـ RPC
     const { data: result, error: assignErr } = await supabase.rpc('assign_table_to_request', {
       p_table_id: row.id,
       p_request_id: reqId,
-      p_business_id: currentUser?.business_id
+      p_business_id: currentUser?.business_id || null,
+      p_hold_minutes: holdMinutes // تمرير الدقائق مباشرة لقاعدة البيانات
     });
     
     if (assignErr) throw assignErr;
     if (!result.success) throw new Error(result.message);
     
-    console.log("Assignment successful:", result);
+    console.log("✅ التعيين تم بنجاح، الدقائق المستخدمة:", result.hold_minutes_used);
     
-    const holdMinutes = Number(settings.reservation_hold_minutes || 10);
     const requestData = waitingData.find(w => w.request_id === reqId);
     
     if (requestData && requestData.phone) {
@@ -107,7 +114,6 @@ async function assignRequestToTable(reqId, partySize, row) {
     
     clearSelection();
     await loadAll();
-    console.log('✅ بعد loadAll، waitingData:', waitingData);
   } catch (err) {
     console.error("Assignment error:", err);
     alert("فشل التعيين: " + err.message);
@@ -165,20 +171,35 @@ async function assignNextCustomer() {
   await assignRequestToTable(targetRequest.request_id, targetRequest.requested_party_size, bestTable);
 }
 
+
 // ============================================================
-// RESERVATION TIMER CHECK
+// RESERVATION TIMER CHECK (UPDATED)
 // ============================================================
 
 async function checkReservationTimers() {
   const holdMinutes = Number(settings.reservation_hold_minutes || 10);
+  
+  console.log('🔍 بدء فحص المؤقتات (checkReservationTimers)...');
+  
   const { data: assignments, error } = await supabase.rpc('get_offered_assignments');
-  if (error) return;
+  if (error) {
+    console.error('❌ خطأ في جلب التعيينات get_offered_assignments:', error);
+    return;
+  }
+  
+  if (!assignments || assignments.length === 0) {
+      return; // لا يوجد تعيينات للفحص
+  }
+
+  console.log(`📋 التعيينات الحالية (offered): ${assignments.length} تعيين`, assignments);
   
   const now = Date.now();
   let expired = [];
-  for (const a of assignments || []) {
-    if (!a.reserved_at) continue;
+  
+  for (const a of assignments) {
+    console.log(`🔎 فحص التعيين ID: ${a.id}`);
     
+    // جلب حالة الطاولة للتأكد أن العميل لم يحضر ويحولها لـ occupied
     const { data: table } = await supabase
       .from("dining_tables")
       .select("status")
@@ -186,20 +207,59 @@ async function checkReservationTimers() {
       .single();
     
     if (table && table.status === "occupied") {
-      console.log("⏸️ طاولة مشغولة، لن يتم نقل العميل");
+      console.log(`⏸️ الطاولة مشغولة، لن يتم إلغاء الحجز للتعيين: ${a.id}`);
       continue;
     }
     
-    const reservedTime = new Date(a.reserved_at).getTime();
-    const minutesPassed = (now - reservedTime) / 60000;
-    if (minutesPassed >= holdMinutes) expired.push(a);
+    // التحقق من الوقت باستخدام hold_expires_at كأولوية
+    if (a.hold_expires_at) {
+      const expiresAt = new Date(a.hold_expires_at).getTime();
+      const remainingSeconds = ((expiresAt - now) / 1000).toFixed(0);
+      
+      console.log(`⏳ التعيين ${a.id} - متبقي ${remainingSeconds} ثانية.`);
+      
+      if (now >= expiresAt) {
+        console.log(`⚠️ انتهى وقت الحجز (حسب hold_expires_at)!`);
+        expired.push(a);
+      }
+    } else if (a.reserved_at) {
+      // Fallback في حال لم يكن hold_expires_at متوفراً
+      const reservedTime = new Date(a.reserved_at).getTime();
+      const minutesPassed = (now - reservedTime) / 60000;
+      
+      console.log(`⏳ التعيين ${a.id} - مضى ${minutesPassed.toFixed(2)} دقيقة من أصل ${holdMinutes}`);
+      
+      if (minutesPassed >= holdMinutes) {
+        console.log(`⚠️ انتهى وقت الحجز (حسب الدقائق)!`);
+        expired.push(a);
+      }
+    } else {
+      console.log(`⚠️ لا يوجد وقت مسجل للتعيين ${a.id} (تجاهل).`);
+    }
   }
   
+  if (expired.length > 0) {
+    console.log(`🗑️ جاري تنظيف ${expired.length} حجز منتهي...`);
+  }
+
   for (const a of expired) {
-    await supabase.from("dining_tables").update({ status: "available" }).eq("id", a.table_id);
-    await supabase.from("table_requests").update({ status: "cancelled", expired_at: new Date().toISOString() }).eq("id", a.request_id);
-    await supabase.rpc('clean_table_assignments', { p_table_id: a.table_id });
+    // 1. استدعاء الدالة الآمنة (RPC)
+    console.log(`🔄 استدعاء expire_table_assignment للتعيين: ${a.id}`);
+    const { data: expireResult, error: expireError } = await supabase.rpc(
+      'expire_table_assignment',
+      { p_assignment_id: a.id }
+    );
     
+    console.log('⏰ نتيجة expire_table_assignment:', expireResult, expireError);
+    
+    if (expireError || (expireResult && !expireResult.success)) {
+      console.error('❌ فشل إنهاء الحجز:', expireError || expireResult);
+      continue; // منع إرسال الواتساب أو إكمال العمليات إذا فشلت الـ RPC
+    }
+    
+    console.log('✅ تم إنهاء الحجز بنجاح وتحويل الطلب إلى cancelled');
+
+    // 2. إرسال الواتساب فقط بعد نجاح تفكيك الحجز كلياً
     const { data: reqData } = await supabase
       .from("table_requests")
       .select("customers(name, phone)")
@@ -212,7 +272,10 @@ async function checkReservationTimers() {
       );
     }
   }
-  if (expired.length > 0) await loadAll();
+  
+  if (expired.length > 0) {
+    await loadAll();
+  }
 }
 
 // ============================================================

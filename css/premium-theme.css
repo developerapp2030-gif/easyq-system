@@ -48,6 +48,7 @@ body.theme-premium::before {
   opacity: 0.20 !important;
 }
 
+
 /* TOPBAR */
 body.theme-premium .topbar {
   background: linear-gradient(135deg, #021914 0%, #04271F 48%, #0A4B3D 100%) !important;
