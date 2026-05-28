@@ -103,6 +103,18 @@ currentQueueNumber =
     }
 }
 
+async function getRemainingHoldTime() {
+    if (!currentRequestId) return null;
+    
+    const { data, error } = await supabase.rpc('get_remaining_hold_time', {
+        p_request_id: currentRequestId
+    });
+    
+    if (error || !data?.has_active_reservation) return null;
+    return data.remaining_seconds;
+}
+
+
 async function renderUI() {
     console.log('🔍 renderUI - currentRequestId:', currentRequestId);
     const hasActiveBooking = currentRequestId && sessionStorage.getItem('booking_cancelled') !== 'true';
@@ -262,15 +274,23 @@ async function renderStatusPage(requestData = null) {
     request = data;
   }
 
-  // 2. التحقق من حالة الطلب مباشرة بعد التأكد من أن كائن الحجز جاهز
-  if (!request || request.status === 'cancelled') {
+  // 2. التحقق من حالة الطلب ومعالجة الإلغاء أو الانتهاء بشكل صحيح
+  if (!request || request.status === 'cancelled' || request.status === 'expired') {
+    if (window.countdownInterval) clearInterval(window.countdownInterval);
+    alert('تم إلغاء حجزك لانتهاء الوقت المحدد لتأكيد الحضور يمكنك معاودة الحجز مجددا');
+    localStorage.removeItem('current_booking_id');
+    sessionStorage.removeItem('current_booking_id');
+    currentRequestId = null;
+    await renderBookingForm();
     return;
   }
 
   // 3. الآن قراءة الخصائص ومعالجة النصوص بأمان تام
   console.log('🔍 customer_name:', request?.customer_name, 'full request:', request);
 
-  let customerName = request.customer_name || 'ضيف';
+  // حفظ اسم العميل لتفادي اختفائه عند التحديث السريع
+  window.currentCustomerName = request.customer_name || window.currentCustomerName || 'ضيف';
+  let customerName = window.currentCustomerName;
   let partySize = request.requested_party_size || 2;
   let bookingTime = formatTime(request.created_at);
 
@@ -281,14 +301,35 @@ async function renderStatusPage(requestData = null) {
 
   // 🎯 الحسابات الذكية للتناسب التقسيمي للدائرة
   
-  // الرقم الأصلي عند دخول الطابور
-  const originalQueueNumber = request.original_queue_position || request.queue_position || 1;
+  // حفظ الرقم الأصلي في المتصفح لضمان عدم ضياعه مع تحديثات Realtime
+  window.originalQueueNumber = window.originalQueueNumber || request.original_queue_position || request.queue_position || 1;
+  const originalQueueNumber = window.originalQueueNumber;
   
   // الرقم الحالي الحقيقي للعميل
-    const currentQueueNumber = request?.queue_position || window.currentQueueNumber || originalQueueNumber;
+  const currentQueueNumber = request?.queue_position || window.currentQueueNumber || originalQueueNumber;
+  window.currentQueueNumber = currentQueueNumber;
 
   // هل تم تعيينه لطاولة؟
   const isFinished = request.status === 'offered' || request.status === 'reserved' || request.status === 'occupied';
+
+  // جلب الوقت المتبقي للحجز إذا كانت الحالة offered
+  let remainingSeconds = null;
+  if (request.status === 'offered') {
+      remainingSeconds = await getRemainingHoldTime();
+  }
+  
+  function formatCountdownTime(seconds) {
+      if (seconds < 0) seconds = 0;
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  function formatTime(timestamp) {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+  }
 
   // طول محيط الدائرة (المطابق للـ Radius 92)
   const circleLength = 578;
@@ -304,8 +345,6 @@ async function renderStatusPage(requestData = null) {
 
   // حساب الإزاحة الفعلية لإطار SVG للرسم بدقة
   const dashOffset = circleLength - ((circleLength * progressPercent) / 100);
-
-  // النصوص الديناميكية الملاءمة للحالة
 
   console.log('🔍 Debug - currentQueueNumber:', currentQueueNumber, 'isFinished:', isFinished);
 
@@ -340,6 +379,7 @@ async function renderStatusPage(requestData = null) {
 
   let numberText = currentQueueNumber;
   let labelText = 'رقمك في الانتظار';
+  let subText = '';
 
   if (currentQueueNumber === 3 && !isFinished) {
     labelText = 'رقمك في الانتظار';
@@ -350,12 +390,17 @@ async function renderStatusPage(requestData = null) {
   if (currentQueueNumber === 1 && !isFinished) {
     labelText = 'أنت التالي، كن جاهزاً';
   }
+  
+  // إذا تم التعيين (offered)، يتم عرض العداد داخل الدائرة بدلاً من 0
   if (isFinished) {
-    numberText = '0';
-    labelText = 'حان دورك ، تفضل بالدخول';
+    labelText = 'حان دورك ، تفضل طاولتك جاهزة';
+    if (request.status === 'offered' && remainingSeconds !== null) {
+      numberText = formatCountdownTime(remainingSeconds);
+      subText = '<div style="font-size: 13px; color: #FFD700; margin-top: 5px; font-weight: bold;">يرجى الحضور قبل انتهاء الوقت</div>';
+    } else {
+      numberText = '0';
+    }
   }
-
- 
 
   app.innerHTML = `
     <div class="container">
@@ -378,12 +423,12 @@ async function renderStatusPage(requestData = null) {
           <span class="premium-line"></span>
         </div>
         <div class="booking-details">
-  <span class="customer-name">${customerName}</span>
-  <span class="separator">-</span>
-  <span class="party-size"><i class="fas fa-user-friends"></i> ${partySize}</span>
-  <span class="separator">-</span>
-  <span class="booking-time"><i class="fas fa-clock"></i> ${bookingTime}</span>
-</div>
+          <span class="customer-name">${customerName}</span>
+          <span class="separator">-</span>
+          <span class="party-size"><i class="fas fa-user-friends"></i> ${partySize}</span>
+          <span class="separator">-</span>
+          <span class="booking-time"><i class="fas fa-clock"></i> ${bookingTime}</span>
+        </div>
         <div class="premium-queue-wrapper">
           <div class="premium-queue-ring" id="premiumQueueRing" style="--progress:${progressPercent};">
             <svg class="premium-ring-svg" viewBox="0 0 220 220">
@@ -394,42 +439,43 @@ async function renderStatusPage(requestData = null) {
                       style="stroke: ${isFinished ? '#10B981' : '#D4AF37'}; transition: stroke-dashoffset 0.6s ease-in-out, stroke 0.4s ease;" />
             </svg>
             <div class="premium-ring-content">
-           <div class="premium-ring-label">
-  ${labelText}
-</div>
-              <div class="premium-ring-number" id="remainingCount">
+              <div class="premium-ring-label">
+                ${labelText}
+              </div>
+              <div class="premium-ring-number" id="remainingCount" style="${isFinished ? 'font-size: 38px; font-family: monospace;' : ''}">
                 ${numberText}
-</div>
+              </div>
               <div class="premium-ring-sub">
-              
+                ${subText}
               </div>
             </div>
           </div>
         </div>
-<div class="booking-ref-code" style="text-align: center; margin: 15px 0 10px;">
-  <div style="color: #FF4444; font-weight: bold; font-size: 14px;">
-    📌 رقم حجزك المرجعي: 
-    <span style="font-size: 18px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
-      ${request.booking_code || '---'}
-      <i onclick="copyBookingCode('${request.booking_code}')" 
-         style="cursor: pointer; font-size: 14px; color: #FF8888; transition: all 0.2s;" 
-         class="fas fa-copy" 
-         title="نسخ الرقم المرجعي"></i>
-    </span>
-  </div>
-  <div style="color: #FF8888; font-size: 11px; margin-top: 5px;">
-    💡 قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها
-  </div>
-</div>
+        
+        <div class="booking-ref-code" style="text-align: center; margin: 15px 0 10px;">
+          <div style="color: #FF4444; font-weight: bold; font-size: 14px;">
+            📌 رقم حجزك المرجعي: 
+            <span style="font-size: 18px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
+              ${request.booking_code || '---'}
+              <i onclick="copyBookingCode('${request.booking_code}')" 
+                 style="cursor: pointer; font-size: 14px; color: #FF8888; transition: all 0.2s;" 
+                 class="fas fa-copy" 
+                 title="نسخ الرقم المرجعي"></i>
+            </span>
+          </div>
+          <div style="color: #FF8888; font-size: 11px; margin-top: 5px;">
+            💡 قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها
+          </div>
+        </div>
 
-<div class="premium-queue-status">
-  <i class="fas fa-heart"></i>
-  <span>
-    دورك يتقدم، شكرًا لصبرك
-  </span>
-</div>
+        <div class="premium-queue-status">
+          <i class="fas fa-heart"></i>
+          <span>
+            ${isFinished ? 'بانتظار وصولك للطاولة' : 'دورك يتقدم، شكرًا لصبرك'}
+          </span>
+        </div>
+
       </div>
-
 
       <div class="cancel-link" id="cancelBookingLink">
         إلغاء الحجز
@@ -438,14 +484,30 @@ async function renderStatusPage(requestData = null) {
   `;
 
   // =========================
-  // Events
+  // Interval & Events
   // =========================
+
+  // تشغيل العداد التنازلي الحي للمتصفح إذا تم التعيين
+  if (window.countdownInterval) clearInterval(window.countdownInterval);
+  
+  if (request.status === 'offered' && remainingSeconds !== null) {
+      let currentSeconds = remainingSeconds;
+      window.countdownInterval = setInterval(() => {
+          currentSeconds--;
+          const timerEl = document.getElementById('remainingCount');
+          if (currentSeconds <= 0) {
+              clearInterval(window.countdownInterval);
+              if (timerEl) timerEl.innerText = "0:00";
+          } else {
+              if (timerEl) timerEl.innerText = formatCountdownTime(currentSeconds);
+          }
+      }, 1000);
+  }
 
   document.getElementById('refreshStatusBtn')?.addEventListener('click', () => renderStatusPage());
   document.getElementById('enableAudioYes')?.addEventListener('click', enableAudio);
-document.getElementById('enableAudioNo')?.addEventListener('click', disableAudio);
+  document.getElementById('enableAudioNo')?.addEventListener('click', disableAudio);
   document.getElementById('cancelBookingLink')?.addEventListener('click', cancelBooking);
-  
   
   console.log('✅ renderStatusPage finished');
 }
@@ -738,7 +800,6 @@ function setupRealtime() {
         }
       });
 
-    // الاستماع لأحداث التعديل فقط UPDATE
     realtimeChannel.on(
         'postgres_changes',
         {
@@ -746,17 +807,25 @@ function setupRealtime() {
             schema: 'public',
             table: 'table_requests'
         },
-        function(payload) {
+        async function(payload) {
             console.log('🔥 EVENT RECEIVED VIA REALTIME:', payload);
             console.log('NEW DATA:', payload.new);
 
-            // 🎯 الشرط السحري: نتحقق أن التحديث الحالي يخص رقم حجز هذا العميل تحديداً
             if (payload.new && payload.new.id === currentRequestId) {
                 console.log(`🎯 رقم طابورك تغير في قاعدة البيانات إلى: ${payload.new.queue_position}`);
                 
-                // نقوم بتمرير السطر المحدث مباشرة للدالة لتحديث الدائرة فوراً 
-                // دون الحاجة لعمل SELECT جديدة من قاعدة البيانات عبر الشبكة
-                renderStatusPage(payload.new); 
+                renderStatusPage(payload.new);
+                
+                // تحديث العداد إذا كان الطلب offered
+                if (payload.new?.status === 'offered' && payload.new?.id === currentRequestId) {
+                    const remaining = await getRemainingHoldTime();
+                    const timerEl = document.getElementById('countdownTimer');
+                    if (timerEl && remaining !== null) {
+                        const mins = Math.floor(remaining / 60);
+                        const secs = remaining % 60;
+                        timerEl.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
+                    }
+                }
             }
         }
     );
