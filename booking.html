@@ -384,25 +384,29 @@
     <!-- سيتم ملء المحتوى ديناميكياً عبر JavaScript -->
   </div>
 
-  <!-- مودال تفعيل التنبيهات -->
+<!-- مودال تفعيل التنبيهات -->
 <div class="modal-backdrop" id="audioModal">
-  <div class="modal" style="max-width: 350px; text-align: center;">
-    <div class="modal-title" style="color: #FFD700;">🔔 تنبيهات صوتية</div>
-    <div class="modal-sub" style="margin-bottom: 20px;">
-      هل تريد تفعيل التنبيهات الصوتية؟<br>
-      <span style="font-size: 10px;">ستصدر تنبيهات عند اقتراب دورك ووصوله وجاهزية الطاولة</span>
+  <div class="audio-modal-container">
+    <div class="audio-modal-icon">
+      <i class="fas fa-volume-up"></i>
     </div>
-    <div style="display: flex; gap: 12px;">
-      <button class="settings-save" id="enableAudioYes" style="flex: 1; background: #10B981;">
-        <i class="fas fa-volume-up"></i> نعم، تفعيل
+    <div class="audio-modal-title">🔔 تفعيل التنبيهات الصوتية</div>
+    <div class="audio-modal-desc">
+      يمكنك تفعيل التنبيهات لتصلك إشعارات عند:<br>
+      • اقتراب دورك 📢<br>
+      • وصول دورك 🎯<br>
+      • جاهزية الطاولة 🍽️
+    </div>
+    <div class="audio-modal-buttons">
+      <button class="audio-modal-btn enable" id="enableAudioYes">
+        <i class="fas fa-check-circle"></i> نعم، تفعيل
       </button>
-      <button class="settings-close" id="enableAudioNo" style="flex: 1;">
+      <button class="audio-modal-btn disable" id="enableAudioNo">
         <i class="fas fa-volume-mute"></i> لا، كتم
       </button>
     </div>
   </div>
 </div>
-
   <!-- مودال عرض الحجز -->
 <div class="modal-backdrop" id="restoreModal">
   <div class="modal" style="max-width: 400px;">

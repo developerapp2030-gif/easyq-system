@@ -17,6 +17,37 @@ let availableZones = [];
 // DOM Elements
 let app = null;
 
+let continuousAlertInterval = null;
+let isAlertStopped = false;
+// ========== منع تكرار التنبيهات ==========
+let lastCustomerAlertKey = null;
+let hasInitialStatusLoaded = false;
+
+function shouldTriggerCustomerAlert(alertType, data = {}) {
+    if (!hasInitialStatusLoaded) {
+        console.log('🔕 منع التنبيه في أول تحميل');
+        return false;
+    }
+    const requestId = currentRequestId || data.requestId || 'no-request';
+    const queuePosition = data.queuePosition ?? currentQueueNumber ?? 'no-position';
+    const status = data.status || 'no-status';
+    const alertKey = `${requestId}:${alertType}:${status}:${queuePosition}`;
+    if (lastCustomerAlertKey === alertKey) {
+        console.log('🔕 تم منع تكرار التنبيه:', alertKey);
+        return false;
+    }
+    lastCustomerAlertKey = alertKey;
+    return true;
+}
+
+function resetCustomerAlertProtection() {
+    lastCustomerAlertKey = null;
+    hasInitialStatusLoaded = false;
+}
+// ========== الفحص الاحتياطي ==========
+let customerSafetyPolling = null;
+let isSafetyRefreshRunning = false;
+
 // ========== الدوال المساعدة ==========
 function updateDateTime() {
     const now = new Date();
@@ -272,6 +303,7 @@ async function renderStatusPage(requestData = null) {
 
     if (error || !data) return;
     request = data;
+        if (!hasInitialStatusLoaded) hasInitialStatusLoaded = true;
   }
 
   // 2. التحقق من حالة الطلب ومعالجة الإلغاء أو الانتهاء بشكل صحيح
@@ -358,18 +390,19 @@ async function renderStatusPage(requestData = null) {
   }
   
   // التحقق من التغيير وتشغيل التنبيه المناسب (فقط إذا تم تفعيل الصوت)
-  if (window.audioEnabled) {
+   if (window.audioEnabled) {
     if (window.previousQueueNumber !== currentQueueNumber && !isFinished) {
-      if (currentQueueNumber === 2) {
+      if (currentQueueNumber === 2 && shouldTriggerCustomerAlert('near', { status: 'waiting', queuePosition: currentQueueNumber })) {
         playBookingAlert('near');
-      } else if (currentQueueNumber === 1) {
+      } else if (currentQueueNumber === 1 && shouldTriggerCustomerAlert('next', { status: 'waiting', queuePosition: currentQueueNumber })) {
         playBookingAlert('next');
       }
     }
     
-    // تنبيه عند التعيين (isFinished)
-    if (isFinished && !window.previousIsFinished) {
-      playBookingAlert('ready');
+    if (isFinished && !window.previousIsFinished && shouldTriggerCustomerAlert('offered', { status: 'offered', queuePosition: currentQueueNumber })) {
+        playBookingAlert('ready');
+        startContinuousAlert();
+        showStopAlertButton();
     }
   }
   
@@ -601,9 +634,10 @@ async function submitBooking() {
     console.log('✅ currentRequestId:', currentRequestId);
     console.log('✅ queue_position:', currentQueueNumber);
     console.log('✅ booking_code:', booking.booking_code);
-    
+    resetCustomerAlertProtection();
     await renderStatusPage(booking);
     showAudioModal();
+    startCustomerSafetyPolling();
     
   } catch (err) {
     alert('فشل الحجز: ' + err.message);
@@ -643,7 +677,7 @@ async function cancelBooking() {
     sessionStorage.removeItem('current_booking_id');
     sessionStorage.setItem('booking_cancelled', 'true');
     currentRequestId = null;
-    
+        stopCustomerSafetyPolling();
     await renderBookingForm();
     
   } catch (err) {
@@ -714,23 +748,27 @@ function playBookingAlert(type = 'near') {
     let repeatCount = 1;
     let frequency = 800;
     
-    switch(type) {
-      case 'near':      // اقترب دورك (رقم 2)
+switch(type) {
+    case 'near':      // اقترب دورك (رقم 2)
         repeatCount = 2;
         frequency = 700;
+        vibrateDevice(200);
         break;
-      case 'next':      // أنت التالي (رقم 1)
+    case 'next':      // أنت التالي (رقم 1)
         repeatCount = 2;
         frequency = 900;
+        vibrateDevice(300);
         break;
-      case 'ready':     // طاولتك جاهزة (offered)
+    case 'ready':     // طاولتك جاهزة (offered)
         repeatCount = 2;
         frequency = 1200;
+        vibrateDevice(500);
         break;
-      default:
+    default:
         repeatCount = 1;
         frequency = 600;
-    }
+        vibrateDevice(100);
+}
     
     for (let i = 0; i < repeatCount; i++) {
       setTimeout(() => {
@@ -752,6 +790,114 @@ function playBookingAlert(type = 'near') {
   } catch(e) {
     console.log('Audio not supported:', e);
   }
+}
+
+function vibrateDevice(duration = 200) {
+    if (window.audioEnabled && navigator.vibrate) {
+        navigator.vibrate(duration);
+    }
+}
+
+// ========== دوال الفحص الاحتياطي ==========
+function startCustomerSafetyPolling() {
+    if (customerSafetyPolling) clearInterval(customerSafetyPolling);
+
+    customerSafetyPolling = setInterval(async () => {
+        if (document.hidden) return;
+        if (!currentRequestId) return;
+        if (isSafetyRefreshRunning) return;
+
+        isSafetyRefreshRunning = true;
+        console.log('🛟 فحص احتياطي خفيف لحالة العميل');
+
+        try {
+            await getCurrentQueueNumber();
+            await renderStatusPage();
+        } catch (err) {
+            console.error('فشل الفحص الاحتياطي:', err);
+        } finally {
+            isSafetyRefreshRunning = false;
+        }
+    }, 20000);
+}
+
+function stopCustomerSafetyPolling() {
+    if (customerSafetyPolling) {
+        clearInterval(customerSafetyPolling);
+        customerSafetyPolling = null;
+    }
+    isSafetyRefreshRunning = false;
+}
+
+// ========== تحديث عند الرجوع للصفحة ==========
+async function safeRefreshCustomerStatus(reason = 'unknown') {
+    if (!currentRequestId) return;
+    console.log(`🔄 تحديث حالة العميل بسبب: ${reason}`);
+    try {
+        await getCurrentQueueNumber();
+        await renderStatusPage();
+    } catch (err) {
+        console.error('❌ فشل تحديث حالة العميل:', err);
+    }
+}
+
+function reconnectRealtimeIfNeeded() {
+    if (!currentRequestId) return;
+    if (!realtimeChannel || realtimeChannel.state !== 'SUBSCRIBED') {
+        console.log('🔌 Realtime غير متصل، إعادة الاشتراك');
+        setupRealtime();
+    }
+}
+
+function startContinuousAlert() {
+    if (continuousAlertInterval) clearInterval(continuousAlertInterval);
+    isAlertStopped = false;
+    
+    continuousAlertInterval = setInterval(() => {
+        if (!isAlertStopped && window.audioEnabled) {
+            // اهتزاز
+            if (navigator.vibrate) navigator.vibrate(500);
+            // صوت
+            playBookingAlert('ready');
+        }
+    }, 2000);
+}
+
+function stopContinuousAlert() {
+    if (continuousAlertInterval) {
+        clearInterval(continuousAlertInterval);
+        continuousAlertInterval = null;
+    }
+    isAlertStopped = true;
+}
+
+function showStopAlertButton() {
+    // إزالة الزر القديم إذا وجد
+    const oldBtn = document.getElementById('stopAlertBtn');
+    if (oldBtn) oldBtn.remove();
+    
+    const btn = document.createElement('div');
+    btn.id = 'stopAlertBtn';
+    btn.innerHTML = `
+        <div style="background: #8B0000; color: white; padding: 15px 25px; border-radius: 50px; font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+            <i class="fas fa-bell-slash"></i>
+            إيقاف التنبيه
+        </div>
+    `;
+    btn.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10001;
+        cursor: pointer;
+        animation: pulse 0.5s infinite;
+    `;
+    btn.onclick = () => {
+        stopContinuousAlert();
+        btn.remove();
+    };
+    document.body.appendChild(btn);
 }
 
 function updateDateTime() {
@@ -910,7 +1056,20 @@ async function startBookingPage() {
         await getCurrentQueueNumber();
     }, 5000);
 }
+// ========== مستمعي الأحداث ==========
+document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden && currentRequestId) {
+        await safeRefreshCustomerStatus('رجوع العميل للصفحة');
+        reconnectRealtimeIfNeeded();
+    }
+});
 
+window.addEventListener('online', async () => {
+    if (currentRequestId) {
+        await safeRefreshCustomerStatus('عودة الإنترنت');
+        reconnectRealtimeIfNeeded();
+    }
+});
 // تأكد من جاهزية الصفحة
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', startBookingPage);
