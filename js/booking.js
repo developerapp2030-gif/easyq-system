@@ -1055,6 +1055,24 @@ function setupRealtime() {
         }
     );
 
+        // ✅ إضافة اشتراك table_assignments
+    realtimeChannel.on(
+        'postgres_changes',
+        {
+            event: 'UPDATE', 
+            schema: 'public',
+            table: 'table_assignments'
+        },
+        async function(payload) {
+            console.log('🔄 EVENT RECEIVED VIA REALTIME (table_assignments):', payload);
+            
+            if (payload.new?.request_id === currentRequestId || payload.old?.request_id === currentRequestId) {
+                console.log('🎯 تحديث في التعيين يخص حجزك');
+                await renderStatusPage();
+            }
+        }
+    );
+
     realtimeChannel.subscribe(function(status) {
         console.log('📡 realtime status:', status);
     });

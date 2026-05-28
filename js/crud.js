@@ -11,8 +11,10 @@ async function changeTableStatus(tableId, newStatus) {
   
   console.log(`📝 تغيير حالة الطاولة ${table.table_name} من ${table.status} إلى ${newStatus}`);
   
+  // تنظيف ذكي لمؤقت التنظيف من الذاكرة
   if (cleaningTimers[tableId]) {
-    clearTimeout(cleaningTimers[tableId]);
+    const timerId = cleaningTimers[tableId].id || cleaningTimers[tableId];
+    clearTimeout(timerId);
     delete cleaningTimers[tableId];
   }
   if (reservationTimers[tableId]) {
@@ -22,13 +24,65 @@ async function changeTableStatus(tableId, newStatus) {
   if (table.status === "occupied" && newStatus !== "occupied") {
     stopTableTimer(tableId, table.table_name);
   }
+  
+  // إدارة كاش المتصفح لبيانات العميل لضمان عدم الاختفاء
   if (newStatus === "occupied") {
     startTableTimer(tableId, table.table_name);
+    
+    if (table.customer_name) {
+      const occupiedData = {
+        customer_name: table.customer_name,
+        requested_party_size: table.requested_party_size,
+        seated_at: new Date().toISOString()
+      };
+      sessionStorage.setItem(`occupied_table_${tableId}`, JSON.stringify(occupiedData));
+    }
+    
+    // جلب التعيين النشط لهذه الطاولة
+    const { data: assignment } = await supabase
+        .from('table_assignments')
+        .select('request_id')
+        .eq('table_id', tableId)
+        .eq('status', 'offered')
+        .maybeSingle();
+    console.log('🔍 assignment found:', assignment);
+
+    if (assignment?.request_id) {
+        console.log('🔄 جاري تحديث الطلب:', assignment.request_id);
+        
+        const { data: reqData, error: reqError } = await supabase
+            .from('table_requests')
+            .update({ status: 'occupied' })
+            .eq('id', assignment.request_id)
+            .select();
+        
+        if (reqError) {
+            console.error('❌ فشل تحديث الطلب table_requests:', reqError);
+            showAlert(`فشل تحديث حالة الطلب: ${reqError.message}`);
+        } else {
+            console.log('✅ تم تحديث الطلب بنجاح:', reqData);
+        }
+        
+        const { error: assignError } = await supabase
+            .from('table_assignments')
+            .update({ status: 'occupied' })
+            .eq('table_id', tableId)
+            .eq('status', 'offered');
+            
+        if (assignError) {
+            console.error('❌ فشل تحديث التعيين table_assignments:', assignError);
+        } else {
+            console.log('✅ تم تحديث حالة التعيين بنجاح إلى occupied');
+        }
+    } else {
+        console.warn('⚠️ لم يتم العثور على تعيين نشط (offered) لهذه الطاولة.');
+    }
+  } else {
+    // إذا تحولت لأي حالة أخرى غير المشغولة، يتم تفريغ كاش الطاولة فوراً
+    sessionStorage.removeItem(`occupied_table_${tableId}`);
   }
   
-  // 🔥 استخدام RPC آمن بدلاً من الوصول المباشر إلى table_assignments
   if (newStatus === "available") {
-    // استدعاء دالة RPC لتنظيف التعيينات بدلاً من الحذف المباشر
     const { error: cleanError } = await supabase.rpc('clean_table_assignments', {
       p_table_id: tableId
     });
@@ -51,18 +105,24 @@ async function changeTableStatus(tableId, newStatus) {
   
   if (newStatus === 'cleaning') {
     const holdMinutes = Number(settings.cleaning_hold_minutes || 10);
-    cleaningTimers[tableId] = setTimeout(async () => {
-      console.log(`⏰ انتهى وقت التنظيف للطاولة ${table.table_name}`);
-      await changeTableStatus(tableId, 'available');
-      showPersistentAlert(`🧹 انتهى وقت التنظيف للطاولة ${table.table_name}`);
-    }, holdMinutes * 60 * 1000);
+    // حفظ كائن يحمل الـ id الخاص بالمؤقت والـ timestamp الفعلي لانتهاء الوقت
+    cleaningTimers[tableId] = {
+      id: setTimeout(async () => {
+        console.log(`⏰ انتهى وقت التنظيف للطاولة ${table.table_name}`);
+        await changeTableStatus(tableId, 'available');
+        showPersistentAlert(`🧹 انتهى وقت التنظيف للطاولة ${table.table_name}`);
+      }, holdMinutes * 60 * 1000),
+      expiresAt: Date.now() + (holdMinutes * 60 * 1000)
+    };
   }
   
 if (newStatus === 'reserved') {
   console.log(`⏳ الطاولة ${table.table_name} محجوزة. انتهاء الحجز سيتم عبر checkReservationTimers فقط.`);
 }
   
-  await loadFloorPlan();
+// جلب كافة البيانات المحدثة (الطاولات والطلبات) فوراً محلياً دون انتظار الـ Realtime
+  await loadAll();
+  
   renderFloorPlan();
   renderStatusSummary();
   

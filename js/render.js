@@ -96,6 +96,18 @@ async function renderFloorPlan() {
     }
     
     const status = table.status || "available";
+    
+    // استعادة ذكية لبيانات العميل المفقودة للطاولات المشغولة من الكاش المحلي للمتصفح
+    if (status === "occupied") {
+      const cachedDataStr = sessionStorage.getItem(`occupied_table_${table.id}`);
+      if (cachedDataStr) {
+        const cached = JSON.parse(cachedDataStr);
+        if (!table.customer_name) table.customer_name = cached.customer_name;
+        if (!table.requested_party_size) table.requested_party_size = cached.requested_party_size;
+        if (!table.seated_at) table.seated_at = cached.seated_at;
+      }
+    }
+
     const isBusy = (status === "reserved" || status === "occupied" || status === "cleaning");
     
     const nameHtml = `<span class="table-name">${table.table_name}</span>`;
@@ -103,14 +115,21 @@ async function renderFloorPlan() {
     
     let timerHtml = "";
     if (table.customer_name) {
-      if (table.status === "reserved" && table.reserved_at)
+      if (table.status === "reserved" && table.reserved_at) {
         timerHtml = getRemainingReservationText(table.reserved_at);
-      else if (table.reserved_at)
+      } else if (table.status === "occupied") {
+        // حساب وقت جلوس العميل الفعلي على الطاولة المشغولة تصاعدياً
+        const seatedTime = table.seated_at || table.reserved_at || table.request_time;
+        if (seatedTime) timerHtml = timeSince(seatedTime);
+      } else if (table.reserved_at) {
         timerHtml = timeSince(table.reserved_at);
-      else if (table.request_time)
+      } else if (table.request_time) {
         timerHtml = timeSince(table.request_time);
+      }
     } else if (table.status === "cleaning" && cleaningTimers[table.id]) {
-      const remaining = Math.ceil((cleaningTimers[table.id] - Date.now()) / 60000);
+      // حساب وقت التنظيف التنازلي بناءً على expiresAt الرقمي المخزن
+      const expiresAt = cleaningTimers[table.id].expiresAt || cleaningTimers[table.id];
+      const remaining = Math.ceil((expiresAt - Date.now()) / 60000);
       if (remaining > 0) timerHtml = `${remaining} دقيقة`;
     }
     
