@@ -252,6 +252,7 @@ body.theme-premium .assign-auto-btn i {
   color: #111111 !important;
 }
 
+
 body.theme-premium #tabQueueBtn {
   background: linear-gradient(135deg, #0E146D, #0E146D) !important;
   color: #FFFFFF !important;
@@ -331,7 +332,7 @@ body.theme-premium .settings-save,
 body.theme-premium .login-btn,
 body.theme-premium .alert-button,
 body.theme-premium #addTableBtn,
-body.theme-premium [style*="#8B0000"] {
+body.theme-premium [style*="#8B0000"]:not(#tabQueueBtn):not(#tabExpiredBtn):not(.stat-dot):not(.modal-btn) {
   background: linear-gradient(135deg, #0E146D, #0E146D) !important;
   color: #FFFFFF !important;
 }
@@ -462,7 +463,7 @@ body.theme-premium #premiumThemeToggle.active i {
 
 /* زر التعيين التلقائي: ذهبي كامل والسهم أسود */
 body.theme-premium .assign-auto-btn {
-  background: linear-gradient(135deg, #F8FAFC 0%, #EAF0FF 100%) !important;
+  background: linear-gradient(135deg, #e4e4bc 0%, #EAF0FF 100%) !important;
   color: #111111 !important;
   border: 1px solid rgba(0,0,0,0.10) !important;
   border-radius: 12px !important;
@@ -609,8 +610,7 @@ body.theme-premium.dark .step-btn {
 
 /* FORCE FIX: Auto assign button gold */
 body.theme-premium .waiting-actions .icon-btn.assign-auto-btn {
-  background: linear-gradient(135deg, #F8FAFC 0%, #EAF0FF 100%) !important;
-  color: #111111 !important;
+background: linear-gradient(135deg, #9A6A1E 0%, #C6923A 48%, #F0C76A 100%) !important;
   border: 1px solid rgba(0,0,0,0.10) !important;
   box-shadow: 0 10px 22px rgba(198,146,58,0.24) !important;
 }
@@ -1469,3 +1469,200 @@ body:has(.premium-login-overlay)::before {
     0 20px 42px rgba(198,146,58,0.16);
 }
 
+/* إصلاح لون occupied في شريط الحالات */
+body.theme-premium .stat-item:nth-child(3) .stat-dot {
+    background-color: #8B0000 !important;
+}
+
+/* =========================================================
+   FIX: Premium sidebar active parent/sub item colors
+   يحل مشكلة الخلفية الفاتحة مع النص الأبيض
+========================================================= */
+
+/* الحالة العادية داخل السايد بار */
+body.theme-premium .sidebar .menu-item,
+body.theme-premium .sidebar .main-menu-item,
+body.theme-premium .sidebar .sub-menu-item,
+body.theme-premium .sidebar .menu-title span,
+body.theme-premium .sidebar .sub-menu-item span,
+body.theme-premium .sidebar .toggle-icon {
+  color: rgba(255,255,255,0.88) !important;
+}
+
+body.theme-premium .sidebar .menu-item i,
+body.theme-premium .sidebar .main-menu-item i,
+body.theme-premium .sidebar .sub-menu-item i {
+  color: rgba(221,231,255,0.86) !important;
+}
+
+/* البند الرئيسي المفتوح فقط، وليس المختار */
+body.theme-premium .sidebar .main-menu-item.open:not(.active) {
+  background: rgba(255,255,255,0.08) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255,255,255,0.08) !important;
+  box-shadow: none !important;
+}
+
+body.theme-premium .sidebar .main-menu-item.open:not(.active) .menu-title span,
+body.theme-premium .sidebar .main-menu-item.open:not(.active) i,
+body.theme-premium .sidebar .main-menu-item.open:not(.active) .toggle-icon {
+  color: #FFFFFF !important;
+}
+
+/* البند النشط الحقيقي: خلفية فاتحة ونص داكن */
+body.theme-premium .sidebar .menu-item.active,
+body.theme-premium .sidebar .main-menu-item.active,
+body.theme-premium .sidebar .sub-menu-item.active {
+  background: linear-gradient(135deg, #F8FAFC 0%, #DDE7FF 100%) !important;
+  color: #111111 !important;
+  border-color: rgba(255,255,255,0.24) !important;
+  box-shadow: 0 8px 20px rgba(248,250,252,0.18) !important;
+}
+
+/* إجبار النصوص الداخلية داخل active تكون داكنة */
+body.theme-premium .sidebar .menu-item.active span,
+body.theme-premium .sidebar .main-menu-item.active span,
+body.theme-premium .sidebar .sub-menu-item.active span,
+body.theme-premium .sidebar .main-menu-item.active .menu-title span,
+body.theme-premium .sidebar .sub-menu-item.active span {
+  color: #111111 !important;
+}
+
+/* إجبار الأيقونات والسهم داخل active تكون داكنة */
+body.theme-premium .sidebar .menu-item.active i,
+body.theme-premium .sidebar .main-menu-item.active i,
+body.theme-premium .sidebar .sub-menu-item.active i,
+body.theme-premium .sidebar .main-menu-item.active .toggle-icon {
+  color: #111111 !important;
+}
+
+/* عند اختيار بند فرعي: اجعل الرئيسي المفتوح مميزًا بلون داكن لا أبيض */
+body.theme-premium .sidebar .main-menu-item.open.active {
+  background: rgba(255,255,255,0.10) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  box-shadow: none !important;
+}
+
+body.theme-premium .sidebar .main-menu-item.open.active span,
+body.theme-premium .sidebar .main-menu-item.open.active i,
+body.theme-premium .sidebar .main-menu-item.open.active .toggle-icon {
+  color: #FFFFFF !important;
+}
+
+/* الفرعي النشط فقط يكون هو الفاتح باحترافية */
+body.theme-premium .sidebar .sub-menu-item.active {
+  background: linear-gradient(135deg, #F8FAFC 0%, #DDE7FF 100%) !important;
+  color: #111111 !important;
+  transform: translateX(-2px);
+}
+
+body.theme-premium .sidebar .sub-menu-item.active span,
+body.theme-premium .sidebar .sub-menu-item.active i {
+  color: #111111 !important;
+}
+
+/* =========================================================
+   FIX: Queue / Expired Tabs - Premium Theme
+   يعتمد على نفس تبديل الثيم الأساسي، لكن بألوان الثيم الاحترافي
+========================================================= */
+
+/* الحالة غير المختارة */
+body.theme-premium #tabQueueBtn,
+body.theme-premium #tabExpiredBtn {
+  background: #E9ECF8 !important;
+  color: #111827 !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(14, 20, 109, 0.10) !important;
+}
+
+/* إذا النظام الأساسي يستخدم class active */
+body.theme-premium #tabQueueBtn.active,
+body.theme-premium #tabExpiredBtn.active {
+  background: linear-gradient(135deg, #070219 0%, #060427 48%, #0E146D 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 8px 18px rgba(14,20,109,0.18) !important;
+}
+
+/* إذا النظام الأساسي يغير اللون عبر inline style إلى أحمر */
+body.theme-premium #tabQueueBtn[style*="#8B0000"],
+body.theme-premium #tabExpiredBtn[style*="#8B0000"],
+body.theme-premium #tabQueueBtn[style*="rgb(139, 0, 0)"],
+body.theme-premium #tabExpiredBtn[style*="rgb(139, 0, 0)"] {
+  background: linear-gradient(135deg, #070219 0%, #060427 48%, #0E146D 100%) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 8px 18px rgba(14,20,109,0.18) !important;
+  border-color: rgba(14,20,109,0.25) !important;
+}
+
+/* أيقونات الزر المختار */
+body.theme-premium #tabQueueBtn.active i,
+body.theme-premium #tabExpiredBtn.active i,
+body.theme-premium #tabQueueBtn[style*="#8B0000"] i,
+body.theme-premium #tabExpiredBtn[style*="#8B0000"] i,
+body.theme-premium #tabQueueBtn[style*="rgb(139, 0, 0)"] i,
+body.theme-premium #tabExpiredBtn[style*="rgb(139, 0, 0)"] i {
+  color: #FFFFFF !important;
+}
+
+/* عداد الزر المختار */
+body.theme-premium #tabQueueBtn.active .waiting-badge-count,
+body.theme-premium #tabExpiredBtn.active .waiting-badge-count,
+body.theme-premium #tabQueueBtn[style*="#8B0000"] .waiting-badge-count,
+body.theme-premium #tabExpiredBtn[style*="#8B0000"] .waiting-badge-count,
+body.theme-premium #tabQueueBtn[style*="rgb(139, 0, 0)"] .waiting-badge-count,
+body.theme-premium #tabExpiredBtn[style*="rgb(139, 0, 0)"] .waiting-badge-count {
+  background: #FFFFFF !important;
+  color: #0E146D !important;
+  font-weight: 900 !important;
+}
+
+/* عداد الزر غير المختار */
+body.theme-premium #tabQueueBtn:not(.active) .waiting-badge-count,
+body.theme-premium #tabExpiredBtn:not(.active) .waiting-badge-count {
+  background: rgba(14,20,109,0.12) !important;
+  color: #0E146D !important;
+  font-weight: 900 !important;
+}
+
+/* =========================================================
+   FIX: Occupied status dot color in premium theme
+   يمنع تحويل نقطة الحالة المشغولة إلى أزرق
+========================================================= */
+
+body.theme-premium .stats-row .stat-item:nth-child(3) .stat-dot,
+body.theme-premium .stats-row .stat-dot[style*="#8B0000"],
+body.theme-premium .stats-row .stat-dot[style*="rgb(139, 0, 0)"],
+body.theme-premium .stats-row .stat-dot[style*="139, 0, 0"] {
+  background: #DC2626 !important;
+  background-color: #DC2626 !important;
+  width: 12px !important;
+  height: 12px !important;
+  box-shadow: none !important;
+}
+
+/* =========================================================
+   FIX: Occupied button inside table action modal
+   يمنع تحويل زر مشغولة داخل مودال الطاولة إلى أزرق
+========================================================= */
+
+body.theme-premium .modal-actions .modal-btn[style*="#8B0000"],
+body.theme-premium .modal-actions .modal-btn[style*="rgb(139, 0, 0)"],
+body.theme-premium .modal-actions .modal-btn[style*="139, 0, 0"] {
+  background: #DC2626 !important;
+  background-color: #DC2626 !important;
+  color: #FFFFFF !important;
+  box-shadow: none !important;
+}
+
+/* إزالة التوهج/الظل الذهبي خلف زر التعيين */
+body.theme-premium .assign-auto-btn,
+body.theme-premium .waiting-actions .icon-btn.assign-auto-btn {
+  box-shadow: none !important;
+}
+
+body.theme-premium .assign-auto-btn:hover,
+body.theme-premium .waiting-actions .icon-btn.assign-auto-btn:hover {
+  box-shadow: none !important;
+}

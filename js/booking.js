@@ -23,6 +23,52 @@ let isAlertStopped = false;
 let lastCustomerAlertKey = null;
 let hasInitialStatusLoaded = false;
 
+// ========== كشف سرعة المتصفح ==========
+let browserSpeedTested = false;
+let isBrowserFast = true;
+
+async function testBrowserSpeed() {
+    if (browserSpeedTested) return isBrowserFast;
+    
+    return new Promise((resolve) => {
+        const startTime = performance.now();
+        
+        // اختبار WebSocket
+        const ws = new WebSocket('wss://zjdfadkonftkgljvzxoy.supabase.co/realtime/v1/websocket?apikey=' + SUPABASE_ANON_KEY);
+        let responded = false;
+        
+        const timeout = setTimeout(() => {
+            if (!responded) {
+                ws.close();
+                isBrowserFast = false;
+                browserSpeedTested = true;
+                console.log('🐌 تم اكتشاف متصفح بطيء (WebSocket لم يستجب خلال 5 ثوانٍ)');
+                resolve(false);
+            }
+        }, 5000);
+        
+        ws.onopen = () => {
+            const elapsed = performance.now() - startTime;
+            ws.close();
+            clearTimeout(timeout);
+            
+            isBrowserFast = elapsed < 1500;
+            browserSpeedTested = true;
+            console.log(`⚡ سرعة الاتصال: ${elapsed.toFixed(0)}ms - ${isBrowserFast ? 'سريع ✅' : 'بطيء 🐌'}`);
+            resolve(isBrowserFast);
+        };
+        
+        ws.onerror = () => {
+            clearTimeout(timeout);
+            ws.close();
+            isBrowserFast = false;
+            browserSpeedTested = true;
+            console.log('❌ فشل اتصال WebSocket، تفعيل وضع البطيء');
+            resolve(false);
+        };
+    });
+}
+
 function shouldTriggerCustomerAlert(alertType, data = {}) {
     if (!hasInitialStatusLoaded) {
         console.log('🔕 منع التنبيه في أول تحميل');
@@ -802,23 +848,41 @@ function vibrateDevice(duration = 200) {
 function startCustomerSafetyPolling() {
     if (customerSafetyPolling) clearInterval(customerSafetyPolling);
 
-    customerSafetyPolling = setInterval(async () => {
-        if (document.hidden) return;
-        if (!currentRequestId) return;
-        if (isSafetyRefreshRunning) return;
+    // اختبار سرعة المتصفح وتحديد فترة الفحص
+    testBrowserSpeed().then(isFast => {
+        const intervalTime = isFast ? 30000 : 8000; // سريع: 30 ثانية، بطيء: 8 ثوانٍ
+        console.log(`🔄 بدء الفحص الاحتياطي كل ${intervalTime / 1000} ثانية (${isFast ? 'متصفح سريع' : 'متصفح بطيء'})`);
+        
+        customerSafetyPolling = setInterval(async () => {
+            if (document.hidden) return;
+            if (!currentRequestId) return;
+            if (isSafetyRefreshRunning) return;
 
-        isSafetyRefreshRunning = true;
-        console.log('🛟 فحص احتياطي خفيف لحالة العميل');
+            isSafetyRefreshRunning = true;
+            console.log('🛟 فحص احتياطي لحالة العميل');
 
-        try {
-            await getCurrentQueueNumber();
-            await renderStatusPage();
-        } catch (err) {
-            console.error('فشل الفحص الاحتياطي:', err);
-        } finally {
-            isSafetyRefreshRunning = false;
-        }
-    }, 20000);
+            try {
+                // جلب الحالة فقط (خفيف)
+                const { data: request } = await supabase
+                    .from('table_requests')
+                    .select('status, queue_position')
+                    .eq('id', currentRequestId)
+                    .maybeSingle();
+                
+                if (request?.status === 'cancelled' || request?.status === 'expired') {
+                    console.log('⚠️ تم اكتشاف تغيير عبر الفحص الاحتياطي');
+                    await renderStatusPage(request);
+                }
+                
+                await getCurrentQueueNumber();
+                await renderStatusPage();
+            } catch (err) {
+                console.error('فشل الفحص الاحتياطي:', err);
+            } finally {
+                isSafetyRefreshRunning = false;
+            }
+        }, intervalTime);
+    });
 }
 
 function stopCustomerSafetyPolling() {
@@ -953,12 +1017,27 @@ function setupRealtime() {
             schema: 'public',
             table: 'table_requests'
         },
-        async function(payload) {
+                async function(payload) {
             console.log('🔥 EVENT RECEIVED VIA REALTIME:', payload);
             console.log('NEW DATA:', payload.new);
 
             if (payload.new && payload.new.id === currentRequestId) {
                 console.log(`🎯 رقم طابورك تغير في قاعدة البيانات إلى: ${payload.new.queue_position}`);
+                
+                // عند استلام أي حدث، نعلم أن Realtime يعمل
+                testBrowserSpeed().then(isFast => {
+                    if (isFast && customerSafetyPolling) {
+                        console.log('📡 Realtime يعمل، إيقاف Polling مؤقتاً');
+                        clearInterval(customerSafetyPolling);
+                        customerSafetyPolling = null;
+                        // إعادة تشغيل Polling بعد 30 ثانية من عدم النشاط
+                        setTimeout(() => {
+                            if (!customerSafetyPolling && currentRequestId) {
+                                startCustomerSafetyPolling();
+                            }
+                        }, 30000);
+                    }
+                });
                 
                 renderStatusPage(payload.new);
                 
