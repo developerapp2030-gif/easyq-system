@@ -336,7 +336,7 @@
     left: 0 !important;
     right: 0 !important;
     bottom: 0 !important;
-    background: rgba(0, 0, 0, 0.8) !important;
+    background: rgba(0, 0, 0, 0.85) !important;
     backdrop-filter: blur(8px) !important;
     display: none !important;
     align-items: center !important;
@@ -346,6 +346,69 @@
 
 #audioModal.show {
     display: flex !important;
+}
+
+#audioModal .audio-modal-container {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 30px;
+    padding: 30px 25px;
+    text-align: center;
+    width: 85%;
+    max-width: 320px;
+    direction: rtl;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    border: 1px solid rgba(212,175,55,0.3);
+}
+
+#audioModal .audio-modal-icon i {
+    font-size: 55px;
+    color: #D4AF37;
+    margin-bottom: 20px;
+}
+
+#audioModal .audio-modal-title {
+    color: white;
+    margin-bottom: 12px;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+#audioModal .audio-modal-desc {
+    color: #aaa;
+    margin-bottom: 25px;
+    font-size: 14px;
+    line-height: 1.6;
+    text-align: center;
+}
+
+#audioModal .audio-modal-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+#audioModal .audio-modal-btn {
+    padding: 12px 25px;
+    border-radius: 50px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    transition: transform 0.2s;
+}
+
+#audioModal .audio-modal-btn.enable {
+    background: #10B981;
+    color: white;
+}
+
+#audioModal .audio-modal-btn.disable {
+    background: #EF4444;
+    color: white;
+}
+
+#audioModal .audio-modal-btn:hover {
+    transform: scale(1.02);
 }
 
 /* مودال استعادة الحجز */
@@ -385,8 +448,8 @@
   </div>
 
 <!-- مودال تفعيل التنبيهات -->
-<div class="modal-backdrop" id="audioModal">
-  <div class="audio-modal-container">
+<div id="audioModal" class="modal-backdrop">
+    <div class="audio-modal-container">
     <div class="audio-modal-icon">
       <i class="fas fa-volume-up"></i>
     </div>

@@ -19,6 +19,7 @@ let app = null;
 
 let continuousAlertInterval = null;
 let isAlertStopped = false;
+let previousStatus = null;  // <--- أضف هذا السطر هنا
 // ========== منع تكرار التنبيهات ==========
 let lastCustomerAlertKey = null;
 let hasInitialStatusLoaded = false;
@@ -95,26 +96,13 @@ let customerSafetyPolling = null;
 let isSafetyRefreshRunning = false;
 
 // ========== الدوال المساعدة ==========
-function updateDateTime() {
-    const now = new Date();
-    const dateEl = document.getElementById('currentDate');
-    const timeEl = document.getElementById('currentTime');
-    if (dateEl) dateEl.innerText = now.toLocaleDateString('ar-SA');
-    if (timeEl) timeEl.innerText = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-}
+
 
 function requestNotificationPermission() {
     // سيتم تفعيلها لاحقاً
 }
 
-function changePartySize(delta) {
-    const span = document.getElementById('partySizeValue');
-    if (span) {
-        let val = parseInt(span.innerText) || 2;
-        val = Math.max(1, Math.min(20, val + delta));
-        span.innerText = val;
-    }
-}
+
 
 // ========== الدوال الأساسية ==========
 
@@ -342,7 +330,6 @@ function formatTime(timestamp) {
 async function renderStatusPage(requestData = null) {
   let request = requestData;
 
-  // 1. جلب البيانات أولاً من قاعدة البيانات إذا لم تكن ممررة للدالة
   if (!request) {
     const { data, error } = await supabase
       .from('table_requests')
@@ -352,10 +339,9 @@ async function renderStatusPage(requestData = null) {
 
     if (error || !data) return;
     request = data;
-        if (!hasInitialStatusLoaded) hasInitialStatusLoaded = true;
+    if (!hasInitialStatusLoaded) hasInitialStatusLoaded = true;
   }
 
-  // 2. التحقق من حالة الطلب ومعالجة الإلغاء أو الانتهاء بشكل صحيح
   if (!request || request.status === 'cancelled' || request.status === 'expired') {
     if (window.countdownInterval) clearInterval(window.countdownInterval);
     alert('تم إلغاء حجزك لانتهاء الوقت المحدد لتأكيد الحضور يمكنك معاودة الحجز مجددا');
@@ -366,37 +352,26 @@ async function renderStatusPage(requestData = null) {
     return;
   }
 
-  // 3. الآن قراءة الخصائص ومعالجة النصوص بأمان تام
-  console.log('🔍 customer_name:', request?.customer_name, 'full request:', request);
-
-  // حفظ اسم العميل لتفادي اختفائه عند التحديث السريع
   window.currentCustomerName = request.customer_name || window.currentCustomerName || 'ضيف';
   let customerName = window.currentCustomerName;
   let partySize = request.requested_party_size || 2;
   let bookingTime = formatTime(request.created_at);
 
-  // تقصير الاسم إذا تجاوز 15 حرف
   if (customerName.length > 15) {
       customerName = customerName.substring(0, 15) + '...';
   }
 
-  // 🎯 الحسابات الذكية للتناسب التقسيمي للدائرة
-  
-  // حفظ الرقم الأصلي في المتصفح لضمان عدم ضياعه مع تحديثات Realtime
   window.originalQueueNumber = window.originalQueueNumber || request.original_queue_position || request.queue_position || 1;
   const originalQueueNumber = window.originalQueueNumber;
-  
-  // الرقم الحالي الحقيقي للعميل
   const currentQueueNumber = request?.queue_position || window.currentQueueNumber || originalQueueNumber;
   window.currentQueueNumber = currentQueueNumber;
 
-   // تحديد الحالات بدقة
   const isWaiting = request.status === 'waiting';
   const isOffered = request.status === 'offered';
   const isOccupied = request.status === 'occupied';
   const isCleaning = request.status === 'cleaning' || request.status === 'completed';
+  const isFinished = isOffered || isOccupied || isCleaning;
   
-  // جلب الوقت المتبقي للحجز إذا كانت الحالة offered
   let remainingSeconds = null;
   if (isOffered) {
       remainingSeconds = await getRemainingHoldTime();
@@ -409,120 +384,95 @@ async function renderStatusPage(requestData = null) {
       return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
-  function formatTime(timestamp) {
-    if (!timestamp) return '';
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  // طول محيط الدائرة (المطابق للـ Radius 92)
   const circleLength = 578;
-
-  // حساب النسبة المئوية بشكل تناسبي بحت
   let progressPercent = 100;
   if (isWaiting) {
     progressPercent = (currentQueueNumber / originalQueueNumber) * 100;
   } else {
     progressPercent = 100;
   }
-
-  // حساب الإزاحة الفعلية لإطار SVG للرسم بدقة
   const dashOffset = circleLength - ((circleLength * progressPercent) / 100);
 
   console.log('🔍 Debug - currentQueueNumber:', currentQueueNumber, 'status:', request.status);
   
-  // تحديد النصوص حسب الحالة
   let numberText = '';
   let labelText = '';
   let subText = '';
   let showTimer = false;
   let showCancelButton = true;
+  let statusMessage = '';
   
-  if (isWaiting) {
+if (isWaiting) {
       numberText = currentQueueNumber;
-      labelText = 'رقمك في الانتظار';
+      if (currentQueueNumber === 2) {
+          labelText = 'اقترب دورك';
+          statusMessage = '';
+      } else if (currentQueueNumber === 1) {
+          labelText = 'أنت التالي';
+          statusMessage = '';
+      } else {
+          labelText = 'رقمك في الانتظار';
+          statusMessage = '';
+      }
       showCancelButton = true;
-  } 
-  else if (isOffered) {
+  }
+else if (isOffered) {
       if (remainingSeconds !== null && remainingSeconds > 0) {
           numberText = formatCountdownTime(remainingSeconds);
-          labelText = 'يرجى الحضور قبل انتهاء الوقت';
+          labelText = 'طاولتك جاهزة';
+          statusMessage = 'يجب عليك الحضور قبل انتهاء الوقت';
           showTimer = true;
       } else {
           numberText = '0';
           labelText = 'تم إلغاء حجزك';
+          statusMessage = '';
           showCancelButton = false;
       }
-      showCancelButton = true;
   }
-  else if (isOccupied) {
+else if (isOccupied) {
       numberText = '🎉';
-      labelText = 'تم وصولك، أهلاً وسهلاً بك';
+      labelText = 'تم وصولك أهلاً وسهلاً بك';
+      statusMessage = 'شرفت المكان';
       showCancelButton = false;
   }
-  else if (isCleaning) {
+else if (isCleaning) {
       numberText = '🙏';
-      labelText = 'نشكر زيارتك، نتمنى رؤيتك قريباً';
+      labelText = 'شكراً لزيارتك';
+      statusMessage = 'نتمنى زيارتك قريبا';
       showCancelButton = false;
   }
   else {
       numberText = currentQueueNumber;
       labelText = 'رقمك في الانتظار';
+      statusMessage = 'نشكر لك صبرك';
       showCancelButton = true;
   }
-  // ========== التنبيهات الصوتية ==========
-  // تخزين القيمة السابقة للمقارنة
+
   if (window.previousQueueNumber === undefined) {
     window.previousQueueNumber = currentQueueNumber;
   }
-  if (window.previousIsFinished === undefined) {
-    window.previousIsFinished = isFinished;
+  if (window.previousStatus === undefined) {
+    window.previousStatus = request.status;
   }
   
-  // التحقق من التغيير وتشغيل التنبيه المناسب (فقط إذا تم تفعيل الصوت)
-   if (window.audioEnabled) {
-    if (window.previousQueueNumber !== currentQueueNumber && !isFinished) {
-      if (currentQueueNumber === 2 && shouldTriggerCustomerAlert('near', { status: 'waiting', queuePosition: currentQueueNumber })) {
+  if (window.audioEnabled) {
+    if (window.previousQueueNumber !== currentQueueNumber && isWaiting) {
+      if (currentQueueNumber === 2 && shouldTriggerCustomerAlert('near')) {
         playBookingAlert('near');
-      } else if (currentQueueNumber === 1 && shouldTriggerCustomerAlert('next', { status: 'waiting', queuePosition: currentQueueNumber })) {
+      } else if (currentQueueNumber === 1 && shouldTriggerCustomerAlert('next')) {
         playBookingAlert('next');
       }
     }
     
-    if (isFinished && !window.previousIsFinished && shouldTriggerCustomerAlert('offered', { status: 'offered', queuePosition: currentQueueNumber })) {
+    if (isOffered && window.previousStatus !== 'offered' && shouldTriggerCustomerAlert('offered')) {
         playBookingAlert('ready');
         startContinuousAlert();
         showStopAlertButton();
     }
   }
   
-  // تحديث القيم السابقة
   window.previousQueueNumber = currentQueueNumber;
-  window.previousIsFinished = isFinished;
-
-  numberText = currentQueueNumber;
-  labelText = 'رقمك في الانتظار';
-
-  if (currentQueueNumber === 3 && !isFinished) {
-    labelText = 'رقمك في الانتظار';
-  }
-  if (currentQueueNumber === 2 && !isFinished) {
-    labelText = 'اقترب دورك ';
-  }
-  if (currentQueueNumber === 1 && !isFinished) {
-    labelText = 'أنت التالي، كن جاهزاً';
-  }
-  
-  // إذا تم التعيين (offered)، يتم عرض العداد داخل الدائرة بدلاً من 0
-  if (isFinished) {
-    labelText = 'حان دورك ، تفضل طاولتك جاهزة';
-    if (request.status === 'offered' && remainingSeconds !== null) {
-      numberText = formatCountdownTime(remainingSeconds);
-      subText = '<div style="font-size: 13px; color: #FFD700; margin-top: 5px; font-weight: bold;">يرجى الحضور قبل انتهاء الوقت</div>';
-    } else {
-      numberText = '0';
-    }
-  }
+  window.previousStatus = request.status;
 
   app.innerHTML = `
     <div class="container">
@@ -530,11 +480,11 @@ async function renderStatusPage(requestData = null) {
         <div class="restaurant-logo">
           <i class="fas fa-utensils"></i>
         </div>
-        <div class="restaurant-name">
-          المطعم الرئيسي
-        </div>
-        <div class="restaurant-address">
-          الرياض، المملكة العربية السعودية
+        <div class="restaurant-name">المطعم الرئيسي</div>
+        <div class="restaurant-address">الرياض، المملكة العربية السعودية</div>
+        <div class="datetime-row">
+          <span id="currentDate"></span>
+          <span id="currentTime"></span>
         </div>
       </div>
 
@@ -544,81 +494,74 @@ async function renderStatusPage(requestData = null) {
           <h2>متابعة الحجز</h2>
           <span class="premium-line"></span>
         </div>
+        
         <div class="booking-details">
-          <span class="customer-name">${customerName}</span>
-          <span class="separator">-</span>
+          <span class="customer-name"><i class="fas fa-user"></i> ${customerName}</span>
+          <span class="separator">|</span>
           <span class="party-size"><i class="fas fa-user-friends"></i> ${partySize}</span>
-          <span class="separator">-</span>
+          <span class="separator">|</span>
           <span class="booking-time"><i class="fas fa-clock"></i> ${bookingTime}</span>
         </div>
+        
         <div class="premium-queue-wrapper">
-          <div class="premium-queue-ring" id="premiumQueueRing" style="--progress:${progressPercent};">
+          <div class="premium-queue-ring" style="--progress:${progressPercent};">
             <svg class="premium-ring-svg" viewBox="0 0 220 220">
               <circle class="premium-ring-bg" cx="110" cy="110" r="92" />
               <circle class="premium-ring-progress" cx="110" cy="110" r="92" 
                       stroke-dasharray="578" 
                       stroke-dashoffset="${dashOffset}"
-                      style="stroke: ${isFinished ? '#10B981' : '#D4AF37'}; transition: stroke-dashoffset 0.6s ease-in-out, stroke 0.4s ease;" />
+                      style="stroke: ${isFinished ? '#10B981' : '#D4AF37'}; transition: stroke-dashoffset 0.6s ease-in-out;" />
             </svg>
             <div class="premium-ring-content">
-              <div class="premium-ring-label">
-                ${labelText}
-              </div>
-              <div class="premium-ring-number" id="remainingCount" style="${isFinished ? 'font-size: 38px; font-family: monospace;' : ''}">
+              <div class="premium-ring-label">${labelText}</div>
+              <div class="premium-ring-number" id="remainingCount" style="${showTimer ? 'font-size: 38px; font-family: monospace;' : ''}">
                 ${numberText}
               </div>
-              <div class="premium-ring-sub">
-                ${subText}
-              </div>
+              <div class="premium-ring-sub" style="${(isWaiting && statusMessage === '') ? 'display: none;' : ''}">${statusMessage}</div>
             </div>
           </div>
         </div>
         
-        <div class="booking-ref-code" style="text-align: center; margin: 15px 0 10px;">
-          <div style="color: #FF4444; font-weight: bold; font-size: 14px;">
-            📌 رقم حجزك المرجعي: 
-            <span style="font-size: 18px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
+
+
+<div class="booking-ref-code" style="text-align: center; margin: 10px 0;">
+          <div style="color: #FF4444; font-weight: bold; font-size: 13px;">
+             رقم حجزك المرجعي: 
+            <span style="font-size: 16px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
               ${request.booking_code || '---'}
               <i onclick="copyBookingCode('${request.booking_code}')" 
-                 style="cursor: pointer; font-size: 14px; color: #FF8888; transition: all 0.2s;" 
-                 class="fas fa-copy" 
-                 title="نسخ الرقم المرجعي"></i>
+                 style="cursor: pointer; font-size: 12px; color: #FF8888;" 
+                 class="fas fa-copy"></i>
             </span>
           </div>
-          <div style="color: #FF8888; font-size: 11px; margin-top: 5px;">
+          <div style="color: #FF8888; font-size: 11px; margin-top: 8px;">
             💡 قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها
           </div>
         </div>
 
-        <div class="premium-queue-status">
+<div class="premium-queue-status">
           <i class="fas fa-heart"></i>
           <span>
-            ${isFinished ? 'بانتظار وصولك للطاولة' : 'دورك يتقدم، شكرًا لصبرك'}
+            ${isOccupied ? '' : (isOffered ? 'نحن بانتظارك' : (isWaiting ? 'نشكر لك صبرك دورك يتقدم' : ''))}
           </span>
         </div>
-
       </div>
 
-      ${showCancelButton ? `
-      <div class="cancel-link" id="cancelBookingLink">
-        إلغاء الحجز
-      </div>
+${showCancelButton ? `
+        <div class="cancel-link" id="cancelBookingLink" style="text-align: center; margin: 20px auto; padding: 12px 25px; background: rgba(239,68,68,0.15); color: #EF4444; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 16px; width: fit-content;">
+          إلغاء الحجز
+        </div>
       ` : `
-      <div class="exit-link" id="exitBookingLink" style="text-align: center; margin-top: 20px; padding: 12px; background: #10B981; color: white; border-radius: 40px; cursor: pointer; font-weight: bold;">
-         خروج
-      </div>
+        <div class="exit-link" id="exitBookingLink" style="text-align: center; margin: 20px auto; padding: 12px 25px; background: rgba(16,185,129,0.15); color: #10B981; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 16px; width: fit-content;">
+          خروج
+        </div>
       `}
     </div>
   `;
 
-  // =========================
-  // Interval & Events
-  // =========================
-
-  // تشغيل العداد التنازلي الحي للمتصفح إذا تم التعيين
   if (window.countdownInterval) clearInterval(window.countdownInterval);
   
-  if (request.status === 'offered' && remainingSeconds !== null) {
+  if (isOffered && remainingSeconds !== null && remainingSeconds > 0) {
       let currentSeconds = remainingSeconds;
       window.countdownInterval = setInterval(() => {
           currentSeconds--;
@@ -628,17 +571,15 @@ async function renderStatusPage(requestData = null) {
               if (timerEl) timerEl.innerText = "0:00";
           } else {
               if (timerEl) timerEl.innerText = formatCountdownTime(currentSeconds);
+              if (document.getElementById('countdownTimer')) {
+                  document.getElementById('countdownTimer').innerText = formatCountdownTime(currentSeconds);
+              }
           }
       }, 1000);
   }
 
-  document.getElementById('refreshStatusBtn')?.addEventListener('click', () => renderStatusPage());
-  document.getElementById('enableAudioYes')?.addEventListener('click', enableAudio);
-  document.getElementById('enableAudioNo')?.addEventListener('click', disableAudio);
   document.getElementById('cancelBookingLink')?.addEventListener('click', cancelBooking);
-    // زر الخروج (لحالة occupied أو cleaning)
   document.getElementById('exitBookingLink')?.addEventListener('click', async () => {
-      // حذف الحجز أو إنهاء الجلسة
       await supabase
           .from('table_requests')
           .update({ status: 'completed' })
@@ -650,7 +591,8 @@ async function renderStatusPage(requestData = null) {
       await renderBookingForm();
   });
   
-  console.log('✅ renderStatusPage finished');
+  updateDateTime();
+  console.log('✅ renderStatusPage finished - status:', request.status);
 }
 async function submitBooking() {
   const name = document.getElementById('customerName')?.value.trim();
@@ -1234,4 +1176,72 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', startBookingPage);
 } else {
     startBookingPage();
+}
+
+
+// ========== ربط أزرار مودال التنبيهات ==========
+function bindAudioModalButtons() {
+    const yesBtn = document.getElementById('enableAudioYes');
+    const noBtn = document.getElementById('enableAudioNo');
+    
+    if (yesBtn) {
+        // إزالة أي مستمعين قديمين
+        const newYesBtn = yesBtn.cloneNode(true);
+        yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+        
+        newYesBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🎯 تم الضغط على زر نعم (حدث مربوط)');
+            window.audioEnabled = true;
+            localStorage.setItem('audioEnabled', 'true');
+            hideAudioModal();
+            playBookingAlert('near');
+        });
+        console.log('✅ تم ربط زر نعم');
+    } else {
+        console.log('⚠️ زر نعم غير موجود بعد');
+    }
+    
+    if (noBtn) {
+        // إزالة أي مستمعين قديمين
+        const newNoBtn = noBtn.cloneNode(true);
+        noBtn.parentNode.replaceChild(newNoBtn, noBtn);
+        
+        newNoBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🎯 تم الضغط على زر لا (حدث مربوط)');
+            window.audioEnabled = false;
+            localStorage.setItem('audioEnabled', 'false');
+            hideAudioModal();
+        });
+        console.log('✅ تم ربط زر لا');
+    } else {
+        console.log('⚠️ زر لا غير موجود بعد');
+    }
+}
+
+// ========== تحسين دوال المودال ==========
+const originalShowAudioModal = showAudioModal;
+window.showAudioModal = function() {
+    console.log('🔊 showAudioModal تم استدعاؤها');
+    bindAudioModalButtons(); // إعادة ربط الأزرار قبل العرض
+    originalShowAudioModal();
+};
+
+showAudioModal = window.showAudioModal;
+
+// ========== ربط الأزرار عند تحميل الصفحة ==========
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(bindAudioModalButtons, 100);
+});
+
+// ========== ربط الأزرار أيضاً عند كل ظهور للمودال ==========
+if (typeof showAudioModal === 'function') {
+    const originalShow = showAudioModal;
+    showAudioModal = function() {
+        setTimeout(bindAudioModalButtons, 50);
+        originalShow();
+    };
 }
