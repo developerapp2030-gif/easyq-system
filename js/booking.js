@@ -142,6 +142,9 @@ async function getBusinessSettings() {
     if (zonesSetting?.setting_value) {
         zonesEnabled = true;
         availableZones = JSON.parse(zonesSetting.setting_value);
+        console.log('✅ availableZones loaded:', availableZones);
+    } else {
+        console.log('⚠️ No zones setting found');
     }
 }
 
@@ -387,12 +390,15 @@ async function renderStatusPage(requestData = null) {
   const currentQueueNumber = request?.queue_position || window.currentQueueNumber || originalQueueNumber;
   window.currentQueueNumber = currentQueueNumber;
 
-  // هل تم تعيينه لطاولة؟
-  const isFinished = request.status === 'offered' || request.status === 'reserved' || request.status === 'occupied';
-
+   // تحديد الحالات بدقة
+  const isWaiting = request.status === 'waiting';
+  const isOffered = request.status === 'offered';
+  const isOccupied = request.status === 'occupied';
+  const isCleaning = request.status === 'cleaning' || request.status === 'completed';
+  
   // جلب الوقت المتبقي للحجز إذا كانت الحالة offered
   let remainingSeconds = null;
-  if (request.status === 'offered') {
+  if (isOffered) {
       remainingSeconds = await getRemainingHoldTime();
   }
   
@@ -414,8 +420,7 @@ async function renderStatusPage(requestData = null) {
 
   // حساب النسبة المئوية بشكل تناسبي بحت
   let progressPercent = 100;
-  if (!isFinished) {
-    // التقسيم التناسبي المباشر: (الرقم الحالي ÷ الرقم الأصلي) × 100
+  if (isWaiting) {
     progressPercent = (currentQueueNumber / originalQueueNumber) * 100;
   } else {
     progressPercent = 100;
@@ -424,8 +429,47 @@ async function renderStatusPage(requestData = null) {
   // حساب الإزاحة الفعلية لإطار SVG للرسم بدقة
   const dashOffset = circleLength - ((circleLength * progressPercent) / 100);
 
-  console.log('🔍 Debug - currentQueueNumber:', currentQueueNumber, 'isFinished:', isFinished);
-
+  console.log('🔍 Debug - currentQueueNumber:', currentQueueNumber, 'status:', request.status);
+  
+  // تحديد النصوص حسب الحالة
+  let numberText = '';
+  let labelText = '';
+  let subText = '';
+  let showTimer = false;
+  let showCancelButton = true;
+  
+  if (isWaiting) {
+      numberText = currentQueueNumber;
+      labelText = 'رقمك في الانتظار';
+      showCancelButton = true;
+  } 
+  else if (isOffered) {
+      if (remainingSeconds !== null && remainingSeconds > 0) {
+          numberText = formatCountdownTime(remainingSeconds);
+          labelText = 'يرجى الحضور قبل انتهاء الوقت';
+          showTimer = true;
+      } else {
+          numberText = '0';
+          labelText = 'تم إلغاء حجزك';
+          showCancelButton = false;
+      }
+      showCancelButton = true;
+  }
+  else if (isOccupied) {
+      numberText = '🎉';
+      labelText = 'تم وصولك، أهلاً وسهلاً بك';
+      showCancelButton = false;
+  }
+  else if (isCleaning) {
+      numberText = '🙏';
+      labelText = 'نشكر زيارتك، نتمنى رؤيتك قريباً';
+      showCancelButton = false;
+  }
+  else {
+      numberText = currentQueueNumber;
+      labelText = 'رقمك في الانتظار';
+      showCancelButton = true;
+  }
   // ========== التنبيهات الصوتية ==========
   // تخزين القيمة السابقة للمقارنة
   if (window.previousQueueNumber === undefined) {
@@ -456,9 +500,8 @@ async function renderStatusPage(requestData = null) {
   window.previousQueueNumber = currentQueueNumber;
   window.previousIsFinished = isFinished;
 
-  let numberText = currentQueueNumber;
-  let labelText = 'رقمك في الانتظار';
-  let subText = '';
+  numberText = currentQueueNumber;
+  labelText = 'رقمك في الانتظار';
 
   if (currentQueueNumber === 3 && !isFinished) {
     labelText = 'رقمك في الانتظار';
@@ -556,9 +599,15 @@ async function renderStatusPage(requestData = null) {
 
       </div>
 
+      ${showCancelButton ? `
       <div class="cancel-link" id="cancelBookingLink">
         إلغاء الحجز
       </div>
+      ` : `
+      <div class="exit-link" id="exitBookingLink" style="text-align: center; margin-top: 20px; padding: 12px; background: #10B981; color: white; border-radius: 40px; cursor: pointer; font-weight: bold;">
+         خروج
+      </div>
+      `}
     </div>
   `;
 
@@ -587,6 +636,19 @@ async function renderStatusPage(requestData = null) {
   document.getElementById('enableAudioYes')?.addEventListener('click', enableAudio);
   document.getElementById('enableAudioNo')?.addEventListener('click', disableAudio);
   document.getElementById('cancelBookingLink')?.addEventListener('click', cancelBooking);
+    // زر الخروج (لحالة occupied أو cleaning)
+  document.getElementById('exitBookingLink')?.addEventListener('click', async () => {
+      // حذف الحجز أو إنهاء الجلسة
+      await supabase
+          .from('table_requests')
+          .update({ status: 'completed' })
+          .eq('id', currentRequestId);
+      
+      localStorage.removeItem('current_booking_id');
+      sessionStorage.removeItem('current_booking_id');
+      currentRequestId = null;
+      await renderBookingForm();
+  });
   
   console.log('✅ renderStatusPage finished');
 }
