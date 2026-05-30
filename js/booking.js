@@ -652,8 +652,10 @@ async function submitBooking() {
       
       alert(`⚠️ لديك حجز نشط بالفعل!\nرقمك في الانتظار: ${activeCheck.queue_position}\nسيتم استعادة الحجز الحالي.`);
       
-      await renderStatusPage(existingRequest);
-      return;
+await renderStatusPage(existingRequest);
+setupRealtime();
+startCustomerSafetyPolling();
+return;
     }
     
     // ✅ الخطوة 2: لا يوجد حجز نشط، تابع إنشاء حجز جديد
@@ -863,51 +865,58 @@ function vibrateDevice(duration = 200) {
 function startCustomerSafetyPolling() {
     if (customerSafetyPolling) clearInterval(customerSafetyPolling);
 
-    // اختبار سرعة المتصفح (للجوال vs كمبيوتر)
     testBrowserSpeed().then(isFast => {
-        // للجوال: 3 ثواني، للكمبيوتر: 10 ثواني
-        const intervalTime = isFast ? 10000 : 3000;
-        console.log(`🔄 بدء الفحص الاحتياطي كل ${intervalTime / 1000} ثانية (${isFast ? 'سريع' : 'جوال/بطيء'})`);
+        const intervalTime = isFast ? 10000 : 4000;
+        console.log(`🔄 بدء الفحص الاحتياطي والـ Watchdog كل ${intervalTime / 1000} ثانية`);
         
         customerSafetyPolling = setInterval(async () => {
-            if (document.hidden) return; // لا تعمل في الخلفية
-            if (!currentRequestId) return;
-            if (isSafetyRefreshRunning) return;
-
-            // ✅ فحص هل الاتصال زومبي (مر أكثر من 30 ثانية بلا نبض والريل تايم مفعل)؟
-            const isZombie = (Date.now() - lastRealtimePulse) > ZOMBIE_TIMEOUT;
-            if (isZombie && realtimeChannel) {
-                console.warn('⚠️ [Watchdog] تم اكتشاف سوكيت زومبي ميت! جاري إنعاش الريل تايم صامتاً...');
-                lastRealtimePulse = Date.now(); // تصفير العداد مؤقتاً لمنع التكرار
-                handleSilentReconnect();
-            }
+            if (document.hidden) return; 
+            if (!currentRequestId) return; 
+            if (isSafetyRefreshRunning) return; 
 
             isSafetyRefreshRunning = true;
-            console.log('🛟 فحص دوري لحالة الحجز');
 
             try {
-                // جلب أحدث بيانات الطلب (أعمدة محددة فقط)
+                // ✅ تم تصحيح الأعمدة وحذف العمود غير الموجود customer_name
                 const { data: request, error } = await supabase
                     .from('table_requests')
-                    .select('id,status,queue_position,original_queue_position,booking_code,customer_name,requested_party_size,created_at')
+                    .select('id,status,queue_position,original_queue_position,booking_code,requested_party_size,created_at')
                     .eq('id', currentRequestId)
                     .maybeSingle();
                 
                 if (error) throw error;
                 
                 if (!request) {
-                    console.log('⚠️ لم يتم العثور على الحجز، إنهاء الجلسة');
-                    await cleanupRealtime();
+                    console.log('⚠️ لم يتم العثور على الحجز في السيرفر، إنهاء الجلسة والعودة للنموذج');
+                    if (realtimeChannel) supabase.removeChannel(realtimeChannel);
                     stopCustomerSafetyPolling();
                     await renderBookingForm();
                     return;
                 }
                 
-                // تحديث الواجهة بالبيانات الجديدة
-                await renderStatusPage(request);
+                const localStatus = window.previousStatus;
+const localQueueNumber = window.currentQueueNumber;
+
+const isDataStaleLocally =
+    String(request.status) !== String(localStatus) ||
+    String(request.queue_position) !== String(localQueueNumber);
+                const isTimeExceeded = (Date.now() - lastRealtimePulse) > ZOMBIE_TIMEOUT;
+
+                if (isDataStaleLocally && isTimeExceeded && realtimeChannel) {
+                    console.warn('🚨 [Watchdog] تم اكتشاف اتصال زومبي ميت! جاري الإنعاش صامتاً...');
+                    lastRealtimePulse = Date.now(); 
+                    handleSilentReconnect(); 
+                }
+
+                if (isDataStaleLocally || !hasInitialStatusLoaded) {
+                    console.log('🔄 تحديث واجهة المستخدم لوجود تغيير حقيقي في البيانات أو تحميل أول مرة');
+                    await renderStatusPage(request);
+                } else {
+                    lastRealtimePulse = Date.now();
+                }
                 
             } catch (err) {
-                console.error('فشل الفحص الدوري:', err);
+                console.error('❌ فشل الفحص الدوري المساعد عبر HTTP:', err);
             } finally {
                 isSafetyRefreshRunning = false;
             }
@@ -963,12 +972,30 @@ async function handleSilentReconnect() {
 // ========== تحديث عند الرجوع للصفحة ==========
 async function safeRefreshCustomerStatus(reason = 'unknown') {
     if (!currentRequestId) return;
-    console.log(`🔄 تحديث حالة العميل بسبب: ${reason}`);
+    
+    console.log(`🔄 تحديث فوري لحالة العميل بسبب: [${reason}]`);
+    
     try {
-        await getCurrentQueueNumber();
-        await renderStatusPage();
+        // ✅ تم تصحيح الأعمدة وحذف العمود غير الموجود customer_name
+        const { data: request, error } = await supabase
+            .from('table_requests')
+            .select('id,status,queue_position,original_queue_position,booking_code,requested_party_size,created_at')
+            .eq('id', currentRequestId)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        if (request) {
+            await renderStatusPage(request);
+            lastRealtimePulse = Date.now();
+            silentReconnectAttempts = 0;
+            console.log('✅ تم تحديث الشاشة وتغذية نبض الحارس الصامت بنجاح');
+        } else {
+            console.warn('⚠️ لم يتم العثور على بيانات هذا الحجز أثناء التحديث الفوري');
+        }
+        
     } catch (err) {
-        console.error('❌ فشل تحديث حالة العميل:', err);
+        console.error('❌ فشل التحديث الفوري لحالة العميل عبر safeRefreshCustomerStatus:', err);
     }
 }
 
@@ -1066,98 +1093,93 @@ async function requestNotificationPermission(showAlert = false) {
 function setupRealtime() {
     console.log('📡 setupRealtime started');
 
-    // ✅ منع تشغيل الريل تايم إذا لم يكن هناك حجز نشط
+    // 1️⃣ منع تشغيل الريل تايم تماماً إذا لم يكن هناك حجز نشط بعد
     if (!currentRequestId) {
         console.log('⏸️ لا يوجد حجز نشط، لن يتم تشغيل Realtime');
         return;
     }
 
-    // تنظيف القناة القديمة إذا وجدت
-    if (realtimeChannel) {
-        try {
-            supabase.removeChannel(realtimeChannel);
-            console.log('🗑️ القناة القديمة تم حذفها');
-        } catch (chErr) {
-            console.error('خطأ أثناء حذف القناة القديمة:', chErr);
-        }
-        realtimeChannel = null;
-    }
+    // دالة داخلية معزولة لبناء القناة والاشتراك بها بعد التأكد من حذف القديمة
+    const initializeNewChannel = () => {
+        // إنشاء قناة فريدة برقم حجز العميل لضمان الفصل الكامل للاتصالات
+        realtimeChannel = supabase.channel(`booking-realtime-${currentRequestId}`);
 
-    realtimeChannel = supabase
-      .channel('booking-realtime', {
-        config: {
-          broadcast: { self: true }
-        }
-      });
-
-    realtimeChannel.on(
-        'postgres_changes',
-        {
-            event: 'UPDATE', 
-            schema: 'public',
-            table: 'table_requests'
-        },
-        async function(payload) {
-            console.log('🔥 EVENT RECEIVED VIA REALTIME:', payload);
-            console.log('NEW DATA:', payload.new);
-
-            if (payload.new && payload.new.id === currentRequestId) {
-                console.log(`🎯 رقم طابورك تغير في قاعدة البيانات إلى: ${payload.new.queue_position}`);
+        // 2️⃣ المستمع المفلتر من جهة السيرفر لجدول الطلبات (تحديثاتك أنت فقط)
+        realtimeChannel.on(
+            'postgres_changes',
+            {
+                event: 'UPDATE', 
+                schema: 'public',
+                table: 'table_requests',
+                filter: `id=eq.${currentRequestId}` // 🔥 سرعة فائقة وحماية تامة للبيانات
+            },
+            async function(payload) {
+                console.log('🔥 EVENT RECEIVED VIA REALTIME (table_requests):', payload);
                 
-                // ✅ تحديث نبض الحارس الصامت
-                lastRealtimePulse = Date.now();
-                silentReconnectAttempts = 0;
-                
-                renderStatusPage(payload.new);
-                
-                // تحديث العداد إذا كان الطلب offered
-                if (payload.new?.status === 'offered' && payload.new?.id === currentRequestId) {
-                    const remaining = await getRemainingHoldTime();
-                    const timerEl = document.getElementById('countdownTimer');
-                    if (timerEl && remaining !== null) {
-                        const mins = Math.floor(remaining / 60);
-                        const secs = remaining % 60;
-                        timerEl.innerText = `${mins}:${secs.toString().padStart(2, '0')}`;
-                    }
+                if (payload.new && payload.new.id === currentRequestId) {
+                    // تغذية نبض الحارس الصامت وتصفير عداد محاولات الفشل فوراً
+                    lastRealtimePulse = Date.now();
+                    silentReconnectAttempts = 0;
+                    
+                    await renderStatusPage(payload.new);
                 }
             }
-        }
-    );
+        );
 
-    // ✅ إضافة اشتراك table_assignments
-    realtimeChannel.on(
-        'postgres_changes',
-        {
-            event: 'UPDATE', 
-            schema: 'public',
-            table: 'table_assignments'
-        },
-        async function(payload) {
-            console.log('🔄 EVENT RECEIVED VIA REALTIME (table_assignments):', payload);
+        // 3️⃣ المستمع الخاص بجدول تعيين الطاولات (جلس الحجز أم لا)
+        realtimeChannel.on(
+            'postgres_changes',
+            {
+                event: 'UPDATE', 
+                schema: 'public',
+                table: 'table_assignments'
+            },
+            async function(payload) {
+                console.log('🎯 EVENT RECEIVED VIA REALTIME (table_assignments):', payload);
+                
+                if (payload.new?.request_id === currentRequestId || payload.old?.request_id === currentRequestId) {
+                    console.log('🎯 تحديث في التعيين يخص حجزك');
+                    lastRealtimePulse = Date.now();
+                    silentReconnectAttempts = 0;
+                    await renderStatusPage();
+                }
+            }
+        );
+
+        // 4️⃣ إدارة حالات الاشتراك (تغذية الـ Watchdog ومعالجة الأخطاء)
+        realtimeChannel.subscribe(function(status, error) {
+            console.log('📡 Realtime status callback:', status);
             
-            if (payload.new?.request_id === currentRequestId || payload.old?.request_id === currentRequestId) {
-                console.log('🎯 تحديث في التعيين يخص حجزك');
+            if (status === 'SUBSCRIBED') {
+                console.log('✅ تم الاشتراك بنجاح في الريل تايم للعميل');
                 lastRealtimePulse = Date.now();
                 silentReconnectAttempts = 0;
-                await renderStatusPage();
             }
-        }
-    );
+            
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                console.warn(`⚠️ مشكلة في اتصال الريل تايم [${status}]، بدء محاولة صامتة...`);
+                handleSilentReconnect(); // دالة إعادة الاتصال مع الـ Backoff التضاعفي
+            }
+        });
+    };
 
-    realtimeChannel.subscribe(function(status, error) {
-        console.log('📡 realtime status:', status);
-        
-        if (status === 'SUBSCRIBED') {
-            console.log('✅ تم الاشتراك بنجاح في الريل تايم للعميل');
-            lastRealtimePulse = Date.now();
-            silentReconnectAttempts = 0;
-        }
-        
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-            console.warn(`⚠️ مشكلة في اتصال الريل تايم [${status}]، بدء محاولة صامتة...`);
-            handleSilentReconnect();
-        }
-    });
+    // 5️⃣ تفكيك وإغلاق القناة القديمة بشكل متزامن وآمن قبل بدء الجديدة
+    if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel)
+            .then(() => {
+                console.log('🗑️ القناة القديمة تم حذفها بنجاح قبل التجديد');
+                realtimeChannel = null;
+                initializeNewChannel(); // بناء القناة الجديدة فور انتهاء الحذف
+            })
+            .catch((chErr) => {
+                console.error('خطأ أثناء حذف القناة القديمة، المتابعة للبناء على أي حال:', chErr);
+                realtimeChannel = null;
+                initializeNewChannel(); // المتابعة حتى لو فشل الحذف لضمان عدم توقف الصفحة
+            });
+    } else {
+        // إذا لم تكن هناك قناة مفتوحة أصلاً، نبدأ البناء فوراً
+        initializeNewChannel();
+    }
 }
 
 function openRestoreModal() {
@@ -1202,9 +1224,10 @@ async function viewBooking() {
   sessionStorage.setItem('booking_cancelled', 'false');
   
   closeRestoreModal();
-  await renderStatusPage(booking);
-  await setupRealtime();
-  showAudioModal();
+await renderStatusPage(booking);
+setupRealtime();
+startCustomerSafetyPolling();
+showAudioModal();
 }
 
 // Start
@@ -1241,32 +1264,31 @@ async function startBookingPage() {
             .in('status', ['waiting', 'offered', 'occupied'])
             .maybeSingle();
         
-        if (request && !error) {
+if (request && !error) {
             currentRequestId = request.id;
             currentQueueNumber = request.queue_position;
             localStorage.setItem('current_booking_id', currentRequestId);
             sessionStorage.setItem('booking_cancelled', 'false');
             console.log('✅ تم استعادة الحجز عبر QR:', currentRequestId);
             
-            // ✅ بدء Polling فوراً للجوال
-            startCustomerSafetyPolling();
+            // ❌ تم حذف startCustomerSafetyPolling من هنا لمنع تشغيله قبل بناء الواجهة (renderUI)
         } else {
             console.log('⚠️ لم يتم العثور على حجز نشط لهذا الرمز');
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }
+
     await getBusinessSettings();
     await getCurrentQueueNumber();
     await renderUI();
     
-    // ✅ استدعاء setupRealtime فقط إذا كان هناك currentRequestId
+    // ✅ المكان الموحد والآمن لتشغيل منظومة المزامنة بالكامل بعد اكتمال بناء الصفحة
     if (currentRequestId) {
-        await setupRealtime();
+        setupRealtime();               // استدعاء عادي بدون await لأنها دالة عادية
+        startCustomerSafetyPolling();  // تشغيل الحارس الاحتياطي الذكي هنا فوراً وبأمان
     }
     
-    setInterval(async () => {
-        await getCurrentQueueNumber();
-    }, 5000);
+
 }
 // ========== مستمعي الأحداث ==========
 document.addEventListener('visibilitychange', async () => {
