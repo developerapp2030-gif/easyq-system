@@ -852,43 +852,48 @@ function vibrateDevice(duration = 200) {
 function startCustomerSafetyPolling() {
     if (customerSafetyPolling) clearInterval(customerSafetyPolling);
 
-    // اختبار سرعة المتصفح وتحديد فترة الفحص
+    // اختبار سرعة المتصفح (للجوال vs كمبيوتر)
     testBrowserSpeed().then(isFast => {
-        const intervalTime = isFast ? 30000 : 8000; // سريع: 30 ثانية، بطيء: 8 ثوانٍ
-        console.log(`🔄 بدء الفحص الاحتياطي كل ${intervalTime / 1000} ثانية (${isFast ? 'متصفح سريع' : 'متصفح بطيء'})`);
+        // للجوال: 3 ثواني، للكمبيوتر: 10 ثواني
+        const intervalTime = isFast ? 10000 : 3000;
+        console.log(`🔄 بدء الفحص الاحتياطي كل ${intervalTime / 1000} ثانية (${isFast ? 'سريع' : 'جوال/بطيء'})`);
         
         customerSafetyPolling = setInterval(async () => {
-            if (document.hidden) return;
+            if (document.hidden) return; // لا تعمل في الخلفية
             if (!currentRequestId) return;
             if (isSafetyRefreshRunning) return;
 
             isSafetyRefreshRunning = true;
-            console.log('🛟 فحص احتياطي لحالة العميل');
+            console.log('🛟 فحص دوري لحالة الحجز');
 
             try {
-                // جلب الحالة فقط (خفيف)
-                const { data: request } = await supabase
+                // جلب أحدث بيانات الطلب
+                const { data: request, error } = await supabase
                     .from('table_requests')
-                    .select('status, queue_position')
+                    .select('*')
                     .eq('id', currentRequestId)
                     .maybeSingle();
                 
-                if (request?.status === 'cancelled' || request?.status === 'expired') {
-                    console.log('⚠️ تم اكتشاف تغيير عبر الفحص الاحتياطي');
-                    await renderStatusPage(request);
+                if (error) throw error;
+                
+                if (!request) {
+                    console.log('⚠️ لم يتم العثور على الحجز، إنهاء الجلسة');
+                    stopCustomerSafetyPolling();
+                    await renderBookingForm();
+                    return;
                 }
                 
-                await getCurrentQueueNumber();
-                await renderStatusPage();
+                // تحديث الواجهة بالبيانات الجديدة
+                await renderStatusPage(request);
+                
             } catch (err) {
-                console.error('فشل الفحص الاحتياطي:', err);
+                console.error('فشل الفحص الدوري:', err);
             } finally {
                 isSafetyRefreshRunning = false;
             }
         }, intervalTime);
     });
 }
-
 function stopCustomerSafetyPolling() {
     if (customerSafetyPolling) {
         clearInterval(customerSafetyPolling);
@@ -1029,19 +1034,18 @@ function setupRealtime() {
                 console.log(`🎯 رقم طابورك تغير في قاعدة البيانات إلى: ${payload.new.queue_position}`);
                 
                 // عند استلام أي حدث، نعلم أن Realtime يعمل
-                testBrowserSpeed().then(isFast => {
-                    if (isFast && customerSafetyPolling) {
-                        console.log('📡 Realtime يعمل، إيقاف Polling مؤقتاً');
-                        clearInterval(customerSafetyPolling);
-                        customerSafetyPolling = null;
-                        // إعادة تشغيل Polling بعد 30 ثانية من عدم النشاط
-                        setTimeout(() => {
-                            if (!customerSafetyPolling && currentRequestId) {
-                                startCustomerSafetyPolling();
-                            }
-                        }, 30000);
-                    }
-                });
+                // تم تعطيل إيقاف Polling مؤقتاً لضمان التحديث على الجوال
+                // testBrowserSpeed().then(isFast => {
+                //     if (isFast && customerSafetyPolling) {
+                //         clearInterval(customerSafetyPolling);
+                //         customerSafetyPolling = null;
+                //         setTimeout(() => {
+                //             if (!customerSafetyPolling && currentRequestId) {
+                //                 startCustomerSafetyPolling();
+                //             }
+                //         }, 30000);
+                //     }
+                // });
                 
                 renderStatusPage(payload.new);
                 
@@ -1168,9 +1172,11 @@ async function startBookingPage() {
             localStorage.setItem('current_booking_id', currentRequestId);
             sessionStorage.setItem('booking_cancelled', 'false');
             console.log('✅ تم استعادة الحجز عبر QR:', currentRequestId);
+            
+            // ✅ بدء Polling فوراً للجوال
+            startCustomerSafetyPolling();
         } else {
             console.log('⚠️ لم يتم العثور على حجز نشط لهذا الرمز');
-            // حذف code من URL لمنع إعادة المحاولة
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }
