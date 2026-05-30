@@ -10,6 +10,13 @@ let currentQueueNumber = null;
 let currentBusinessId = null;
 let currentCustomerId = null;
 let realtimeChannel = null;
+// ============================================================
+// إعدادات Realtime Watchdog
+// ============================================================
+const MAX_SILENT_ATTEMPTS = 3;
+const ZOMBIE_TIMEOUT = 30000; // 30 ثانية
+let silentReconnectAttempts = 0;
+let lastRealtimePulse = Date.now();
 let showCurrentQueueConfig = false;
 let zonesEnabled = false;
 let availableZones = [];
@@ -594,6 +601,7 @@ ${showCancelButton ? `
   updateDateTime();
   console.log('✅ renderStatusPage finished - status:', request.status);
 }
+
 async function submitBooking() {
   const name = document.getElementById('customerName')?.value.trim();
   const phone = document.getElementById('customerPhone')?.value.trim();
@@ -686,6 +694,7 @@ async function submitBooking() {
     console.log('✅ booking_code:', booking.booking_code);
     resetCustomerAlertProtection();
     await renderStatusPage(booking);
+    await setupRealtime();           // ✅ إضافة جديدة
     showAudioModal();
     startCustomerSafetyPolling();
     
@@ -694,6 +703,7 @@ async function submitBooking() {
     submitBtn.disabled = false;
     submitBtn.innerHTML = 'تأكيد الحجز';
   }
+  
 }
 
 async function cancelBooking() {
@@ -727,7 +737,8 @@ async function cancelBooking() {
     sessionStorage.removeItem('current_booking_id');
     sessionStorage.setItem('booking_cancelled', 'true');
     currentRequestId = null;
-        stopCustomerSafetyPolling();
+    await cleanupRealtime();
+    stopCustomerSafetyPolling();
     await renderBookingForm();
     
   } catch (err) {
@@ -863,14 +874,22 @@ function startCustomerSafetyPolling() {
             if (!currentRequestId) return;
             if (isSafetyRefreshRunning) return;
 
+            // ✅ فحص هل الاتصال زومبي (مر أكثر من 30 ثانية بلا نبض والريل تايم مفعل)؟
+            const isZombie = (Date.now() - lastRealtimePulse) > ZOMBIE_TIMEOUT;
+            if (isZombie && realtimeChannel) {
+                console.warn('⚠️ [Watchdog] تم اكتشاف سوكيت زومبي ميت! جاري إنعاش الريل تايم صامتاً...');
+                lastRealtimePulse = Date.now(); // تصفير العداد مؤقتاً لمنع التكرار
+                handleSilentReconnect();
+            }
+
             isSafetyRefreshRunning = true;
             console.log('🛟 فحص دوري لحالة الحجز');
 
             try {
-                // جلب أحدث بيانات الطلب
+                // جلب أحدث بيانات الطلب (أعمدة محددة فقط)
                 const { data: request, error } = await supabase
                     .from('table_requests')
-                    .select('*')
+                    .select('id,status,queue_position,original_queue_position,booking_code,customer_name,requested_party_size,created_at')
                     .eq('id', currentRequestId)
                     .maybeSingle();
                 
@@ -878,6 +897,7 @@ function startCustomerSafetyPolling() {
                 
                 if (!request) {
                     console.log('⚠️ لم يتم العثور على الحجز، إنهاء الجلسة');
+                    await cleanupRealtime();
                     stopCustomerSafetyPolling();
                     await renderBookingForm();
                     return;
@@ -900,6 +920,44 @@ function stopCustomerSafetyPolling() {
         customerSafetyPolling = null;
     }
     isSafetyRefreshRunning = false;
+}
+
+// ========== دالة تنظيف Realtime ==========
+async function cleanupRealtime() {
+    if (realtimeChannel) {
+        try {
+            await supabase.removeChannel(realtimeChannel);
+            console.log('🧹 تم تنظيف قناة Realtime بنجاح');
+        } catch (err) {
+            console.error('❌ خطأ في تنظيف قناة Realtime:', err);
+        }
+        realtimeChannel = null;
+    }
+    
+    // إعادة تعيين العدادات
+    silentReconnectAttempts = 0;
+    lastRealtimePulse = Date.now();
+}
+
+// ========== إعادة الاتصال الصامتة ==========
+async function handleSilentReconnect() {
+    if (!currentRequestId) {
+        await cleanupRealtime();
+        return;
+    }
+    
+    if (silentReconnectAttempts >= MAX_SILENT_ATTEMPTS) {
+        console.error(`🚨 فشلت ${MAX_SILENT_ATTEMPTS} محاولات اتصال. الاعتماد على Polling فقط.`);
+        return;
+    }
+    
+    silentReconnectAttempts++;
+    const delay = 2000 * silentReconnectAttempts;
+    console.log(`🔄 محاولة إعادة اتصال ${silentReconnectAttempts}/${MAX_SILENT_ATTEMPTS} خلال ${delay/1000} ثانية`);
+    
+    setTimeout(async () => {
+        await setupRealtime();
+    }, delay);
 }
 
 // ========== تحديث عند الرجوع للصفحة ==========
@@ -1008,8 +1066,21 @@ async function requestNotificationPermission(showAlert = false) {
 function setupRealtime() {
     console.log('📡 setupRealtime started');
 
+    // ✅ منع تشغيل الريل تايم إذا لم يكن هناك حجز نشط
+    if (!currentRequestId) {
+        console.log('⏸️ لا يوجد حجز نشط، لن يتم تشغيل Realtime');
+        return;
+    }
+
+    // تنظيف القناة القديمة إذا وجدت
     if (realtimeChannel) {
-        realtimeChannel.unsubscribe();
+        try {
+            supabase.removeChannel(realtimeChannel);
+            console.log('🗑️ القناة القديمة تم حذفها');
+        } catch (chErr) {
+            console.error('خطأ أثناء حذف القناة القديمة:', chErr);
+        }
+        realtimeChannel = null;
     }
 
     realtimeChannel = supabase
@@ -1026,26 +1097,16 @@ function setupRealtime() {
             schema: 'public',
             table: 'table_requests'
         },
-                async function(payload) {
+        async function(payload) {
             console.log('🔥 EVENT RECEIVED VIA REALTIME:', payload);
             console.log('NEW DATA:', payload.new);
 
             if (payload.new && payload.new.id === currentRequestId) {
                 console.log(`🎯 رقم طابورك تغير في قاعدة البيانات إلى: ${payload.new.queue_position}`);
                 
-                // عند استلام أي حدث، نعلم أن Realtime يعمل
-                // تم تعطيل إيقاف Polling مؤقتاً لضمان التحديث على الجوال
-                // testBrowserSpeed().then(isFast => {
-                //     if (isFast && customerSafetyPolling) {
-                //         clearInterval(customerSafetyPolling);
-                //         customerSafetyPolling = null;
-                //         setTimeout(() => {
-                //             if (!customerSafetyPolling && currentRequestId) {
-                //                 startCustomerSafetyPolling();
-                //             }
-                //         }, 30000);
-                //     }
-                // });
+                // ✅ تحديث نبض الحارس الصامت
+                lastRealtimePulse = Date.now();
+                silentReconnectAttempts = 0;
                 
                 renderStatusPage(payload.new);
                 
@@ -1063,7 +1124,7 @@ function setupRealtime() {
         }
     );
 
-        // ✅ إضافة اشتراك table_assignments
+    // ✅ إضافة اشتراك table_assignments
     realtimeChannel.on(
         'postgres_changes',
         {
@@ -1076,13 +1137,26 @@ function setupRealtime() {
             
             if (payload.new?.request_id === currentRequestId || payload.old?.request_id === currentRequestId) {
                 console.log('🎯 تحديث في التعيين يخص حجزك');
+                lastRealtimePulse = Date.now();
+                silentReconnectAttempts = 0;
                 await renderStatusPage();
             }
         }
     );
 
-    realtimeChannel.subscribe(function(status) {
+    realtimeChannel.subscribe(function(status, error) {
         console.log('📡 realtime status:', status);
+        
+        if (status === 'SUBSCRIBED') {
+            console.log('✅ تم الاشتراك بنجاح في الريل تايم للعميل');
+            lastRealtimePulse = Date.now();
+            silentReconnectAttempts = 0;
+        }
+        
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn(`⚠️ مشكلة في اتصال الريل تايم [${status}]، بدء محاولة صامتة...`);
+            handleSilentReconnect();
+        }
     });
 }
 
@@ -1129,6 +1203,7 @@ async function viewBooking() {
   
   closeRestoreModal();
   await renderStatusPage(booking);
+  await setupRealtime();
   showAudioModal();
 }
 
@@ -1183,7 +1258,11 @@ async function startBookingPage() {
     await getBusinessSettings();
     await getCurrentQueueNumber();
     await renderUI();
-    setupRealtime();
+    
+    // ✅ استدعاء setupRealtime فقط إذا كان هناك currentRequestId
+    if (currentRequestId) {
+        await setupRealtime();
+    }
     
     setInterval(async () => {
         await getCurrentQueueNumber();
