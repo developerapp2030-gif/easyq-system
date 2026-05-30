@@ -102,10 +102,30 @@ async function changeTableStatus(tableId, newStatus) {
   }
   
   table.status = newStatus;
+
+  // ✅ تحديث حالة الطلب عند تنظيف الطاولة
+  if (newStatus === 'cleaning') {
+    // جلب التعيين النشط لهذه الطاولة
+    const { data: assignment } = await supabase
+        .from('table_assignments')
+        .select('request_id')
+        .eq('table_id', tableId)
+        .eq('status', 'occupied')
+        .maybeSingle();
+    
+    if (assignment?.request_id) {
+        // تحديث حالة الطلب إلى cleaning
+        await supabase
+            .from('table_requests')
+            .update({ status: 'cleaning' })
+            .eq('id', assignment.request_id);
+        console.log(`✅ تم تحديث حالة الطلب إلى cleaning للطاولة ${table.table_name}`);
+    }
+  }
   
   if (newStatus === 'cleaning') {
     const holdMinutes = Number(settings.cleaning_hold_minutes || 10);
-    // حفظ كائن يحمل الـ id الخاص بالمؤقت والـ timestamp الفعلي لانتهاء الوقت
+    // مؤقت التنظيف (كائن مع id و expiresAt)
     cleaningTimers[tableId] = {
       id: setTimeout(async () => {
         console.log(`⏰ انتهى وقت التنظيف للطاولة ${table.table_name}`);
@@ -116,11 +136,11 @@ async function changeTableStatus(tableId, newStatus) {
     };
   }
   
-if (newStatus === 'reserved') {
-  console.log(`⏳ الطاولة ${table.table_name} محجوزة. انتهاء الحجز سيتم عبر checkReservationTimers فقط.`);
-}
+  if (newStatus === 'reserved') {
+    console.log(`⏳ الطاولة ${table.table_name} محجوزة. انتهاء الحجز سيتم عبر checkReservationTimers فقط.`);
+  }
   
-// جلب كافة البيانات المحدثة (الطاولات والطلبات) فوراً محلياً دون انتظار الـ Realtime
+  // جلب كافة البيانات المحدثة (الطاولات والطلبات) فوراً محلياً دون انتظار الـ Realtime
   await loadAll();
   
   renderFloorPlan();

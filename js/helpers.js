@@ -173,8 +173,15 @@ function updateAllTimers() {
         } else if (table.request_time) {
           newTime = timeSince(table.request_time);
         } else if (table.status === "cleaning" && cleaningTimers[table.id]) {
-          const remaining = Math.ceil((cleaningTimers[table.id] - Date.now()) / 60000);
-          if (remaining > 0) newTime = `${remaining} دقيقة`;
+          const remainingMs = cleaningTimers[table.id].expiresAt - Date.now();
+          if (remainingMs > 0) {
+            const remainingSeconds = Math.ceil(remainingMs / 1000);
+            const mins = Math.floor(remainingSeconds / 60);
+            const secs = remainingSeconds % 60;
+            newTime = `${mins}:${secs.toString().padStart(2, '0')}`;
+          } else {
+            newTime = `0:00`;
+          }
         }
         
         if (newTime) {
