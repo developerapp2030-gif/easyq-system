@@ -47,6 +47,114 @@ function closeStatusModal() {
   document.getElementById("statusModal").classList.remove("show");
 }
 
+function showQRModal(bookingCode, customerName, queuePosition, status) {
+    const trackUrl = `${window.location.origin}/booking.html?code=${bookingCode}`;
+    
+    const qrContainer = document.getElementById('qrCodeContainer');
+    if (qrContainer && typeof QRCode !== 'undefined') {
+        qrContainer.innerHTML = '';
+        new QRCode(qrContainer, {
+            text: trackUrl,
+            width: 200,
+            height: 200
+        });
+    }
+    
+    document.getElementById('qrCustomerName').innerText = customerName;
+    document.getElementById('qrBookingCode').innerText = bookingCode;
+    document.getElementById('qrQueuePosition').innerText = queuePosition;
+    let statusText = '';
+    if (status === 'waiting') statusText = 'في الانتظار';
+    else if (status === 'offered') statusText = 'تم التعيين';
+    else if (status === 'occupied') statusText = 'قيد الخدمة';
+    else statusText = status;
+    document.getElementById('qrStatus').innerText = statusText;
+    document.getElementById('qrLink').value = trackUrl;
+    
+    document.getElementById('qrModal').classList.add('show');
+}
+
+function copyQRLink() {
+    const linkInput = document.getElementById('qrLink');
+    if (linkInput) {
+        linkInput.select();
+        document.execCommand('copy');
+        alert('✅ تم نسخ رابط المتابعة');
+    }
+}
+
+function printQR() {
+    const qrContainer = document.getElementById('qrCodeContainer');
+    if (!qrContainer) return;
+    
+    // الحصول على رابط QR من المودال
+    const qrLink = document.getElementById('qrLink')?.value || '';
+    
+    // إنشاء نافذة طباعة
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>طباعة QR Code - EASY-Q</title>
+            <meta charset="UTF-8">
+            <style>
+                body {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    font-family: Arial, sans-serif;
+                    background: white;
+                }
+                .qr-container {
+                    text-align: center;
+                    padding: 30px;
+                }
+                .qr-container img {
+                    width: 250px;
+                    height: 250px;
+                }
+                .info {
+                    margin-top: 20px;
+                    font-size: 14px;
+                    color: #333;
+                }
+                .info div {
+                    margin: 5px 0;
+                }
+                .link {
+                    font-size: 12px;
+                    color: #666;
+                    word-break: break-all;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="qr-container">
+                <h2>EASY-Q - رمز متابعة الحجز</h2>
+                ${qrContainer.innerHTML}
+                <div class="info">
+                    <div><strong>${document.getElementById('qrCustomerName')?.innerText || ''}</strong></div>
+                    <div>الرقم المرجعي: ${document.getElementById('qrBookingCode')?.innerText || ''}</div>
+                    <div>رقم الدور: ${document.getElementById('qrQueuePosition')?.innerText || ''}</div>
+                    <div class="link">رابط المتابعة: ${qrLink}</div>
+                </div>
+                <p>امسح الرمز لمتابعة الحجز</p>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
+    printWindow.close();
+}
+
+function closeQRModal() {
+    document.getElementById('qrModal').classList.remove('show');
+}
+
 function clearSelection() {
   selectedRequestId = null;
   selectedPartySize = null;

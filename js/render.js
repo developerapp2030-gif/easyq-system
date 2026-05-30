@@ -399,8 +399,7 @@ if (w.zone_name && w.zone_name !== "") {
       <div class="waiting-row-bottom">
         <span class="detail-item"><i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}</span>
         <span class="detail-item"><i class="fas fa-user-friends"></i> ${w.requested_party_size || 0}</span>
-        ${w.booking_code ? `<span class="detail-item" style="color: #06372E;"><i class="fas fa-key"></i> ${w.booking_code}</span>` : ''}
-        <span class="detail-item"><i class="fas fa-hourglass-half"></i> ${timeSince(w.local_time || w.created_at || w.request_time)}</span>
+              ${w.booking_code ? `<span class="detail-item" style="color: #06372E; cursor: pointer;" onclick="showQRModal('${w.booking_code}', '${(w.customer_name || "ضيف").replace(/'/g, "\\'")}', '${w.queue_position || "?"}', '${w.status}')"><i class="fas fa-qrcode"></i> ${w.booking_code}</span>` : ''}        <span class="detail-item"><i class="fas fa-hourglass-half"></i> ${timeSince(w.local_time || w.created_at || w.request_time)}</span>
       </div>
     `;
     
@@ -531,13 +530,10 @@ if (e.zone_name && e.zone_name !== "") {
     <i class="fas fa-hourglass-end"></i> ${timeSince(e.expired_at || e.created_at)}
 </span>
         </div>
-        <div style="display: flex; gap: 10px; margin-top: 5px;">
-          <button onclick="restoreExpiredBooking('${e.id}')" style="flex: 1; padding: 8px; border-radius: 20px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(16,185,129,0.15); color: var(--success); display: flex; align-items: center; justify-content: center; gap: 6px;">
-    <i class="fas fa-undo-alt"></i> ${currentLang === 'ar' ? 'استرجاع' : 'Restore'}
-</button>
-<button onclick="closeExpiredRequest('${e.id}')" style="flex: 1; padding: 8px; border-radius: 20px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(239,68,68,0.15); color: var(--danger); display: flex; align-items: center; justify-content: center; gap: 6px;">
-    <i class="fas fa-trash"></i> ${currentLang === 'ar' ? 'حذف' : 'Delete'}
-</button>
+                <div style="display: flex; justify-content: center; margin-top: 5px;">
+          <button onclick="restoreExpiredBooking('${e.id}')" style="padding: 8px 25px; border-radius: 20px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(16,185,129,0.15); color: var(--success); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+            <i class="fas fa-undo-alt"></i> ${currentLang === 'ar' ? 'استرجاع الحجز' : 'Restore Booking'}
+          </button>
         </div>
       </div>
     `;

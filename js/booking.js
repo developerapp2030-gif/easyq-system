@@ -1147,7 +1147,33 @@ async function startBookingPage() {
         sessionStorage.setItem('booking_cancelled', 'false');
         console.log('🔄 Restored booking ID from localStorage:', currentRequestId);
     }
-
+    // ✅ التحقق من وجود code في URL (متابعة عبر QR)
+    const urlParams = new URLSearchParams(window.location.search);
+    const bookingCode = urlParams.get('code');
+    
+    if (bookingCode && !currentRequestId) {
+        console.log('🔍 محاولة استعادة حجز عبر QR Code:', bookingCode);
+        
+        // جلب الطلب باستخدام booking_code
+        const { data: request, error } = await supabase
+            .from('table_requests')
+            .select('*')
+            .eq('booking_code', bookingCode)
+            .in('status', ['waiting', 'offered', 'occupied'])
+            .maybeSingle();
+        
+        if (request && !error) {
+            currentRequestId = request.id;
+            currentQueueNumber = request.queue_position;
+            localStorage.setItem('current_booking_id', currentRequestId);
+            sessionStorage.setItem('booking_cancelled', 'false');
+            console.log('✅ تم استعادة الحجز عبر QR:', currentRequestId);
+        } else {
+            console.log('⚠️ لم يتم العثور على حجز نشط لهذا الرمز');
+            // حذف code من URL لمنع إعادة المحاولة
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
     await getBusinessSettings();
     await getCurrentQueueNumber();
     await renderUI();

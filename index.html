@@ -20,7 +20,7 @@
 
 <!-- ⚠️ الأهم: تحميل مكتبة Supabase أولاً (قبل أي شيء) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- ثم تحميل الخطوط والستايلات -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -936,6 +936,36 @@
 </div>
 
 <div id="offlineToastContainer"></div>
+
+
+<!-- مودال عرض QR Code -->
+<div class="modal-backdrop" id="qrModal">
+  <div class="modal" style="max-width: 420px; text-align: center;">
+    <div class="modal-title"><i class="fas fa-qrcode"></i> رمز QR للمتابعة</div>
+    <div class="modal-sub">امسح الرمز لمتابعة الحجز</div>
+    
+    <div style="margin: 15px 0; text-align: center;">
+      <div id="qrCodeContainer" style="display: flex; justify-content: center;"></div>
+    </div>
+    
+    <div style="text-align: right; margin: 12px 0; background: var(--gray-100); padding: 15px; border-radius: 10px; font-size: 15px; line-height: 1.8;">
+      <div><strong> الاسم:</strong> <span id="qrCustomerName" style="font-size: 16px; font-weight: 600;">-</span></div>
+      <div><strong> الرقم المرجعي:</strong> <span id="qrBookingCode" style="font-size: 16px; font-weight: 600; color: #0e146d;">-</span></div>
+      <div><strong> رقم الدور:</strong> <span id="qrQueuePosition" style="font-size: 18px; font-weight: 800; color: #0e146d;">-</span></div>
+      <div><strong> الحالة:</strong> <span id="qrStatus" style="font-size: 14px; font-weight: 500;">-</span></div>
+    </div>
+    
+    <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+      <input type="text" id="qrLink" readonly style="flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); font-size: 12px; background: var(--gray-50);">
+      <button onclick="copyQRLink()" style="padding: 10px 15px; background: #0e146d; color: white; border: none; border-radius: 10px; cursor: pointer;">نسخ</button>
+    </div>
+    
+    <div style="display: flex; gap: 12px;">
+      <button onclick="printQR()" style="flex: 1; padding: 10px; background: #6B7280; color: white; border: none; border-radius: 10px; cursor: pointer;"><i class="fas fa-print"></i> طباعة QR</button>
+      <button onclick="closeQRModal()" style="flex: 1; padding: 10px; background: #0e146d; color: white; border: none; border-radius: 10px; cursor: pointer;">إغلاق</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ============================================================
