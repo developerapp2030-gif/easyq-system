@@ -109,6 +109,12 @@ async function renderFloorPlan() {
     }
 
     const isBusy = (status === "reserved" || status === "occupied" || status === "cleaning");
+    const infoClass =
+  status === "cleaning" && !table.customer_name
+    ? "table-info-cleaning"
+    : isBusy
+      ? "table-info-busy"
+      : "table-info-free";
     
     const nameHtml = `<span class="table-name">${table.table_name}</span>`;
     const capacityHtml = `<span class="table-capacity"><i class="fas fa-chair"></i> ${table.capacity}</span>`;
@@ -129,26 +135,31 @@ async function renderFloorPlan() {
     } else if (table.status === "cleaning" && cleaningTimers[table.id]) {
       const remainingMs = cleaningTimers[table.id].expiresAt - Date.now();
       if (remainingMs > 0) {
-        const remainingSeconds = Math.ceil(remainingMs / 1000);
-        const mins = Math.floor(remainingSeconds / 60);
-        const secs = remainingSeconds % 60;
-        timerHtml = `${mins}:${secs.toString().padStart(2, '0')}`;
+      const remainingSeconds = Math.ceil(remainingMs / 1000);
+      const mins = Math.floor(remainingSeconds / 60);
+      const secs = remainingSeconds % 60;
+      timerHtml = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
       } else {
-        timerHtml = `0:00`;
+        timerHtml = `00:00`;
       }
     }
     
     card.innerHTML = `
-      <div class="table-status-bar ${status}">
-        ${isBusy ? nameHtml + capacityHtml : ''}
-      </div>
-      <div class="table-info">
-        ${!isBusy ? nameHtml + capacityHtml : ''}
-        ${table.customer_name ? `<div class="table-customer"><i class="fas fa-user"></i> ${table.customer_name.substring(0, 10)}${table.customer_name.length > 10 ? '..' : ""}${table.requested_party_size ? ` • ${table.requested_party_size}` : ""}</div>` : ""}
-        ${table.customer_name ? `<div class="table-divider"></div>` : ""}
-        ${timerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${timerHtml}</div>` : ""}
-      </div>
-    `;
+  <div class="table-status-bar ${status}"></div>
+
+<div class="table-info ${infoClass}">
+    <div class="table-name-wrap">
+      ${nameHtml}
+    </div>
+
+    ${table.customer_name ? `<div class="table-customer">${table.customer_name.substring(0, 12)}${table.customer_name.length > 12 ? '..' : ""}</div>` : ""}
+
+    ${table.customer_name ? `<div class="table-divider"></div>` : ""}
+
+    ${timerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${timerHtml}</div>` : ""}
+  </div>
+`;
+
     container.appendChild(card);
   });
 }
@@ -162,15 +173,21 @@ function renderMoveModeTables() {
   if (!container) return;
   
   container.innerHTML = "";
-  container.style.cssText = `
-    display: block;
-    position: relative;
-    min-height: 80vh;
-    background-color: var(--gray-50);
-    border-radius: 16px;
-    padding: 20px;
-  `;
-  
+container.style.cssText = `
+  display: block;
+  position: relative;
+  min-height: 80vh;
+  border-radius: 16px;
+  padding: 20px;
+
+  background-color: #F5F7FF !important;
+  background-image:
+    linear-gradient(to right, rgba(14, 20, 109, 0.16) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(14, 20, 109, 0.16) 1px, transparent 1px) !important;
+  background-size: 104px 96px !important;
+  background-position: 20px 20px !important;
+  background-repeat: repeat !important;
+`;
   const tables = filteredFloorData();
   
   tables.forEach(table => {
@@ -185,8 +202,8 @@ function renderMoveModeTables() {
     
     card.style.left = left + 'px';
     card.style.top = top + 'px';
-    card.style.width = '120px';
-    card.style.height = '100px';
+    card.style.width = '88px';
+    card.style.height = '80px';
     card.style.transition = 'all 0.2s ease';
     
     if (isSelected) {
@@ -215,41 +232,70 @@ function renderMoveModeTables() {
     };
     
     const status = table.status || "available";
-    const isBusy = (status === "reserved" || status === "occupied");
+    const isBusy = (status === "reserved" || status === "occupied" || status === "cleaning");
     
     const nameHtml = `<span class="table-name">${table.table_name}</span>`;
     const capacityHtml = `<span class="table-capacity"><i class="fas fa-chair"></i> ${table.capacity}</span>`;
     
-    let timerHtml = "";
-    if (table.customer_name) {
-      if (table.status === "reserved" && table.reserved_at)
-        timerHtml = getRemainingReservationText(table.reserved_at);
-      else if (table.reserved_at)
-        timerHtml = timeSince(table.reserved_at);
-      else if (table.request_time)
-        timerHtml = timeSince(table.request_time);
-    }
+let timerHtml = "";
+
+if (table.customer_name) {
+  if (table.status === "reserved" && table.reserved_at) {
+    timerHtml = getRemainingReservationText(table.reserved_at);
+
+  } else if (table.status === "occupied") {
+    const seatedTime = table.seated_at || table.reserved_at || table.request_time;
+    if (seatedTime) timerHtml = timeSince(seatedTime);
+
+  } else if (table.reserved_at) {
+    timerHtml = timeSince(table.reserved_at);
+
+  } else if (table.request_time) {
+    timerHtml = timeSince(table.request_time);
+  }
+
+} else if (table.status === "cleaning" && cleaningTimers[table.id]) {
+  const remainingMs = cleaningTimers[table.id].expiresAt - Date.now();
+
+  if (remainingMs > 0) {
+    const remainingSeconds = Math.ceil(remainingMs / 1000);
+    const mins = Math.floor(remainingSeconds / 60);
+    const secs = remainingSeconds % 60;
+timerHtml = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  } else {
+    timerHtml = `00:00`;
+  }
+}
     
-    card.innerHTML = `
-      <div class="table-status-bar ${status}">
-        ${isBusy ? nameHtml + capacityHtml : ''}
-      </div>
-      <div class="table-info">
-        ${!isBusy ? nameHtml + capacityHtml : ''}
-        ${table.customer_name ? `<div class="table-customer"><i class="fas fa-user"></i> ${table.customer_name}${table.requested_party_size ? ` • ${table.requested_party_size}` : ""}</div>` : ""}
-        ${table.customer_name ? `<div class="table-divider"></div>` : ""}
-        ${timerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${timerHtml}</div>` : ""}
-        ${isSelected ? '<i class="fas fa-mouse-pointer" style="margin-top:4px; color:#2196F3; font-size:10px;"></i>' : ''}
-      </div>
-    `;
+card.innerHTML = `
+  <div class="table-status-bar ${status}"></div>
+
+  <div class="table-info ${
+  status === 'cleaning' && !table.customer_name
+    ? 'table-info-cleaning'
+    : isBusy
+      ? 'table-info-busy'
+      : 'table-info-free'
+}">
+    <div class="table-name-wrap">
+      ${nameHtml}
+    </div>
+
+    ${table.customer_name ? `<div class="table-customer">${table.customer_name.substring(0, 12)}${table.customer_name.length > 12 ? '..' : ""}</div>` : ""}
+
+    ${table.customer_name ? `<div class="table-divider"></div>` : ""}
+
+    ${timerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${timerHtml}</div>` : ""}
+  </div>
+`;
     container.appendChild(card);
   });
   
   container.onclick = async (e) => {
     if (selectedTableForMove && e.target === container) {
       const rect = container.getBoundingClientRect();
-      const newX = e.clientX - rect.left - 60;
-      const newY = e.clientY - rect.top - 50;
+const newX = e.clientX - rect.left - 44;
+const newY = e.clientY - rect.top - 40;
       
       pendingPositionUpdates[selectedTableForMove.id] = {
         pos_x: Math.max(10, newX),

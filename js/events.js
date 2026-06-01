@@ -447,14 +447,20 @@ async function saveTablePositions() {
   let errorCount = 0;
   
   for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
-    const { error } = await supabase
-      .from('dining_tables')
-      .update({
-        pos_x: validateTablePosition(position.pos_x, position.pos_y, tableId, 160).x,
-        pos_y: validateTablePosition(position.pos_x, position.pos_y, tableId, 160).y
-      })
-      .eq('id', tableId);
-    
+  const validatedPosition = validateTablePosition(
+    position.pos_x,
+    position.pos_y,
+    tableId,
+    20
+  );
+
+  const { error } = await supabase
+    .from('dining_tables')
+    .update({
+      pos_x: validatedPosition.x,
+      pos_y: validatedPosition.y
+    })
+    .eq('id', tableId);    
     if (error) {
       console.error('Error saving table position:', error);
       errorCount++;
