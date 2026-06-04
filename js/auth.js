@@ -60,10 +60,17 @@ async function doLogin() {
     const loginOverlay = document.getElementById('loginOverlay');
     if (loginOverlay) loginOverlay.style.display = 'none';
     document.body.classList.add('logged-in');
-    await loadUserPermissions();
-    const currentUserNameSpan = document.getElementById('currentUserName');
-    if (currentUserNameSpan) currentUserNameSpan.innerText = user.display_name;
-    showSuccessNotification(`مرحباً ${user.display_name}`);
+await loadUserPermissions();
+
+/* تحميل بيانات المطعم الحالي بعد تسجيل الدخول */
+await loadSettings();
+await loadActiveSettings();
+await loadAll();
+
+const currentUserNameSpan = document.getElementById('currentUserName');
+if (currentUserNameSpan) currentUserNameSpan.innerText = user.display_name;
+
+showSuccessNotification(`مرحباً ${user.display_name}`);
     
   } catch (err) {
     console.error("Login error:", err);
@@ -810,14 +817,64 @@ document.addEventListener('keydown', function(e) {
 // LOGOUT BUTTON
 // ============================================================
 
-function logoutAndClean() {
+async function logoutAndClean() {
+  await supabase.auth.signOut();
+
   currentUser = null;
   localStorage.removeItem('easyq_user');
+
+  settings = {
+    ready_mode: "any_match",
+    alert_sound_enabled: true,
+    expired_sound_enabled: true,
+    alert_vibration_enabled: true,
+    expired_panel_enabled: true,
+    expired_list_limit: 5,
+    reservation_hold_minutes: 10,
+    pending_hold_minutes: 5,
+    cleaning_hold_minutes: 10,
+    business_id: null,
+    id: null
+  };
+
+  settingsDraft = {};
+  floorData = [];
+  waitingData = [];
+  expiredData = [];
+  cachedExpiredData = [];
+
+  selectedRequestId = null;
+  selectedPartySize = null;
+  draggedRequestId = null;
+  draggedPartySize = null;
+  selectedTableForMove = null;
+  pendingPositionUpdates = {};
+
+  moveModeActive = false;
+  tableEditMode = false;
+  tableDeleteMode = false;
+
+  const floorCanvas = document.getElementById('floorCanvas');
+  if (floorCanvas) floorCanvas.innerHTML = '';
+
+  const waitingList = document.getElementById('waitingList');
+  if (waitingList) waitingList.innerHTML = '';
+
+  const expiredList = document.getElementById('expiredList');
+  if (expiredList) expiredList.innerHTML = '';
+
+  const statusSummary = document.getElementById('statusSummary');
+  if (statusSummary) statusSummary.innerHTML = '';
+
   const loginOverlay = document.getElementById('loginOverlay');
   if (loginOverlay) loginOverlay.style.display = 'flex';
+
   const usernameInput = document.getElementById('loginUsername');
   const passwordInput = document.getElementById('loginPassword');
   if (usernameInput) usernameInput.value = '';
   if (passwordInput) passwordInput.value = '';
+
   document.body.classList.remove('logged-in');
+
+  showSuccessNotification('تم تسجيل الخروج بنجاح');
 }

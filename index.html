@@ -101,7 +101,7 @@
 <!-- =========================================================
      EASY-Q PREMIUM LOGIN
 ========================================================= -->
-<div class="login-overlay premium-login-overlay" id="loginOverlay">
+<div class="login-overlay premium-login-overlay" id="loginOverlay" style="display: none;">
 
   <div class="premium-login-layout">
 
@@ -1287,10 +1287,13 @@ function setLanguage(lang) {
   if (langToggleBtn) langToggleBtn.innerText = currentLang.toUpperCase();
   
   updateDate();
-  renderStatusSummary();
-  renderFloorPlan();
-  renderWaitingList();
-  renderExpiredList();
+
+  if (!window.isStartingApp) {
+    renderStatusSummary();
+    renderFloorPlan();
+    renderWaitingList();
+    renderExpiredList();
+  }
   
   window.isSettingLanguage = false;
 }
@@ -1322,32 +1325,37 @@ function updateFloorDropdowns() {
 
 // بدء التطبيق
 async function startApp() {
+  window.isStartingApp = true;
+
   await loadSettings();
   await loadActiveSettings();
   updateDate();
-  
+
   const savedLang = currentLang;
   setLanguage(savedLang);
-  
+
   await loadAll();
- await checkReservationTimers();
 
-if (window.reservationCheckInterval) {
-  clearInterval(window.reservationCheckInterval);
-}
+  window.isStartingApp = false;
 
-window.reservationCheckInterval = setInterval(() => {
-  checkReservationTimers();
-}, 10 * 1000);
+  await checkReservationTimers();
 
-if (timerInterval) clearInterval(timerInterval);
-timerInterval = setInterval(() => {
-  updateAllTimers();
-}, 1000);
-  
+  if (window.reservationCheckInterval) {
+    clearInterval(window.reservationCheckInterval);
+  }
+
+  window.reservationCheckInterval = setInterval(() => {
+    checkReservationTimers();
+  }, 10 * 1000);
+
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    updateAllTimers();
+  }, 1000);
+
   setInterval(updateDate, 1000);
   optimizeForTouch();
-  
+
   // إعداد أزرار التبويب
   const tabQueueBtn = document.getElementById('tabQueueBtn');
   const tabExpiredBtn = document.getElementById('tabExpiredBtn');

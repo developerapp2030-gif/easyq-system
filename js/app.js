@@ -93,10 +93,13 @@ function renderSettingsModal() {
 }
 
 async function saveSettings() {
-  if (!settings?.id) {
+  const businessId = currentUser?.business_id;
+
+  if (!businessId || !settings?.id) {
     alert("Settings not found");
     return;
   }
+
   const payload = {
     ready_mode: settingsDraft.ready_mode,
     alert_sound_enabled: settingsDraft.alert_sound_enabled,
@@ -109,7 +112,11 @@ async function saveSettings() {
     pending_hold_minutes: settingsDraft.pending_hold_minutes,
     cleaning_hold_minutes: settingsDraft.cleaning_hold_minutes
   };
-  const { error } = await supabase.from("business_settings").update(payload).eq("id", settings.id);
+  const { error } = await supabase
+  .from("business_settings")
+  .update(payload)
+  .eq("id", settings.id)
+  .eq("business_id", businessId);
   if (error) {
     console.log(error);
     alert("Save failed");
@@ -149,26 +156,40 @@ function changeTimerSetting(key, delta, min, max) {
 async function saveTimerSettings() {
   const newReservationHold = parseInt(document.getElementById('reservation_hold_minutes_display').innerText);
   const newCleaningHold = parseInt(document.getElementById('cleaning_hold_minutes_display').innerText);
-  
-  settings.reservation_hold_minutes = newReservationHold;
-  settings.cleaning_hold_minutes = newCleaningHold;
-  
-  if (settings.id) {
-    const { error } = await supabase
-      .from('business_settings')
-      .update({
-        reservation_hold_minutes: newReservationHold,
-        cleaning_hold_minutes: newCleaningHold
-      })
-      .eq('id', settings.id);
-    
-    if (error) {
-      console.error("Error saving timer settings:", error);
-      showAlert("فشل حفظ إعدادات المؤقتات");
-      return;
-    }
+
+  const businessId = currentUser?.business_id || settings?.business_id;
+
+  if (!businessId || !settings?.id) {
+    showAlert("لم يتم العثور على إعدادات المطعم الحالي");
+    return;
   }
-  
+
+  const { data, error } = await supabase
+    .from('business_settings')
+    .update({
+      reservation_hold_minutes: newReservationHold,
+      cleaning_hold_minutes: newCleaningHold
+    })
+    .eq('id', settings.id)
+    .eq('business_id', businessId)
+    .select('id, business_id, reservation_hold_minutes, cleaning_hold_minutes, pending_hold_minutes')
+    .single();
+
+  if (error) {
+    console.error("Error saving timer settings:", error);
+    showAlert("فشل حفظ إعدادات المؤقتات");
+    return;
+  }
+
+  if (!data) {
+    showAlert("لم يتم تحديث أي سجل. تأكد أن الإعدادات تخص المطعم الحالي");
+    return;
+  }
+
+  settings.reservation_hold_minutes = data.reservation_hold_minutes;
+  settings.cleaning_hold_minutes = data.cleaning_hold_minutes;
+  settings.pending_hold_minutes = data.pending_hold_minutes;
+
   closeTimerSettingsModal();
   showSuccessNotification("✅ تم حفظ إعدادات المؤقتات");
 }
@@ -186,15 +207,11 @@ async function loadAll() {
 }
 
 async function loadSettings() {
-  const businessId = currentUser?.business_id || BUSINESS_ID;
+  const businessId = currentUser?.business_id;
 
-  const { data, error } = await supabase
-    .from("business_settings")
-    .select("*")
-    .eq("business_id", businessId)
-    .single();
+  if (!businessId) {
+    console.warn("No business_id found for current user");
 
-  if (error) {
     settings = {
       ready_mode: "any_match",
       alert_sound_enabled: true,
@@ -206,9 +223,51 @@ async function loadSettings() {
       reservation_hold_minutes: 10,
       pending_hold_minutes: 5,
       cleaning_hold_minutes: 10,
-      business_id: businessId,
+      business_id: null,
       id: null
     };
+
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("business_settings")
+    .select("*")
+    .eq("business_id", businessId)
+    .maybeSingle();
+
+  if (error || !data) {
+    const defaultSettings = {
+      business_id: businessId,
+      ready_mode: "any_match",
+      alert_sound_enabled: true,
+      expired_sound_enabled: true,
+      alert_vibration_enabled: true,
+      expired_panel_enabled: true,
+      expired_list_limit: 5,
+      reservation_hold_minutes: 10,
+      pending_hold_minutes: 5,
+      cleaning_hold_minutes: 10
+    };
+
+    const { data: insertedSettings, error: insertError } = await supabase
+      .from("business_settings")
+      .insert(defaultSettings)
+      .select("*")
+      .single();
+
+    if (insertError) {
+      console.error("Error creating default settings:", insertError);
+
+      settings = {
+        ...defaultSettings,
+        id: null
+      };
+
+      return;
+    }
+
+    settings = insertedSettings;
     return;
   }
 
@@ -216,12 +275,29 @@ async function loadSettings() {
 }
 
 async function loadFloorPlan() {
-  const { data, error } = await supabase.from("dashboard_tables_full").select("*");
-  if (error) {
-    console.log(error);
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    floorData = [];
+    renderStatusSummary();
+    renderFloorPlan();
     return;
   }
-  floorData = data;
+
+  const { data, error } = await supabase
+    .from("dashboard_tables_full")
+    .select("*")
+    .eq("business_id", businessId);
+
+  if (error) {
+    console.log(error);
+    floorData = [];
+    renderStatusSummary();
+    renderFloorPlan();
+    return;
+  }
+
+  floorData = data || [];
   renderStatusSummary();
   renderFloorPlan();
 }

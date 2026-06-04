@@ -620,11 +620,66 @@ if (themeToggleBtn) {
 
 function logoutAndClean() {
   currentUser = null;
+
+  // حذف بيانات تسجيل الدخول
   localStorage.removeItem('easyq_user');
+settings = {
+  ready_mode: "any_match",
+  alert_sound_enabled: true,
+  expired_sound_enabled: true,
+  alert_vibration_enabled: true,
+  expired_vibration_enabled: true,
+  expired_panel_enabled: true,
+  expired_list_limit: 5,
+  reservation_hold_minutes: 10,
+  pending_hold_minutes: 5,
+  cleaning_hold_minutes: 10,
+  business_id: null,
+  id: null
+};
+
+settingsDraft = {};
+  // تنظيف بيانات المطعم السابق من الذاكرة
+  floorData = [];
+  waitingData = [];
+  expiredData = [];
+  cachedExpiredData = [];
+
+  // تنظيف التحديدات والحالات المؤقتة
+  selectedRequestId = null;
+  selectedPartySize = null;
+  draggedRequestId = null;
+  draggedPartySize = null;
+  selectedTableForMove = null;
+  pendingPositionUpdates = {};
+
+  // إيقاف وضع التحريك أو التعديل إن كان مفعل
+  moveModeActive = false;
+  tableEditMode = false;
+  tableDeleteMode = false;
+
+  // تنظيف لوحة الطاولات والقوائم من الواجهة
+  const floorCanvas = document.getElementById('floorCanvas');
+  if (floorCanvas) floorCanvas.innerHTML = '';
+
+  const waitingList = document.getElementById('waitingList');
+  if (waitingList) waitingList.innerHTML = '';
+
+  const expiredList = document.getElementById('expiredList');
+  if (expiredList) expiredList.innerHTML = '';
+
+  const statusSummary = document.getElementById('statusSummary');
+  if (statusSummary) statusSummary.innerHTML = '';
+
+  // إظهار شاشة تسجيل الدخول
   const loginOverlay = document.getElementById('loginOverlay');
   if (loginOverlay) loginOverlay.style.display = 'flex';
-  document.getElementById('loginUsername').value = '';
-  document.getElementById('loginPassword').value = '';
+
+  const loginUsername = document.getElementById('loginUsername');
+  if (loginUsername) loginUsername.value = '';
+
+  const loginPassword = document.getElementById('loginPassword');
+  if (loginPassword) loginPassword.value = '';
 }
 
 // ============================================================
