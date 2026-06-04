@@ -1,3 +1,11 @@
+// ============================================================
+// FORCE PREMIUM THEME ON START
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.body.classList.add('theme-premium');
+  localStorage.setItem('easyq_premium_theme', 'true');
+});
 
 // ============================================================
 // SETTINGS FUNCTIONS

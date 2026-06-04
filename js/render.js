@@ -38,6 +38,9 @@ function renderStatusSummary() {
   });
 }
 
+
+
+
 // ============================================================
 // RENDER FLOOR PLAN
 // ============================================================
@@ -116,7 +119,18 @@ async function renderFloorPlan() {
       ? "table-info-busy"
       : "table-info-free";
     
-    const nameHtml = `<span class="table-name">${table.table_name}</span>`;
+const seatsLabel = table.customer_name && table.requested_party_size
+  ? `${table.requested_party_size}/${table.capacity}`
+  : `${table.capacity}`;
+
+const nameHtml = `
+  <span class="table-name">
+    <span class="table-title-text">${table.table_name}</span>
+    <span class="table-seat-label">
+      <i class="fas fa-user-friends"></i> ${seatsLabel}
+    </span>
+  </span>
+`;
     const capacityHtml = `<span class="table-capacity"><i class="fas fa-chair"></i> ${table.capacity}</span>`;
     
     let timerHtml = "";
@@ -144,15 +158,16 @@ async function renderFloorPlan() {
       }
     }
     
-    card.innerHTML = `
+card.innerHTML = `
+  
   <div class="table-status-bar ${status}"></div>
 
-<div class="table-info ${infoClass}">
+  <div class="table-info ${infoClass}">
     <div class="table-name-wrap">
       ${nameHtml}
     </div>
 
-    ${table.customer_name ? `<div class="table-customer">${table.customer_name.substring(0, 12)}${table.customer_name.length > 12 ? '..' : ""}</div>` : ""}
+    ${table.customer_name ? `<div class="table-customer">${table.customer_name.substring(0, 12)}</div>` : ""}
 
     ${table.customer_name ? `<div class="table-divider"></div>` : ""}
 
@@ -179,15 +194,47 @@ container.style.cssText = `
   min-height: 80vh;
   border-radius: 16px;
   padding: 20px;
+  background: #F5F7FF !important;
+  background-image: none !important;
+  background-size: auto !important;
+  background-position: 0 0 !important;
+  background-repeat: no-repeat !important;
+  overflow: hidden;
+  isolation: isolate;
+`;
+const GRID_W = 104;
+const GRID_H = 96;
+const GRID_OFFSET_X = 20;
+const GRID_OFFSET_Y = 20;
 
-  background-color: #F5F7FF !important;
+const fullGridCols = Math.floor((container.clientWidth - GRID_OFFSET_X) / GRID_W);
+const fullGridRows = Math.floor((container.clientHeight - GRID_OFFSET_Y) / GRID_H);
+
+const fullGridWidth = fullGridCols * GRID_W;
+const fullGridHeight = fullGridRows * GRID_H;
+
+const gridLayer = document.createElement('div');
+gridLayer.className = 'move-grid-layer';
+
+gridLayer.style.cssText = `
+  position: absolute;
+  left: ${GRID_OFFSET_X}px;
+  top: ${GRID_OFFSET_Y}px;
+  width: ${fullGridWidth}px;
+  height: ${fullGridHeight}px;
+  pointer-events: none;
+  z-index: 0;
+
   background-image:
     linear-gradient(to right, rgba(14, 20, 109, 0.16) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(14, 20, 109, 0.16) 1px, transparent 1px) !important;
-  background-size: 104px 96px !important;
-  background-position: 20px 20px !important;
-  background-repeat: repeat !important;
+    linear-gradient(to bottom, rgba(14, 20, 109, 0.16) 1px, transparent 1px);
+  background-size: ${GRID_W}px ${GRID_H}px;
+  background-repeat: repeat;
+  border-right: 1px solid rgba(14, 20, 109, 0.16);
+  border-bottom: 1px solid rgba(14, 20, 109, 0.16);
 `;
+
+container.appendChild(gridLayer);
   const tables = filteredFloorData();
   
   tables.forEach(table => {
@@ -281,7 +328,7 @@ card.innerHTML = `
       ${nameHtml}
     </div>
 
-    ${table.customer_name ? `<div class="table-customer">${table.customer_name.substring(0, 12)}${table.customer_name.length > 12 ? '..' : ""}</div>` : ""}
+    ${table.customer_name ? `<div class="table-customer">${table.customer_name.substring(0, 12)}</div>` : ""}
 
     ${table.customer_name ? `<div class="table-divider"></div>` : ""}
 
@@ -292,19 +339,57 @@ card.innerHTML = `
   });
   
   container.onclick = async (e) => {
-    if (selectedTableForMove && e.target === container) {
-      const rect = container.getBoundingClientRect();
-const newX = e.clientX - rect.left - 44;
-const newY = e.clientY - rect.top - 40;
-      
-      pendingPositionUpdates[selectedTableForMove.id] = {
-        pos_x: Math.max(10, newX),
-        pos_y: Math.max(10, newY),
-        floor_number: currentFloor
-      };
-      
-      selectedTableForMove.pos_x = Math.max(10, newX);
-      selectedTableForMove.pos_y = Math.max(10, newY);
+  if (selectedTableForMove && e.target === container) {
+    const rect = container.getBoundingClientRect();
+
+    /* مقاسات الشبكة والطاولة */
+    const GRID_W = 104;
+    const GRID_H = 96;
+    const TABLE_W = 88;
+    const TABLE_H = 80;
+    const GRID_OFFSET_X = 20;
+    const GRID_OFFSET_Y = 20;
+
+    /* مكان الضغط داخل مساحة الطاولات */
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    /* حدود منطقة الشبكة الكاملة فقط */
+    const gridStartX = GRID_OFFSET_X;
+    const gridStartY = GRID_OFFSET_Y;
+    const gridEndX = GRID_OFFSET_X + fullGridWidth;
+    const gridEndY = GRID_OFFSET_Y + fullGridHeight;
+
+    /* منع النقل خارج الشبكة الكاملة */
+    if (
+      clickX < gridStartX ||
+      clickY < gridStartY ||
+      clickX >= gridEndX ||
+      clickY >= gridEndY
+    ) {
+      showAlert('اختر مربعًا داخل الشبكة');
+      return;
+    }
+
+    /* تحديد المربع الذي تم الضغط داخله */
+    const col = Math.floor((clickX - GRID_OFFSET_X) / GRID_W);
+    const row = Math.floor((clickY - GRID_OFFSET_Y) / GRID_H);
+
+    const cellX = GRID_OFFSET_X + col * GRID_W;
+    const cellY = GRID_OFFSET_Y + row * GRID_H;
+
+    /* وضع الطاولة في وسط مربع الشبكة */
+    const finalX = cellX + (GRID_W - TABLE_W) / 2;
+    const finalY = cellY + (GRID_H - TABLE_H) / 2;
+
+    pendingPositionUpdates[selectedTableForMove.id] = {
+      pos_x: finalX,
+      pos_y: finalY,
+      floor_number: currentFloor
+    };
+
+    selectedTableForMove.pos_x = finalX;
+    selectedTableForMove.pos_y = finalY;
       
       selectedTableForMove = null;
       renderMoveModeTables();

@@ -166,14 +166,18 @@ function updateAllTimers() {
       if (table && (table.status === 'occupied' || table.status === 'reserved' || table.status === 'cleaning')) {
         let newTime = "";
         
-        if (table.status === "reserved" && table.reserved_at) {
-          newTime = getRemainingReservationText(table.reserved_at);
-        } else if (table.reserved_at) {
-          newTime = timeSince(table.reserved_at);
-        } else if (table.request_time) {
-          newTime = timeSince(table.request_time);
-        } else if (table.status === "cleaning" && cleaningTimers[table.id]) {
+if (table.status === "reserved" && table.reserved_at) {
+  newTime = getRemainingReservationText(table.reserved_at);
+
+} else if (table.status === "occupied") {
+  const seatedTime = table.seated_at || table.reserved_at || table.request_time;
+  if (seatedTime) {
+    newTime = timeSince(seatedTime);
+  }
+
+} else if (table.status === "cleaning" && cleaningTimers[table.id]) {
   const remainingMs = cleaningTimers[table.id].expiresAt - Date.now();
+
   if (remainingMs > 0) {
     const remainingSeconds = Math.ceil(remainingMs / 1000);
     const mins = Math.floor(remainingSeconds / 60);
@@ -182,6 +186,12 @@ function updateAllTimers() {
   } else {
     newTime = `00:00`;
   }
+
+} else if (table.reserved_at) {
+  newTime = timeSince(table.reserved_at);
+
+} else if (table.request_time) {
+  newTime = timeSince(table.request_time);
 }
         
         if (newTime) {

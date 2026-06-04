@@ -446,19 +446,24 @@ async function saveTablePositions() {
   let successCount = 0;
   let errorCount = 0;
   
-  for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
-  const validatedPosition = validateTablePosition(
-    position.pos_x,
-    position.pos_y,
-    tableId,
-    20
-  );
+for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
+  const canvas = document.getElementById('floorCanvas');
+  const canvasWidth = canvas ? canvas.clientWidth : 1000;
+  const canvasHeight = canvas ? canvas.clientHeight : 800;
+
+  const TABLE_W = 88;
+  const TABLE_H = 80;
+
+  const finalPosition = {
+    x: Math.max(10, Math.min(Math.round(position.pos_x), canvasWidth - TABLE_W)),
+    y: Math.max(10, Math.min(Math.round(position.pos_y), canvasHeight - TABLE_H))
+  };
 
   const { error } = await supabase
     .from('dining_tables')
     .update({
-      pos_x: validatedPosition.x,
-      pos_y: validatedPosition.y
+      pos_x: finalPosition.x,
+      pos_y: finalPosition.y
     })
     .eq('id', tableId);    
     if (error) {
@@ -479,13 +484,13 @@ async function saveTablePositions() {
       ? `✅ تم حفظ مواقع ${successCount} طاولة${errorCount > 0 ? `، فشل ${errorCount}` : ''}`
       : `✅ Saved ${successCount} table positions${errorCount > 0 ? `, ${errorCount} failed` : ''}`);
     
-    for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
-      const table = floorData.find(t => t.id == tableId);
-      if (table) {
-        table.pos_x = Math.round(position.pos_x);
-        table.pos_y = Math.round(position.pos_y);
-      }
-    }
+for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
+  const table = floorData.find(t => t.id == tableId);
+  if (table) {
+    table.pos_x = Math.round(position.pos_x);
+    table.pos_y = Math.round(position.pos_y);
+  }
+}
     
     pendingPositionUpdates = {};
     
