@@ -704,3 +704,335 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("✅ Sidebar button connected!");
     }
 });
+
+// ============================================================
+// FULL PAGE PANEL FUNCTIONS
+// ============================================================
+
+function openFullPagePanel(title, subtitle, contentHtml) {
+  const panel = document.getElementById("fullPagePanel");
+  const titleEl = document.getElementById("fullPagePanelTitle");
+  const subtitleEl = document.getElementById("fullPagePanelSubtitle");
+  const bodyEl = document.getElementById("fullPagePanelBody");
+
+  if (!panel || !titleEl || !subtitleEl || !bodyEl) {
+    console.error("❌ عناصر fullPagePanel غير موجودة في index.html");
+    return;
+  }
+
+  titleEl.innerHTML = title || "";
+  subtitleEl.innerHTML = subtitle || "";
+  bodyEl.innerHTML = contentHtml || "";
+
+  panel.classList.add("show");
+
+  // إغلاق السايدبار عند فتح صفحة كاملة
+  const sidebar = document.getElementById("sidebar");
+  if (sidebar) {
+    sidebar.classList.remove("open");
+  }
+}
+
+function closeFullPagePanel() {
+  const panel = document.getElementById("fullPagePanel");
+  const bodyEl = document.getElementById("fullPagePanelBody");
+
+  if (!panel) return;
+
+  panel.classList.remove("show");
+
+  if (bodyEl) {
+    bodyEl.innerHTML = "";
+  }
+}
+
+// ============================================================
+// BUSINESS PROFILE PAGE
+// ============================================================
+
+// ============================================================
+// BUSINESS PROFILE PAGE
+// ============================================================
+
+function openBusinessProfileModal() {
+  const contentHtml = `
+    <div class="business-profile-page">
+
+      <div class="business-profile-grid">
+
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-store-alt"></i>
+            بيانات المطعم / الفرع
+          </div>
+
+          <div class="business-profile-form">
+
+            <div class="form-group">
+              <label>اسم المطعم</label>
+              <input type="text" id="businessProfileName" class="business-profile-input" placeholder="مثال: مطعم الأحلام">
+            </div>
+
+            <div class="form-group">
+              <label>اسم الفرع</label>
+              <input type="text" id="businessProfileBranchName" class="business-profile-input" placeholder="مثال: فرع أبها الرئيسي">
+            </div>
+
+            <div class="form-group">
+              <label>المدينة</label>
+              <input type="text" id="businessProfileCity" class="business-profile-input" placeholder="مثال: أبها">
+            </div>
+
+            <div class="form-group">
+              <label>العنوان المختصر</label>
+              <input type="text" id="businessProfileAddress" class="business-profile-input" placeholder="مثال: حي النزهة - طريق الملك فهد">
+            </div>
+
+            <div class="form-group">
+              <label>رقم التواصل</label>
+              <input type="text" id="businessProfilePhone" class="business-profile-input" placeholder="مثال: 05xxxxxxxx">
+            </div>
+
+            <div class="form-group">
+              <label>البريد الإلكتروني</label>
+              <input type="email" id="businessProfileEmail" class="business-profile-input" placeholder="example@restaurant.com">
+            </div>
+
+            <div class="form-group">
+              <label>رابط خرائط Google</label>
+              <input type="text" id="businessProfileMapUrl" class="business-profile-input" placeholder="ضع رابط موقع المطعم من خرائط Google">
+            </div>
+
+            <div class="form-group">
+              <label>رابط إنستغرام</label>
+              <input type="text" id="businessProfileInstagramUrl" class="business-profile-input" placeholder="https://instagram.com/restaurant">
+            </div>
+
+            <div class="form-group">
+              <label>رابط الموقع الإلكتروني</label>
+              <input type="text" id="businessProfileWebsiteUrl" class="business-profile-input" placeholder="https://example.com">
+            </div>
+
+          </div>
+        </div>
+
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-image"></i>
+            شعار المطعم
+          </div>
+
+          <div class="business-logo-preview">
+            <div class="business-logo-circle" id="businessLogoPreviewCircle">
+              <i class="fas fa-utensils" id="businessLogoDefaultIcon"></i>
+              <img id="businessLogoPreviewImg" src="" alt="Logo" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
+            </div>
+
+            <div class="business-logo-note">
+              ضع رابط الشعار الآن، ولاحقًا يمكن ربطه برفع مباشر من الجهاز.
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>رابط الشعار</label>
+            <input type="text" id="businessProfileLogoUrl" class="business-profile-input" placeholder="https://example.com/logo.png" oninput="previewBusinessLogoFromInput()">
+          </div>
+        </div>
+
+      </div>
+
+      <div class="business-profile-actions">
+        <button class="business-profile-save-btn" onclick="saveBusinessProfile()">
+          <i class="fas fa-save"></i>
+          حفظ بيانات المطعم
+        </button>
+
+        <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
+          إلغاء
+        </button>
+      </div>
+
+    </div>
+  `;
+
+  openFullPagePanel(
+    "بيانات المطعم / الفرع",
+    "إدارة الاسم، العنوان، الشعار، وبيانات الظهور في واجهة النظام وواجهة الحجز",
+    contentHtml
+  );
+
+  loadBusinessProfile();
+}
+
+async function loadBusinessProfile() {
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("businesses")
+    .select(`
+      id,
+      name,
+      branch_name,
+      city,
+      address,
+      phone,
+      email,
+      google_maps_url,
+      instagram_url,
+      website_url,
+      logo_url
+    `)
+    .eq("id", businessId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ خطأ في تحميل بيانات المطعم:", error);
+    showAlert("فشل تحميل بيانات المطعم");
+    return;
+  }
+
+  if (!data) {
+    showAlert("لم يتم العثور على بيانات المطعم");
+    return;
+  }
+
+  document.getElementById("businessProfileName").value = data.name || "";
+  document.getElementById("businessProfileBranchName").value = data.branch_name || "";
+  document.getElementById("businessProfileCity").value = data.city || "";
+  document.getElementById("businessProfileAddress").value = data.address || "";
+  document.getElementById("businessProfilePhone").value = data.phone || "";
+  document.getElementById("businessProfileEmail").value = data.email || "";
+  document.getElementById("businessProfileMapUrl").value = data.google_maps_url || "";
+  document.getElementById("businessProfileInstagramUrl").value = data.instagram_url || "";
+  document.getElementById("businessProfileWebsiteUrl").value = data.website_url || "";
+  document.getElementById("businessProfileLogoUrl").value = data.logo_url || "";
+
+  previewBusinessLogo(data.logo_url);
+}
+
+async function saveBusinessProfile() {
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    return;
+  }
+
+  const name = document.getElementById("businessProfileName").value.trim();
+  const branchName = document.getElementById("businessProfileBranchName").value.trim();
+  const city = document.getElementById("businessProfileCity").value.trim();
+  const address = document.getElementById("businessProfileAddress").value.trim();
+  const phone = document.getElementById("businessProfilePhone").value.trim();
+  const email = document.getElementById("businessProfileEmail").value.trim();
+  const googleMapsUrl = document.getElementById("businessProfileMapUrl").value.trim();
+  const instagramUrl = document.getElementById("businessProfileInstagramUrl").value.trim();
+  const websiteUrl = document.getElementById("businessProfileWebsiteUrl").value.trim();
+  const logoUrl = document.getElementById("businessProfileLogoUrl").value.trim();
+
+  if (!name) {
+    showAlert("اسم المطعم مطلوب");
+    return;
+  }
+
+  const payload = {
+    name,
+    branch_name: branchName || null,
+    city: city || null,
+    address: address || null,
+    phone: phone || null,
+    email: email || null,
+    google_maps_url: googleMapsUrl || null,
+    instagram_url: instagramUrl || null,
+    website_url: websiteUrl || null,
+    logo_url: logoUrl || null
+  };
+
+  const { data, error } = await supabase
+    .from("businesses")
+    .update(payload)
+    .eq("id", businessId)
+    .select(`
+      id,
+      name,
+      branch_name,
+      city,
+      address,
+      phone,
+      email,
+      google_maps_url,
+      instagram_url,
+      website_url,
+      logo_url
+    `)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ خطأ في حفظ بيانات المطعم:", error);
+    showAlert("فشل حفظ بيانات المطعم: " + error.message);
+    return;
+  }
+
+  if (!data) {
+    showAlert("لم يتم تحديث أي بيانات");
+    return;
+  }
+
+  showSuccessNotification("✅ تم حفظ بيانات المطعم بنجاح");
+
+  // تحديث اسم المطعم في أعلى الواجهة فورًا
+  updateTopbarBusinessIdentity(data);
+}
+
+function previewBusinessLogoFromInput() {
+  const logoUrl = document.getElementById("businessProfileLogoUrl")?.value.trim();
+  previewBusinessLogo(logoUrl);
+}
+
+function previewBusinessLogo(logoUrl) {
+  const img = document.getElementById("businessLogoPreviewImg");
+  const icon = document.getElementById("businessLogoDefaultIcon");
+
+  if (!img || !icon) return;
+
+  if (logoUrl) {
+    img.src = logoUrl;
+    img.style.display = "block";
+    icon.style.display = "none";
+
+    img.onerror = function () {
+      img.style.display = "none";
+      icon.style.display = "block";
+    };
+  } else {
+    img.style.display = "none";
+    icon.style.display = "block";
+  }
+}
+
+function updateTopbarBusinessIdentity(business) {
+  const brandText = document.getElementById("brandText");
+  const brandIcon = document.querySelector(".brand-icon");
+
+  if (brandText) {
+    const name = business?.name || "EASY-Q";
+    const branch = business?.branch_name || business?.city || "";
+
+    brandText.innerHTML = branch
+      ? `${name} <span style="opacity:.75; font-size:12px;">- ${branch}</span>`
+      : name;
+  }
+
+  if (brandIcon && business?.logo_url) {
+    brandIcon.innerHTML = `
+      <img src="${business.logo_url}" 
+           alt="Logo" 
+           style="width:100%; height:100%; object-fit:cover; border-radius:50%;"
+           onerror="this.outerHTML='<i class=&quot;fas fa-utensils&quot;></i>'">
+    `;
+  }
+}

@@ -332,12 +332,31 @@ async function loadActiveSettings() {
 }
 
 async function loadWaitingList() {
-  const { data, error } = await supabase.from("waiting_list_full").select("*");
-  if (error) {
-    console.log(error);
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    console.warn("⚠️ لا يوجد business_id للمستخدم الحالي - تم إفراغ قائمة الانتظار");
+    waitingData = [];
+    renderWaitingList();
     return;
   }
-  waitingData = data || [];
+
+  const { data, error } = await supabase
+    .from("waiting_list_full")
+    .select("*")
+    .eq("business_id", businessId);
+
+  if (error) {
+    console.error("❌ خطأ في جلب قائمة الانتظار:", error);
+    waitingData = [];
+    renderWaitingList();
+    return;
+  }
+
+  // حماية إضافية داخل الواجهة حتى لو رجعت بيانات خاطئة من الـ view
+  waitingData = (data || []).filter(r => r.business_id === businessId);
+
+  console.log(`✅ تم تحميل قائمة انتظار المطعم الحالي فقط: ${waitingData.length} طلب`);
   renderWaitingList();
 }
 

@@ -553,115 +553,163 @@ if (w.zone_name && w.zone_name !== "") {
 
 async function renderExpiredList() {
   console.log("🔄 جاري تحديث قائمة المنتهية...");
+
   const container = document.getElementById("expiredList");
   if (!container) return;
-  
-  if (settings.expired_panel_enabled === false) return;
+
+  if (settings.expired_panel_enabled === false) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    console.warn("⚠️ لا يوجد business_id للمستخدم الحالي - تم إفراغ قائمة المنتهية");
+    container.innerHTML = "";
+    return;
+  }
+
   const limit = settings.expired_list_limit || 5;
-  
+
   const { data: expiredDataWithPhone, error } = await supabase
     .from("table_requests")
     .select(`
       id,
+      business_id,
+      customer_id,
+      booking_code,
       requested_party_size,
       request_source,
       created_at,
       expired_at,
       zone_name,
       status,
-      customers (name, phone)
+      customer_name_snapshot,
+      customer_phone_snapshot,
+      customers (
+        name,
+        phone
+      )
     `)
+    .eq("business_id", businessId)
     .not("expired_at", "is", null)
     .lt("expired_at", new Date().toISOString())
     .order("expired_at", { ascending: false })
     .limit(limit);
-  
+
   if (error) {
     console.error("Error fetching expired requests:", error);
+    container.innerHTML = "";
     return;
   }
-  
-  console.log("📊 عدد الطلبات المنتهية:", expiredDataWithPhone.length);
-  
+
+  const safeExpiredData = (expiredDataWithPhone || []).filter(e => e.business_id === businessId);
+
+  console.log("📊 عدد الطلبات المنتهية:", safeExpiredData.length);
+
   let html = "";
-  
-  expiredDataWithPhone.forEach(e => {
+
+  safeExpiredData.forEach(e => {
+    let customerName =
+      e.customer_name_snapshot ||
+      e.customers?.name ||
+      "ضيف";
+
+    let customerPhone =
+      e.customer_phone_snapshot ||
+      e.customers?.phone ||
+      "";
+
     let phoneLast5 = "";
-    let customerName = "";
-    let customerPhone = "";
-    
-    if (e.customers) {
-      customerName = e.customers.name || "ضيف";
-      customerPhone = e.customers.phone;
-    }
-    
     if (customerPhone && customerPhone !== null && customerPhone !== "") {
       let phoneStr = String(customerPhone);
       phoneLast5 = phoneStr.length >= 5 ? phoneStr.slice(-5) : phoneStr;
     }
-    
+
     let sourceLabel = "";
     let sourceIcon = "";
     let iconClass = "";
-    
-if (e.request_source === "walk_in") {
-    sourceLabel = currentLang === 'ar' ? 'محلي' : 'Local';
-    sourceIcon = "fa-user-plus";
-    iconClass = "fas";
-} else if (e.request_source === "restored") {
-    sourceLabel = currentLang === 'ar' ? 'مسترجع' : 'Restored';
-    sourceIcon = "fa-undo-alt";
-    iconClass = "fas";
-} else {
-    sourceLabel = currentLang === 'ar' ? 'واتس' : 'WSP';
-    sourceIcon = "fa-whatsapp";
-    iconClass = "fab";
-}
-    
-let zoneDisplayText = currentLang === 'ar' ? "بدون تفضيل" : "No Preference";
-if (e.zone_name && e.zone_name !== "") {
-    const zoneMap = currentLang === 'ar' ? {
-        "Indoor": "داخلي",
-        "VIP": "VIP",
-        "Smoking": "مدخنين",
-        "Family": "عائلي",
-        "Outdoor": "خارجي"
-    } : {
-        "Indoor": "Indoor",
-        "VIP": "VIP",
-        "Smoking": "Smoking",
-        "Family": "Family",
-        "Outdoor": "Outdoor"
-    };
-    zoneDisplayText = zoneMap[e.zone_name] || e.zone_name;
-}
-    
-    let customerDisplay = customerName || "ضيف";
-    if (phoneLast5) {
-      customerDisplay = customerDisplay + " - " + phoneLast5;
+
+    if (e.request_source === "walk_in") {
+      sourceLabel = currentLang === 'ar' ? 'محلي' : 'Local';
+      sourceIcon = "fa-user-plus";
+      iconClass = "fas";
+    } else if (e.request_source === "restored") {
+      sourceLabel = currentLang === 'ar' ? 'مسترجع' : 'Restored';
+      sourceIcon = "fa-undo-alt";
+      iconClass = "fas";
+    } else if (e.request_source === "web_booking") {
+      sourceLabel = currentLang === 'ar' ? 'أونلاين' : 'Online';
+      sourceIcon = "fa-globe";
+      iconClass = "fas";
+    } else if (e.request_source === "qr_code") {
+      sourceLabel = currentLang === 'ar' ? 'QR Code' : 'QR Code';
+      sourceIcon = "fa-qrcode";
+      iconClass = "fas";
+    } else {
+      sourceLabel = currentLang === 'ar' ? 'واتس' : 'WSP';
+      sourceIcon = "fa-whatsapp";
+      iconClass = "fab";
     }
-    
+
+    let zoneDisplayText = currentLang === 'ar' ? "بدون تفضيل" : "No Preference";
+
+    if (e.zone_name && e.zone_name !== "") {
+      const zoneMap = currentLang === 'ar'
+        ? {
+            "Indoor": "داخلي",
+            "VIP": "VIP",
+            "Smoking": "مدخنين",
+            "Family": "عائلي",
+            "Outdoor": "خارجي"
+          }
+        : {
+            "Indoor": "Indoor",
+            "VIP": "VIP",
+            "Smoking": "Smoking",
+            "Family": "Family",
+            "Outdoor": "Outdoor"
+          };
+
+      zoneDisplayText = zoneMap[e.zone_name] || e.zone_name;
+    }
+
     html += `
       <div class="expired-card" style="display: flex; flex-direction: column; gap: 10px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-          <span style="font-weight: 700; font-size: 14px; color: var(--text-primary);">${(customerName || "ضيف").substring(0, 18)}${customerPhone ? ` - ${customerPhone}` : ""}</span>
+          <span style="font-weight: 700; font-size: 14px; color: var(--text-primary);">
+            ${(customerName || "ضيف").substring(0, 18)}${customerPhone ? ` - ${customerPhone}` : ""}
+          </span>
+
           <span style="background: var(--gray-300); color: var(--gray-700); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
             <i class="${iconClass} ${sourceIcon}"></i> ${sourceLabel}
           </span>
         </div>
+
         <hr style="border: none; border-top: 1px solid var(--gray-300); margin: 0;">
+
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--gray-600);">
-<span style="display: inline-flex; align-items: center; gap: 4px;">
-    <i class="fas fa-user-friends"></i> ${e.requested_party_size || 0}
-</span>
           <span style="display: inline-flex; align-items: center; gap: 4px;">
-            <i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}
+            <i class="fas fa-user-friends"></i> ${e.requested_party_size || 0}
           </span>
+
+          <span style="display: inline-flex; align-items: center; gap: 4px;">
+  <i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}
+</span>
+
+${e.booking_code ? `
+  <span style="display: inline-flex; align-items: center; gap: 4px; color: #06372E; font-weight: 600;">
+    <i class="fas fa-qrcode"></i> ${e.booking_code}
+  </span>
+` : ""}
+
 <span style="display: inline-flex; align-items: center; gap: 4px;">
-    <i class="fas fa-hourglass-end"></i> ${timeSince(e.expired_at || e.created_at)}
+  <i class="fas fa-hourglass-end"></i> ${timeSince(e.expired_at || e.created_at)}
 </span>
         </div>
-                <div style="display: flex; justify-content: center; margin-top: 5px;">
+
+        <div style="display: flex; justify-content: center; margin-top: 5px;">
           <button onclick="restoreExpiredBooking('${e.id}')" style="padding: 8px 25px; border-radius: 20px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(16,185,129,0.15); color: var(--success); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
             <i class="fas fa-undo-alt"></i> ${currentLang === 'ar' ? 'استرجاع الحجز' : 'Restore Booking'}
           </button>
@@ -669,7 +717,8 @@ if (e.zone_name && e.zone_name !== "") {
       </div>
     `;
   });
-  
+
   container.innerHTML = html;
-  console.log("✅ تم تحديث الواجهة بعدد", expiredDataWithPhone.length, "بطاقات");
+
+  console.log("✅ تم تحديث الواجهة بعدد", safeExpiredData.length, "بطاقات");
 }

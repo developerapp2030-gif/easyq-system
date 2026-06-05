@@ -205,52 +205,90 @@ async function assignRequestToTable(reqId, partySize, row) {
 // ============================================================
 
 async function assignNextCustomer() {
-  const waitingList = filteredWaitingData();
-  
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    alert("لا يمكن التعيين: لم يتم العثور على مطعم المستخدم الحالي");
+    return;
+  }
+
+  const waitingList = filteredWaitingData()
+    .filter(w => w.business_id === businessId);
+
   let targetRequest = null;
-  
+
   if (settings.ready_mode === "queue_priority") {
     targetRequest = waitingList.find(w => hasMatchingAvailableTable(w));
   } else {
     targetRequest = waitingList[0];
   }
-  
+
   if (!targetRequest) {
     alert("لا يوجد عميل جاهز للتعيين");
     return;
   }
-  
-  const { data: tables } = await supabase.from("dashboard_tables_full").select("*");
-  
-  let availableTables = tables.filter(t => 
-    t.status === "available" && 
-    t.floor_number === currentFloor && 
+
+  if (targetRequest.business_id !== businessId) {
+    alert("لا يمكن التعيين: هذا الطلب لا يتبع المطعم الحالي");
+    return;
+  }
+
+  const { data: tables, error: tablesError } = await supabase
+    .from("dashboard_tables_full")
+    .select("*")
+    .eq("business_id", businessId);
+
+  if (tablesError) {
+    console.error("❌ خطأ في جلب طاولات المطعم:", tablesError);
+    alert("فشل جلب طاولات المطعم الحالي");
+    return;
+  }
+
+  let availableTables = (tables || []).filter(t =>
+    t.business_id === businessId &&
+    t.status === "available" &&
+    Number(t.floor_number) === Number(currentFloor) &&
     Number(t.capacity) >= Number(targetRequest.requested_party_size)
   );
-  
+
   let bestTable = null;
-  
+
   if (targetRequest.zone_name && targetRequest.zone_name !== "") {
     let zoneTables = availableTables.filter(t => t.zone_name === targetRequest.zone_name);
     if (zoneTables.length > 0) {
-      zoneTables.sort((a, b) => a.capacity - b.capacity);
+      zoneTables.sort((a, b) => Number(a.capacity) - Number(b.capacity));
       bestTable = zoneTables[0];
     }
   }
-  
+
   if (!bestTable && availableTables.length > 0) {
-    availableTables.sort((a, b) => a.capacity - b.capacity);
+    availableTables.sort((a, b) => Number(a.capacity) - Number(b.capacity));
     bestTable = availableTables[0];
   }
-  
+
   if (!bestTable) {
-    alert("لا توجد طاولة مناسبة");
+    alert("لا توجد طاولة مناسبة في المطعم الحالي");
     return;
   }
-  
-  await assignRequestToTable(targetRequest.request_id, targetRequest.requested_party_size, bestTable);
-}
 
+  console.log("✅ الطلب المختار:", {
+    request_id: targetRequest.request_id,
+    request_business_id: targetRequest.business_id,
+    customer: targetRequest.customer_name
+  });
+
+  console.log("✅ الطاولة المختارة:", {
+    table_id: bestTable.id,
+    table_name: bestTable.table_name,
+    table_business_id: bestTable.business_id
+  });
+
+  await assignRequestToTable(
+    targetRequest.request_id,
+    targetRequest.requested_party_size,
+    bestTable
+  );
+}
 
 // ============================================================
 // RESERVATION TIMER CHECK (UPDATED)
