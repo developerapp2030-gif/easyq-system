@@ -2705,3 +2705,41 @@ body.logged-in .topbar {
     justify-content: center;
   }
 }
+
+.business-profile-upload-btn {
+  border: none;
+  outline: none;
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 11px 16px;
+  background: rgba(14, 20, 109, 0.10);
+  color: #0e146d;
+  font-size: 13px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.business-profile-upload-btn:hover {
+  background: rgba(14, 20, 109, 0.16);
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   FLOOR WATERMARK LOGO
+========================================================= */
+
+.floor-watermark-logo {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: min(62%, 520px) auto;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+  filter: grayscale(10%);
+}

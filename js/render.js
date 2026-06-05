@@ -54,21 +54,32 @@ async function renderFloorPlan() {
     return;
   }
   
-  container.innerHTML = "";
-  container.style.cssText = `
-    display: block;
-    position: relative;
-    min-height: 80vh;
-    background-color: var(--gray-50);
-    border-radius: 16px;
-    padding: 20px;
-  `;
+container.innerHTML = "";
+container.style.cssText = `
+  display: block;
+  position: relative;
+  min-height: 80vh;
+  background-color: var(--gray-50);
+  border-radius: 16px;
+  padding: 20px;
+  overflow: hidden;
+`;
+
+const businessLogoUrl = window.currentBusinessProfile?.logo_url;
+
+if (businessLogoUrl) {
+  const watermark = document.createElement("div");
+  watermark.className = "floor-watermark-logo";
+  watermark.style.backgroundImage = `url("${businessLogoUrl}")`;
+  container.appendChild(watermark);
+}
   
   const tables = filteredFloorData();
   
   tables.forEach(table => {
-    const card = document.createElement("div");
-    card.className = "table-card";
+const card = document.createElement("div");
+card.className = "table-card";
+card.style.zIndex = "2";
     card.setAttribute('data-id', table.id);
     card.setAttribute('data-table-id', table.id);
     

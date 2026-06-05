@@ -272,7 +272,9 @@
     </button>
     <div class="brand">
       <div class="brand-icon"><i class="fas fa-utensils"></i></div>
-      <div class="brand-text" id="brandText">حجزك | Hajzak</div>
+      <div class="brand-text brand-loading" id="brandText">
+  <i class="fas fa-spinner fa-spin"></i>
+</div>
       <i class="fas fa-user-circle" style="color: rgba(255,255,255,0.5); margin: 0 8px; font-size: 16px;"></i>
       <span id="currentUserName" style="color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 500;">مدير النظام</span>
     </div>
@@ -1063,11 +1065,8 @@ if (langBtn) {
   }
 }
   
-  // تحديث العلامة التجارية
-  const brandText = document.getElementById('brandText');
-  if (brandText) {
-    brandText.innerHTML = newLang === 'ar' ? 'حجزك | Hajzak' : 'Hajzak | حجزك';
-  }
+// لا يتم تحديث اسم العلامة هنا
+// اسم المطعم يتم تحميله من جدول businesses عبر loadTopbarBusinessIdentity()
   
   // تحديث عناوين رئيسية
   const waitingTitle = document.getElementById('waitingTitle');
@@ -1274,9 +1273,8 @@ function setLanguage(lang) {
   localStorage.setItem("hajzak_lang", lang);
   document.body.classList.toggle("ar", lang === "ar");
   
-  const businessName = settings.business_name || (lang === "ar" ? "حجزك | Hajzak" : "Hajzak | حجزك");
-  const brandText = document.getElementById("brandText");
-  if (brandText) brandText.innerHTML = businessName;
+// لا يتم تحديث brandText من دالة اللغة
+// اسم المطعم يتم تحميله من جدول businesses عبر loadTopbarBusinessIdentity()
   
   const waitingTitle = document.getElementById("waitingTitle");
   if (waitingTitle) waitingTitle.innerHTML = lang === "ar" ? "الطابور" : "Queue";
@@ -1361,14 +1359,16 @@ function updateFloorDropdowns() {
 async function startApp() {
   window.isStartingApp = true;
 
-  await loadSettings();
-  await loadActiveSettings();
-  updateDate();
+await loadSettings();
 
-  const savedLang = currentLang;
-  setLanguage(savedLang);
+updateDate();
 
-  await loadAll();
+const savedLang = currentLang;
+setLanguage(savedLang);
+
+await loadTopbarBusinessIdentity();
+
+await loadAll();
 
   window.isStartingApp = false;
 
@@ -1414,10 +1414,10 @@ async function startApp() {
     }
   }
   
-  if (tabQueueBtn && tabExpiredBtn) {
-    tabQueueBtn.addEventListener('click', () => updateTabStyle('queue'));
-    tabExpiredBtn.addEventListener('click', () => updateTabStyle('expired'));
-  }
+if (tabQueueBtn && tabExpiredBtn && waitingContent && expiredContent) {
+  tabQueueBtn.addEventListener('click', () => updateTabStyle('queue'));
+  tabExpiredBtn.addEventListener('click', () => updateTabStyle('expired'));
+}
   
   await updateZoneDropdowns();
   await updateFloorDropdowns();

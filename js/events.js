@@ -683,26 +683,27 @@ settingsDraft = {};
 }
 
 // ============================================================
-// جعل الدوال عامة وإعادة ربط الأحداث
+// جعل دوال السايدبار عامة وإعادة ربط الأحداث
 // ============================================================
 
-// 1. جعل الدوال عالمية
-window.toggleSidebar = toggleSidebar;
-window.closeSidebar = closeSidebar;
+// الدوال الموجودة فعليًا في هذا الملف هي:
+// toggleSidebarFixed()
+// closeSidebarFixed()
 
-// 2. إعادة ربط الأحداث بعد تحميل الصفحة
+window.toggleSidebar = toggleSidebarFixed;
+window.closeSidebar = closeSidebarFixed;
+
 document.addEventListener('DOMContentLoaded', function() {
-    const sidebarBtn = document.getElementById('sidebarToggle');
-    if (sidebarBtn) {
-        // إزالة أي أحداث قديمة
-        sidebarBtn.removeEventListener('click', toggleSidebar);
-        // إضافة الحدث الجديد
-        sidebarBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            toggleSidebar();
-        });
-        console.log("✅ Sidebar button connected!");
-    }
+  const sidebarBtn = document.getElementById('sidebarToggle');
+
+  if (sidebarBtn) {
+    sidebarBtn.onclick = function(e) {
+      e.stopPropagation();
+      toggleSidebarFixed();
+    };
+
+    console.log("✅ Sidebar button connected with toggleSidebarFixed!");
+  }
 });
 
 // ============================================================
@@ -834,9 +835,47 @@ function openBusinessProfileModal() {
           </div>
 
           <div class="form-group">
-            <label>رابط الشعار</label>
-            <input type="text" id="businessProfileLogoUrl" class="business-profile-input" placeholder="https://example.com/logo.png" oninput="previewBusinessLogoFromInput()">
-          </div>
+<div class="form-group">
+  <label>رابط الشعار</label>
+  <input 
+    type="text" 
+    id="businessProfileLogoUrl" 
+    class="business-profile-input" 
+    placeholder="https://example.com/logo.png" 
+    oninput="previewBusinessLogoFromInput()"
+  >
+</div>
+
+<div class="form-group" style="margin-top: 12px;">
+  <label>أو ارفع شعار من الجهاز</label>
+
+  <div style="display: flex; gap: 10px; align-items: center;">
+    <input 
+      type="file" 
+      id="businessLogoFileInput" 
+      accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" 
+      style="display: none;"
+      onchange="handleBusinessLogoFileSelected(event)"
+    >
+
+    <button 
+      type="button" 
+      class="business-profile-upload-btn" 
+      onclick="document.getElementById('businessLogoFileInput').click()"
+    >
+      <i class="fas fa-upload"></i>
+      اختيار شعار
+    </button>
+
+    <span id="businessLogoUploadStatus" style="font-size: 12px; color: var(--gray-500);">
+      لم يتم اختيار ملف
+    </span>
+  </div>
+
+  <div style="font-size: 11px; color: var(--gray-500); margin-top: 8px; line-height: 1.6;">
+    الصيغ المدعومة: PNG, JPG, WEBP, SVG — يفضل شعار مربع أو دائري.
+  </div>
+</div>
         </div>
 
       </div>
@@ -1015,6 +1054,7 @@ function previewBusinessLogo(logoUrl) {
 }
 
 function updateTopbarBusinessIdentity(business) {
+  window.currentBusinessProfile = business || null;
   const brandText = document.getElementById("brandText");
   const brandIcon = document.querySelector(".brand-icon");
 
@@ -1027,12 +1067,135 @@ function updateTopbarBusinessIdentity(business) {
       : name;
   }
 
-  if (brandIcon && business?.logo_url) {
-    brandIcon.innerHTML = `
-      <img src="${business.logo_url}" 
-           alt="Logo" 
-           style="width:100%; height:100%; object-fit:cover; border-radius:50%;"
-           onerror="this.outerHTML='<i class=&quot;fas fa-utensils&quot;></i>'">
-    `;
+if (brandIcon) {
+  brandIcon.innerHTML = `<i class="fas fa-utensils"></i>`;
+}
+}
+
+async function loadTopbarBusinessIdentity() {
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    console.warn("⚠️ لا يمكن تحميل هوية المطعم: business_id غير موجود");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("businesses")
+    .select(`
+      id,
+      name,
+      branch_name,
+      city,
+      address,
+      logo_url
+    `)
+    .eq("id", businessId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ خطأ في تحميل هوية المطعم:", error);
+    return;
+  }
+
+  if (!data) {
+    console.warn("⚠️ لم يتم العثور على بيانات المطعم");
+    return;
+  }
+
+  updateTopbarBusinessIdentity(data);
+}
+
+// ============================================================
+// BUSINESS LOGO UPLOAD
+// ============================================================
+
+async function handleBusinessLogoFileSelected(event) {
+  const file = event.target.files && event.target.files[0];
+  const statusEl = document.getElementById("businessLogoUploadStatus");
+
+  if (!file) {
+    if (statusEl) statusEl.innerText = "لم يتم اختيار ملف";
+    return;
+  }
+
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    event.target.value = "";
+    return;
+  }
+
+  const allowedTypes = [
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/svg+xml"
+  ];
+
+  if (!allowedTypes.includes(file.type)) {
+    showAlert("صيغة الشعار غير مدعومة. استخدم PNG أو JPG أو WEBP أو SVG");
+    event.target.value = "";
+    return;
+  }
+
+  const maxSizeMB = 2;
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
+
+  if (file.size > maxSizeBytes) {
+    showAlert(`حجم الشعار كبير. الحد الأقصى ${maxSizeMB}MB`);
+    event.target.value = "";
+    return;
+  }
+
+  try {
+    if (statusEl) statusEl.innerText = "جاري رفع الشعار...";
+
+    const fileExt = file.name.split(".").pop()?.toLowerCase() || "png";
+    const filePath = `${businessId}/logo-${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("business-logos")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error("❌ خطأ رفع الشعار:", uploadError);
+      showAlert("فشل رفع الشعار: " + uploadError.message);
+      if (statusEl) statusEl.innerText = "فشل الرفع";
+      return;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("business-logos")
+      .getPublicUrl(filePath);
+
+    const publicUrl = publicUrlData?.publicUrl;
+
+    if (!publicUrl) {
+      showAlert("تم الرفع لكن لم يتم إنشاء رابط الشعار");
+      if (statusEl) statusEl.innerText = "فشل إنشاء الرابط";
+      return;
+    }
+
+    const logoInput = document.getElementById("businessProfileLogoUrl");
+    if (logoInput) {
+      logoInput.value = publicUrl;
+    }
+
+    previewBusinessLogo(publicUrl);
+
+    if (statusEl) statusEl.innerText = "تم رفع الشعار بنجاح";
+
+    showSuccessNotification("✅ تم رفع الشعار، اضغط حفظ بيانات المطعم لتثبيته");
+
+  } catch (err) {
+    console.error("❌ خطأ غير متوقع في رفع الشعار:", err);
+    showAlert("حدث خطأ أثناء رفع الشعار: " + err.message);
+    if (statusEl) statusEl.innerText = "فشل الرفع";
   }
 }
