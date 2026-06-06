@@ -2829,3 +2829,74 @@ body.logged-in .topbar {
     transform: translateX(-50%) translateY(0);
   }
 }
+
+/* ============================================================
+   BOOKING SETTINGS V2 PANEL
+============================================================ */
+
+.booking-settings-v2-page .business-profile-grid {
+  align-items: flex-start;
+}
+
+.booking-setting-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.booking-setting-toggle-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.booking-setting-toggle-hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--gray-500);
+  line-height: 1.5;
+}
+
+.booking-setting-switch {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  flex: 0 0 auto;
+}
+
+.booking-setting-switch input {
+  display: none;
+}
+
+.booking-setting-switch span {
+  position: absolute;
+  inset: 0;
+  background: #d1d5db;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.booking-setting-switch span::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  top: 3px;
+  left: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+
+.booking-setting-switch input:checked + span {
+  background: #0e146d;
+}
+
+.booking-setting-switch input:checked + span::before {
+  transform: translateX(22px);
+}

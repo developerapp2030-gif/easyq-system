@@ -2,6 +2,21 @@
    EASY-Q BOOKING PAGE - MOBILE FIRST PREMIUM DESIGN
    ============================================================ */
 
+:root {
+  --booking-bg-start: #0A0A0F;
+  --booking-bg-end: #1A1A2A;
+  --booking-primary: #8B0000;
+  --booking-primary-2: #C62828;
+  --booking-accent: #FFD700;
+  --booking-progress: #D4AF37;
+  --booking-success: #10B981;
+  --booking-text: #FFFFFF;
+  --booking-muted-text: rgba(255,255,255,0.65);
+  --booking-card-bg: rgba(255,255,255,0.05);
+  --booking-button-text: #FFFFFF;
+}
+
+
 * {
   margin: 0;
   padding: 0;
@@ -10,8 +25,7 @@
 
 body {
   font-family: 'Inter', sans-serif;
-  background: linear-gradient(145deg, #0A0A0F 0%, #1A1A2A 100%);
-  min-height: 100vh;
+background: linear-gradient(145deg, var(--booking-bg-start) 0%, var(--booking-bg-end) 100%);  min-height: 100vh;
   padding: 20px;
   color: #FFFFFF;
 }
@@ -31,8 +45,8 @@ body {
 }
 
 .restaurant-logo {
-  width: 80px;
-  height: 80px;
+  width: 92px;
+  height: 92px;
   background: linear-gradient(135deg, #8B0000, #C62828);
   border-radius: 50%;
   display: flex;
@@ -40,11 +54,20 @@ body {
   justify-content: center;
   margin: 0 auto 16px;
   box-shadow: 0 10px 30px rgba(139, 0, 0, 0.3);
+  overflow: hidden;
+  border: 2px solid rgba(255, 215, 0, 0.28);
 }
 
 .restaurant-logo i {
-  font-size: 36px;
+  font-size: 38px;
   color: #FFD700;
+}
+
+.restaurant-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .restaurant-name {
@@ -372,14 +395,14 @@ select.form-input option {
     padding: 16px;
   }
   
-  .restaurant-logo {
-    width: 70px;
-    height: 70px;
-  }
-  
-  .restaurant-logo i {
-    font-size: 30px;
-  }
+.restaurant-logo {
+  width: 82px;
+  height: 82px;
+}
+
+.restaurant-logo i {
+  font-size: 32px;
+}
   
   .restaurant-name {
     font-size: 20px;
@@ -1043,8 +1066,8 @@ select.form-input option {
 }
 
 .share-booking-hint i {
-  color: #10B981;
-  font-size: 13px;
+  color: #f2f5f4;
+  font-size: 14px;
   flex-shrink: 0;
 }
 

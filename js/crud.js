@@ -543,6 +543,19 @@ async function saveWalkIn() {
     return;
   }
   
+// ✅ حفظ نسخة اسم ورقم العميل داخل الطلب نفسه حتى تظهر في صفحة التتبع والـ QR
+const { error: snapshotError } = await supabase
+  .from("table_requests")
+  .update({
+    customer_name_snapshot: customerName,
+    customer_phone_snapshot: fullPhone || null
+  })
+  .eq("id", newRequestId);
+
+if (snapshotError) {
+  console.warn("⚠️ تم إنشاء الطلب لكن فشل حفظ نسخة اسم العميل:", snapshotError);
+}
+
   closeWalkInModal();
   await loadAll();
   showSuccessNotification("تم إضافة العميل");
@@ -636,10 +649,12 @@ async function saveEditedRequest() {
       }
     }
     
-    const updateRequestData = {
-      requested_party_size: newPartySize,
-      zone_name: newZone
-    };
+const updateRequestData = {
+  requested_party_size: newPartySize,
+  zone_name: newZone,
+  customer_name_snapshot: newName || null,
+  customer_phone_snapshot: fullPhone || null
+};
     
     const { error: updateRequestError } = await supabase
       .from("table_requests")

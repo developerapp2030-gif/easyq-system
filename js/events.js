@@ -759,6 +759,425 @@ function closeFullPagePanel() {
 // BUSINESS PROFILE PAGE
 // ============================================================
 
+// ============================================================
+// BOOKING SETTINGS PAGE
+// ============================================================
+// BOOKING SETTINGS PAGE V2
+// إعدادات واجهة الحجز داخل fullPagePanel
+// ============================================================
+
+const EASYQ_BOOKING_SETTINGS_KEY = "booking_settings_v2";
+
+const DEFAULT_EASYQ_BOOKING_SETTINGS = {
+  // النصوص - نموذج الحجز
+  welcome_message: "مرحباً بك، احجز دورك بسهولة وتابع حالة انتظارك مباشرة.",
+  restore_hint_prefix: "إذا كان لديك حجز نشط",
+  restore_hint_link: "اضغط هنا",
+  restore_hint_suffix: "... ولحجز جديد املأ البيانات أدناه",
+  current_queue_title: "الطابور الحالي",
+  current_queue_sub: "يتم تحديث الرقم مباشرة",
+  submit_button_text: "تأكيد الحجز",
+  notification_button_text: "تفعيل إشعارات الدور",
+
+  // النصوص - المتابعة
+  status_page_title: "متابعة الحجز",
+  waiting_default_label: "رقمك في الانتظار",
+  waiting_near_label: "اقترب دورك",
+  waiting_next_label: "أنت التالي",
+  ready_title_text: "حان دورك",
+  table_ready_text: "طاولتك جاهزة",
+  table_ready_with_number_text: "طاولتك رقم {table} جاهزة",
+  ready_sub_text: "يجب عليك الحضور قبل انتهاء الوقت",
+  occupied_title_text: "تم وصولك أهلاً وسهلاً بك",
+  occupied_sub_text: "شرفت المكان",
+  cleaning_title_text: "شكراً لزيارتك",
+  cleaning_sub_text: "نتمنى زيارتك قريبا",
+  queue_status_waiting_text: "نشكر لك صبرك دورك يتقدم",
+  queue_status_offered_text: "نحن بانتظارك",
+
+  // نصوص المشاركة والرقم المرجعي
+  share_hint_text: "شارك أصدقاءك ليتابعوا ويشاهدوا حجزك فقط، لن يتمكنوا من إلغاء الحجز.",
+  guest_view_text: "يمكنك متابعة الحجز من هنا، والإلغاء متاح لصاحب الحجز فقط",
+  reference_label_text: "رقم حجزك المرجعي:",
+  reference_save_hint_text: "💡قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها",
+  cancel_waiting_text: "إلغاء الحجز",
+  cannot_attend_title: "لا أستطيع الحضور",
+  cannot_attend_sub: "اضغط هنا إذا لم تتمكن من الحضور، لتحرير الطاولة لعميل آخر.",
+  exit_text: "خروج",
+
+  // تفعيل وتعطيل
+  share_booking_enabled: true,
+  cancel_waiting_enabled: true,
+  cannot_attend_enabled: true,
+  show_current_queue: true,
+  show_zone_selector: true,
+  show_business_logo: true,
+  show_business_info: true,
+  show_restore_hint: true,
+  show_reference_code: true,
+  show_notification_button: true,
+
+  // الألوان
+  page_bg_start: "#0A0A0F",
+  page_bg_end: "#1A1A2A",
+  primary_color: "#8B0000",
+  primary_color_2: "#C62828",
+  accent_color: "#FFD700",
+  progress_color: "#D4AF37",
+  success_color: "#10B981",
+  text_color: "#FFFFFF",
+  muted_text_color: "rgba(255,255,255,0.65)",
+  card_bg_color: "rgba(255,255,255,0.05)",
+  button_text_color: "#FFFFFF"
+};
+
+let easyQBookingSettingsAdmin = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+
+function getBookingSettingsBusinessId() {
+  return currentUser?.business_id || BUSINESS_ID || null;
+}
+
+function escapeBookingSetting(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function isBookingSettingChecked(settings, key) {
+  return settings?.[key] === true ? "checked" : "";
+}
+
+function bookingSettingsTextInput(settings, key, label, placeholder = "") {
+  return `
+    <div class="form-group">
+      <label>${label}</label>
+      <input
+        type="text"
+        id="bookingSetting_${key}"
+        class="business-profile-input"
+        value="${escapeBookingSetting(settings[key])}"
+        placeholder="${escapeBookingSetting(placeholder)}"
+      >
+    </div>
+  `;
+}
+
+function bookingSettingsColorInput(settings, key, label) {
+  return `
+    <div class="form-group">
+      <label>${label}</label>
+      <input
+        type="color"
+        id="bookingSetting_${key}"
+        class="business-profile-input"
+        value="${escapeBookingSetting(settings[key])}"
+        style="height: 46px; padding: 6px;"
+      >
+    </div>
+  `;
+}
+
+function bookingSettingsToggle(settings, key, label, hint = "") {
+  return `
+    <div class="booking-setting-toggle-row">
+      <div>
+        <div class="booking-setting-toggle-title">${label}</div>
+        ${hint ? `<div class="booking-setting-toggle-hint">${hint}</div>` : ""}
+      </div>
+
+      <label class="booking-setting-switch">
+        <input
+          type="checkbox"
+          id="bookingSetting_${key}"
+          ${isBookingSettingChecked(settings, key)}
+        >
+        <span></span>
+      </label>
+    </div>
+  `;
+}
+
+async function loadBookingSettingsV2ForAdmin() {
+  const businessId = getBookingSettingsBusinessId();
+
+  if (!businessId) {
+    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    return { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+  }
+
+  const { data, error } = await supabase
+    .from("restaurant_settings")
+    .select("setting_value")
+    .eq("business_id", businessId)
+    .eq("setting_key", EASYQ_BOOKING_SETTINGS_KEY)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ فشل تحميل إعدادات واجهة الحجز:", error);
+    showAlert("فشل تحميل إعدادات واجهة الحجز");
+    return { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+  }
+
+  let savedSettings = {};
+
+  try {
+    savedSettings = data?.setting_value ? JSON.parse(data.setting_value) : {};
+  } catch (err) {
+    console.warn("⚠️ إعدادات الحجز غير صالحة JSON، سيتم استخدام الافتراضي:", err);
+    savedSettings = {};
+  }
+
+  return {
+    ...DEFAULT_EASYQ_BOOKING_SETTINGS,
+    ...savedSettings
+  };
+}
+
+function collectBookingSettingsV2FromPanel() {
+  const next = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+
+  Object.keys(DEFAULT_EASYQ_BOOKING_SETTINGS).forEach((key) => {
+    const el = document.getElementById(`bookingSetting_${key}`);
+    if (!el) return;
+
+    if (el.type === "checkbox") {
+      next[key] = el.checked;
+    } else {
+      next[key] = el.value;
+    }
+  });
+
+  return next;
+}
+
+async function saveBookingSettingsV2() {
+  const businessId = getBookingSettingsBusinessId();
+
+  if (!businessId) {
+    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    return;
+  }
+
+  const saveBtn = document.getElementById("saveBookingSettingsV2Btn");
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...`;
+  }
+
+  const nextSettings = collectBookingSettingsV2FromPanel();
+
+  try {
+    const { data: existing, error: readError } = await supabase
+      .from("restaurant_settings")
+      .select("setting_key")
+      .eq("business_id", businessId)
+      .eq("setting_key", EASYQ_BOOKING_SETTINGS_KEY)
+      .maybeSingle();
+
+    if (readError) throw readError;
+
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from("restaurant_settings")
+        .update({
+          setting_value: JSON.stringify(nextSettings)
+        })
+        .eq("business_id", businessId)
+        .eq("setting_key", EASYQ_BOOKING_SETTINGS_KEY);
+
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from("restaurant_settings")
+        .insert({
+          business_id: businessId,
+          setting_key: EASYQ_BOOKING_SETTINGS_KEY,
+          setting_value: JSON.stringify(nextSettings)
+        });
+
+      if (insertError) throw insertError;
+    }
+
+    easyQBookingSettingsAdmin = nextSettings;
+    closeFullPagePanel();
+    showSuccessNotification("✅ تم حفظ إعدادات واجهة الحجز بنجاح");
+  } catch (err) {
+    console.error("❌ فشل حفظ إعدادات واجهة الحجز:", err);
+    showAlert("فشل حفظ إعدادات واجهة الحجز: " + err.message);
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `<i class="fas fa-save"></i> حفظ الإعدادات`;
+    }
+  }
+}
+
+function renderBookingSettingsV2Panel(settings) {
+  return `
+    <div class="business-profile-page booking-settings-v2-page">
+
+      <div class="business-profile-grid">
+
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-comment-dots"></i>
+            نصوص نموذج الحجز
+          </div>
+
+          <div class="business-profile-form">
+            ${bookingSettingsTextInput(settings, "welcome_message", "عبارة الترحيب")}
+            ${bookingSettingsTextInput(settings, "restore_hint_prefix", "عبارة استعادة الحجز - البداية")}
+            ${bookingSettingsTextInput(settings, "restore_hint_link", "نص رابط استعادة الحجز")}
+            ${bookingSettingsTextInput(settings, "restore_hint_suffix", "عبارة استعادة الحجز - النهاية")}
+            ${bookingSettingsTextInput(settings, "current_queue_title", "عنوان الطابور الحالي")}
+            ${bookingSettingsTextInput(settings, "current_queue_sub", "وصف الطابور الحالي")}
+            ${bookingSettingsTextInput(settings, "submit_button_text", "نص زر الحجز")}
+            ${bookingSettingsTextInput(settings, "notification_button_text", "نص زر الإشعارات")}
+          </div>
+        </div>
+
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-list-check"></i>
+            نصوص صفحة المتابعة
+          </div>
+
+          <div class="business-profile-form">
+            ${bookingSettingsTextInput(settings, "status_page_title", "عنوان صفحة المتابعة")}
+            ${bookingSettingsTextInput(settings, "waiting_default_label", "نص الحالة العادية")}
+            ${bookingSettingsTextInput(settings, "waiting_near_label", "نص اقترب دورك")}
+            ${bookingSettingsTextInput(settings, "waiting_next_label", "نص أنت التالي")}
+            ${bookingSettingsTextInput(settings, "ready_title_text", "نص حان دورك")}
+            ${bookingSettingsTextInput(settings, "table_ready_text", "نص طاولتك جاهزة")}
+            ${bookingSettingsTextInput(settings, "table_ready_with_number_text", "نص طاولتك رقم جاهزة", "استخدم {table} مكان رقم الطاولة")}
+            ${bookingSettingsTextInput(settings, "ready_sub_text", "نص الحضور قبل انتهاء الوقت")}
+            ${bookingSettingsTextInput(settings, "occupied_title_text", "نص تم وصولك")}
+            ${bookingSettingsTextInput(settings, "occupied_sub_text", "نص شرفت المكان")}
+            ${bookingSettingsTextInput(settings, "cleaning_title_text", "نص شكراً لزيارتك")}
+            ${bookingSettingsTextInput(settings, "cleaning_sub_text", "نص نتمنى زيارتك")}
+            ${bookingSettingsTextInput(settings, "queue_status_waiting_text", "النص أسفل الحلقة أثناء الانتظار")}
+            ${bookingSettingsTextInput(settings, "queue_status_offered_text", "النص أسفل الحلقة عند جاهزية الطاولة")}
+          </div>
+        </div>
+
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-share-alt"></i>
+            المشاركة والرقم المرجعي
+          </div>
+
+          <div class="business-profile-form">
+            ${bookingSettingsTextInput(settings, "share_hint_text", "عبارة مشاركة الحجز")}
+            ${bookingSettingsTextInput(settings, "guest_view_text", "عبارة رابط المشاهدة فقط")}
+            ${bookingSettingsTextInput(settings, "reference_label_text", "عنوان الرقم المرجعي")}
+            ${bookingSettingsTextInput(settings, "reference_save_hint_text", "عبارة حفظ الرقم المرجعي")}
+            ${bookingSettingsTextInput(settings, "cancel_waiting_text", "نص إلغاء الحجز")}
+            ${bookingSettingsTextInput(settings, "cannot_attend_title", "عنوان لا أستطيع الحضور")}
+            ${bookingSettingsTextInput(settings, "cannot_attend_sub", "وصف لا أستطيع الحضور")}
+            ${bookingSettingsTextInput(settings, "exit_text", "نص زر الخروج")}
+          </div>
+        </div>
+
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-toggle-on"></i>
+            التفعيل والتعطيل
+          </div>
+
+          ${bookingSettingsToggle(settings, "share_booking_enabled", "تفعيل مشاركة الحجز", "إظهار عبارة المشاركة ورابط المشاهدة فقط.")}
+          ${bookingSettingsToggle(settings, "cancel_waiting_enabled", "تفعيل إلغاء الحجز أثناء الانتظار", "إظهار زر إلغاء الحجز قبل تعيين الطاولة.")}
+          ${bookingSettingsToggle(settings, "cannot_attend_enabled", "تفعيل زر لا أستطيع الحضور", "يظهر بعد جاهزية الطاولة لتحريرها لعميل آخر.")}
+          ${bookingSettingsToggle(settings, "show_current_queue", "إظهار الطابور الحالي", "إظهار بطاقة الطابور الحالي في نموذج الحجز.")}
+          ${bookingSettingsToggle(settings, "show_zone_selector", "إظهار اختيار المنطقة", "إذا كانت المناطق مفعلة في الفرع.")}
+          ${bookingSettingsToggle(settings, "show_business_logo", "إظهار شعار المطعم", "إظهار دائرة الشعار في صفحة الحجز.")}
+          ${bookingSettingsToggle(settings, "show_business_info", "إظهار بيانات المطعم", "اسم المطعم والفرع والمدينة والعنوان.")}
+          ${bookingSettingsToggle(settings, "show_restore_hint", "إظهار سطر استعادة الحجز", "سطر: إذا كان لديك حجز نشط اضغط هنا.")}
+          ${bookingSettingsToggle(settings, "show_reference_code", "إظهار الرقم المرجعي", "إخفاؤه لا يلغي إنشاء الرقم في قاعدة البيانات.")}
+          ${bookingSettingsToggle(settings, "show_notification_button", "إظهار زر الإشعارات", "زر تفعيل إشعارات الدور.")}
+        </div>
+
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-palette"></i>
+            ألوان صفحة الحجز
+          </div>
+
+          <div class="business-profile-form">
+            ${bookingSettingsColorInput(settings, "page_bg_start", "لون بداية الخلفية")}
+            ${bookingSettingsColorInput(settings, "page_bg_end", "لون نهاية الخلفية")}
+            ${bookingSettingsColorInput(settings, "primary_color", "اللون الرئيسي")}
+            ${bookingSettingsColorInput(settings, "primary_color_2", "اللون الرئيسي الثاني")}
+            ${bookingSettingsColorInput(settings, "accent_color", "اللون الذهبي / المميز")}
+            ${bookingSettingsColorInput(settings, "progress_color", "لون الحلقة أثناء الانتظار")}
+            ${bookingSettingsColorInput(settings, "success_color", "لون النجاح / الجاهزية")}
+            ${bookingSettingsColorInput(settings, "text_color", "لون النص الأساسي")}
+            ${bookingSettingsColorInput(settings, "button_text_color", "لون نص الأزرار")}
+          </div>
+        </div>
+
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-info-circle"></i>
+            ملاحظة مهمة
+          </div>
+
+          <div style="font-size: 14px; line-height: 1.9; color: #4b5563;">
+            سيتم حفظ جميع هذه الإعدادات داخل جدول
+            <strong>restaurant_settings</strong>
+            بالمفتاح:
+            <strong>${EASYQ_BOOKING_SETTINGS_KEY}</strong>
+            <br><br>
+            ربط النصوص والألوان سيتم تدريجيًا في صفحة الحجز بدون تغيير قاعدة البيانات مرة أخرى.
+          </div>
+        </div>
+
+      </div>
+
+      <div class="business-profile-actions">
+        <button class="business-profile-save-btn" id="saveBookingSettingsV2Btn" onclick="saveBookingSettingsV2()">
+          <i class="fas fa-save"></i>
+          حفظ الإعدادات
+        </button>
+
+        <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
+          إغلاق
+        </button>
+      </div>
+
+    </div>
+  `;
+}
+
+async function openBookingSettingsModal() {
+  openFullPagePanel(
+    "إعدادات واجهة الحجز",
+    "تخصيص نصوص وألوان وخيارات صفحة الحجز الخاصة بالعملاء",
+    `
+      <div style="text-align:center; padding:60px;">
+        <i class="fas fa-spinner fa-spin" style="font-size:28px;"></i>
+        <div style="margin-top:14px;">جاري تحميل إعدادات واجهة الحجز...</div>
+      </div>
+    `
+  );
+
+  const closeBtn = document.querySelector(".full-page-panel-close");
+  if (closeBtn) {
+    closeBtn.style.display = "none";
+  }
+
+  easyQBookingSettingsAdmin = await loadBookingSettingsV2ForAdmin();
+
+  const bodyEl = document.getElementById("fullPagePanelBody");
+  if (bodyEl) {
+    bodyEl.innerHTML = renderBookingSettingsV2Panel(easyQBookingSettingsAdmin);
+  }
+}
+
+window.openBookingSettingsModal = openBookingSettingsModal;
+window.saveBookingSettingsV2 = saveBookingSettingsV2;
+
 function openBusinessProfileModal() {
   const contentHtml = `
     <div class="business-profile-page">

@@ -11,6 +11,123 @@ let currentBusinessId = null;
 let currentCustomerId = null;
 let realtimeChannel = null;
 let isGuestViewOnly = false;
+let currentBusinessProfile = null;
+
+// ============================================================
+// إعدادات واجهة الحجز V2
+// ============================================================
+
+const EASYQ_BOOKING_SETTINGS_KEY = "booking_settings_v2";
+
+const DEFAULT_EASYQ_BOOKING_SETTINGS = {
+  welcome_message: "مرحباً بك، احجز دورك بسهولة وتابع حالة انتظارك مباشرة.",
+  restore_hint_prefix: "إذا كان لديك حجز نشط",
+  restore_hint_link: "اضغط هنا",
+  restore_hint_suffix: "... ولحجز جديد املأ البيانات أدناه",
+  current_queue_title: "الطابور الحالي",
+  current_queue_sub: "يتم تحديث الرقم مباشرة",
+  submit_button_text: "تأكيد الحجز",
+  notification_button_text: "تفعيل إشعارات الدور",
+
+  share_hint_text: "شارك أصدقاءك ليتابعوا ويشاهدوا حجزك فقط، لن يتمكنوا من إلغاء الحجز.",
+  guest_view_text: "يمكنك متابعة الحجز من هنا، والإلغاء متاح لصاحب الحجز فقط",
+  reference_label_text: "رقم حجزك المرجعي:",
+  reference_save_hint_text: "💡قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها",
+  cancel_waiting_text: "إلغاء الحجز",
+  cannot_attend_title: "لا أستطيع الحضور",
+  cannot_attend_sub: "اضغط هنا إذا لم تتمكن من الحضور، لتحرير الطاولة لعميل آخر.",
+  exit_text: "خروج",
+
+  share_booking_enabled: true,
+  cancel_waiting_enabled: true,
+  cannot_attend_enabled: true,
+show_current_queue: false,
+  show_zone_selector: true,
+  show_business_logo: true,
+  show_business_info: true,
+  show_restore_hint: true,
+  show_reference_code: true,
+  show_notification_button: true,
+
+  page_bg_start: "#0A0A0F",
+  page_bg_end: "#1A1A2A",
+  primary_color: "#8B0000",
+  primary_color_2: "#C62828",
+  accent_color: "#FFD700",
+  progress_color: "#D4AF37",
+  success_color: "#10B981",
+  text_color: "#FFFFFF",
+  muted_text_color: "rgba(255,255,255,0.65)",
+  card_bg_color: "rgba(255,255,255,0.05)",
+  button_text_color: "#FFFFFF"
+};
+
+let easyQBookingSettings = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+
+function bookingText(key) {
+  return easyQBookingSettings?.[key] ?? DEFAULT_EASYQ_BOOKING_SETTINGS[key] ?? "";
+}
+
+function bookingEnabled(key) {
+  return easyQBookingSettings?.[key] !== false;
+}
+
+async function loadEasyQBookingSettings() {
+  if (!currentBusinessId) {
+    easyQBookingSettings = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+    return easyQBookingSettings;
+  }
+
+  const { data, error } = await supabase
+    .from("restaurant_settings")
+    .select("setting_value")
+    .eq("business_id", currentBusinessId)
+    .eq("setting_key", EASYQ_BOOKING_SETTINGS_KEY)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ فشل تحميل إعدادات واجهة الحجز:", error);
+    easyQBookingSettings = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+    applyEasyQBookingTheme();
+    return easyQBookingSettings;
+  }
+
+  let savedSettings = {};
+
+  try {
+    savedSettings = data?.setting_value ? JSON.parse(data.setting_value) : {};
+  } catch (err) {
+    console.warn("⚠️ booking_settings_v2 ليس JSON صالح:", err);
+    savedSettings = {};
+  }
+
+  easyQBookingSettings = {
+    ...DEFAULT_EASYQ_BOOKING_SETTINGS,
+    ...savedSettings
+  };
+
+  applyEasyQBookingTheme();
+
+  console.log("✅ تم تحميل إعدادات واجهة الحجز:", easyQBookingSettings);
+  return easyQBookingSettings;
+}
+
+function applyEasyQBookingTheme() {
+  const s = easyQBookingSettings || DEFAULT_EASYQ_BOOKING_SETTINGS;
+  const root = document.documentElement;
+
+  root.style.setProperty("--booking-bg-start", s.page_bg_start);
+  root.style.setProperty("--booking-bg-end", s.page_bg_end);
+  root.style.setProperty("--booking-primary", s.primary_color);
+  root.style.setProperty("--booking-primary-2", s.primary_color_2);
+  root.style.setProperty("--booking-accent", s.accent_color);
+  root.style.setProperty("--booking-progress", s.progress_color);
+  root.style.setProperty("--booking-success", s.success_color);
+  root.style.setProperty("--booking-text", s.text_color);
+  root.style.setProperty("--booking-muted-text", s.muted_text_color);
+  root.style.setProperty("--booking-card-bg", s.card_bg_color);
+  root.style.setProperty("--booking-button-text", s.button_text_color);
+}
 // ============================================================
 // إعدادات Realtime Watchdog
 // ============================================================
@@ -115,11 +232,37 @@ function requestNotificationPermission() {
 
 // ========== الدوال الأساسية ==========
 
+async function loadBookingBusinessIdentity() {
+  if (!currentBusinessId) {
+    console.warn("⚠️ لا يوجد business_id لجلب بيانات المطعم");
+    currentBusinessProfile = null;
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("businesses")
+    .select("id, name, branch_name, city, address, phone, logo_url, google_maps_url, instagram_url, website_url")
+    .eq("id", currentBusinessId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ فشل جلب بيانات المطعم:", error);
+    currentBusinessProfile = null;
+    return null;
+  }
+
+  currentBusinessProfile = data || null;
+  console.log("✅ تم تحميل بيانات المطعم لصفحة الحجز:", currentBusinessProfile);
+
+  return currentBusinessProfile;
+}
 
 async function getBusinessSettings() {
     const urlParams = new URLSearchParams(window.location.search);
     currentBusinessId = urlParams.get('business_id') || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
-    
+    await loadBookingBusinessIdentity();
+    await loadEasyQBookingSettings();
+
     const { data: queueSetting } = await supabase
         .from('restaurant_settings')
         .select('setting_value')
@@ -127,8 +270,8 @@ async function getBusinessSettings() {
         .eq('setting_key', 'show_current_queue')
         .maybeSingle();
     
-    showCurrentQueueConfig = queueSetting?.setting_value === 'true';
-    
+    showCurrentQueueConfig = easyQBookingSettings.show_current_queue === true;
+
     const { data: zonesSetting } = await supabase
         .from('restaurant_settings')
         .select('setting_value')
@@ -137,9 +280,9 @@ async function getBusinessSettings() {
         .maybeSingle();
     
     if (zonesSetting?.setting_value) {
-        zonesEnabled = true;
-        availableZones = JSON.parse(zonesSetting.setting_value);
-        console.log('✅ availableZones loaded:', availableZones);
+    zonesEnabled = bookingEnabled("show_zone_selector");
+    availableZones = JSON.parse(zonesSetting.setting_value);
+     console.log('✅ availableZones loaded:', availableZones);
     } else {
         console.log('⚠️ No zones setting found');
     }
@@ -226,39 +369,94 @@ async function renderUI() {
         await renderBookingForm();
     }
 }
+
+function getBookingBusinessHeaderHtml() {
+  const business = currentBusinessProfile || {};
+
+  const businessName = business.name || "EASY-Q";
+  const branchName = business.branch_name || "";
+  const cityName = business.city || "";
+  const addressText = business.address || "";
+  const logoUrl = business.logo_url || "";
+
+  const showLogo = bookingEnabled("show_business_logo");
+  const showBusinessInfo = bookingEnabled("show_business_info");
+
+  const logoHtml = logoUrl
+    ? `
+      <div class="restaurant-logo has-logo">
+        <img 
+          src="${logoUrl}" 
+          alt="${businessName}" 
+          onerror="this.style.display='none'; this.parentElement.classList.remove('has-logo'); this.parentElement.innerHTML='<i class=&quot;fas fa-utensils&quot;></i>';"
+        >
+      </div>
+    `
+    : `
+      <div class="restaurant-logo">
+        <i class="fas fa-utensils"></i>
+      </div>
+    `;
+
+  return `
+    <div class="booking-header">
+
+      ${showLogo ? logoHtml : ""}
+
+      ${showBusinessInfo ? `
+        <div class="restaurant-name">
+          ${businessName}
+        </div>
+
+        ${branchName ? `
+          <div class="restaurant-branch">
+            ${branchName}
+          </div>
+        ` : ""}
+
+        ${(cityName || addressText) ? `
+          <div class="restaurant-address">
+            ${cityName ? `<span>${cityName}</span>` : ""}
+            ${(cityName && addressText) ? `<span class="address-separator"> - </span>` : ""}
+            ${addressText ? `<span>${addressText}</span>` : ""}
+          </div>
+        ` : ""}
+      ` : ""}
+
+      <div class="datetime-row">
+        <span id="currentDate"></span>
+        <span id="currentTime"></span>
+      </div>
+
+    </div>
+  `;
+}
+
 async function renderBookingForm() {
   app.innerHTML = `
     <div class="container">
-      <div class="booking-header">
-        <div class="restaurant-logo">
-          <i class="fas fa-utensils"></i>
-        </div>
-        <div class="restaurant-name">المطعم الرئيسي</div>
-        <div class="restaurant-address">الرياض، المملكة العربية السعودية</div>
-        <div class="datetime-row">
-          <span id="currentDate"></span>
-          <span id="currentTime"></span>
-        </div>
-      </div>
+      ${getBookingBusinessHeaderHtml()}
       
       <div class="welcome-message">
-        <i class="fas fa-hands-helping" style="margin-left: 9px; color: #FFD700;"></i>
-        مرحباً بك، احجز دورك بسهولة وتابع حالة انتظارك مباشرة.
+        <i class="fas fa-hands-helping" style="margin-left: 9px; color: var(--booking-accent);"></i>
+        ${bookingText("welcome_message")}
       </div>
                  <!-- سطر استعادة الحجز -->
-      <div class="restore-hint" style="text-align: center; margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 20px; font-size: 13px;">
-        <span style="color: rgba(255,255,255,0.8);">إذا كان لديك حجز نشط </span>
-        <span onclick="openRestoreModal()" style="color: #10B981; font-weight: bold; cursor: pointer; text-decoration: underline;">اضغط هنا</span>
-        <span style="color: rgba(255,255,255,0.8);"> ... ولحجز جديد املأ البيانات أدناه</span>
-      </div>
+      ${bookingEnabled("show_restore_hint") ? `
+        <div class="restore-hint" style="text-align: center; margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 20px; font-size: 13px;">
+          <span style="color: rgba(255,255,255,0.8);">${bookingText("restore_hint_prefix")} </span>
+          <span onclick="openRestoreModal()" style="color: var(--booking-success); font-weight: bold; cursor: pointer; text-decoration: underline;">${bookingText("restore_hint_link")}</span>
+          <span style="color: rgba(255,255,255,0.8);"> ${bookingText("restore_hint_suffix")}</span>
+        </div>
+      ` : ""}
       
       ${showCurrentQueueConfig ? `
       <div class="current-queue-card" id="currentQueueCard">
-        <div class="current-queue-title">الطابور الحالي</div>
+                <div class="current-queue-title">${bookingText("current_queue_title")}</div>
         <div class="current-number-circle">
           <div class="current-number" id="liveQueueNumber">${currentQueueNumber || '--'}</div>
         </div>
-        <div class="current-queue-sub">يتم تحديث الرقم مباشرة</div>
+        <div class="current-queue-sub">${bookingText("current_queue_sub")}</div>
       </div>
       ` : ''}
       
@@ -273,7 +471,7 @@ async function renderBookingForm() {
           <input type="tel" id="customerPhone" class="form-input" placeholder="05xxxxxxxx" maxlength="10">
         </div>
         
-        ${zonesEnabled ? `
+        ${(zonesEnabled && bookingEnabled("show_zone_selector")) ? `
         <div class="form-group">
           <label class="form-label">المنطقة</label>
           <select id="customerZone" class="form-input">
@@ -292,16 +490,18 @@ async function renderBookingForm() {
           </div>
         </div>
         
-        <button class="submit-btn" id="submitBookingBtn">
-          تأكيد الحجز
+       <button class="submit-btn" id="submitBookingBtn">
+       ${bookingText("submit_button_text")}
         </button>
       </div>
       
-      <div id="notificationBtnContainer" class="hidden">
-        <button class="notif-btn" id="enableNotifBtn">
-          <i class="fas fa-bell"></i> تفعيل إشعارات الدور
-        </button>
-      </div>
+            ${bookingEnabled("show_notification_button") ? `
+        <div id="notificationBtnContainer" class="hidden">
+          <button class="notif-btn" id="enableNotifBtn">
+            <i class="fas fa-bell"></i> ${bookingText("notification_button_text")}
+          </button>
+        </div>
+      ` : ""}
     </div>
   `;
   
@@ -560,17 +760,7 @@ else if (isCleaning) {
 
   app.innerHTML = `
     <div class="container">
-      <div class="booking-header">
-        <div class="restaurant-logo">
-          <i class="fas fa-utensils"></i>
-        </div>
-        <div class="restaurant-name">المطعم الرئيسي</div>
-        <div class="restaurant-address">الرياض، المملكة العربية السعودية</div>
-        <div class="datetime-row">
-          <span id="currentDate"></span>
-          <span id="currentTime"></span>
-        </div>
-      </div>
+      ${getBookingBusinessHeaderHtml()}
 
       <div class="premium-waiting-card">
         <div class="premium-waiting-header">

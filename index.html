@@ -928,24 +928,7 @@
 </div>
 
 
-<!-- ==================== مودال إعدادات واجهة الحجز ==================== -->
-<div class="modal-backdrop" id="bookingSettingsModal">
-  <div class="booking-settings-modal">
-    <div class="booking-settings-header">
-      <span class="booking-settings-title"><i class="fas fa-qrcode"></i> إعدادات واجهة الحجز</span>
-      <button class="booking-settings-close" onclick="closeBookingSettingsModal()">&times;</button>
-    </div>
-    <div class="booking-settings-body" id="bookingSettingsBody">
-      <div style="text-align: center; padding: 40px;">
-        <i class="fas fa-spinner fa-spin"></i> جاري تحميل الإعدادات...
-      </div>
-    </div>
-    <div class="booking-settings-footer">
-      <button class="btn-save" onclick="saveBookingSettings()">💾 حفظ الإعدادات</button>
-      <button class="btn-cancel" onclick="closeBookingSettingsModal()">إلغاء</button>
-    </div>
-  </div>
-</div>
+
 
 <div id="offlineToastContainer"></div>
 
@@ -1695,22 +1678,9 @@ window.selectZone = selectZone;
 window.selectFloor = selectFloor;
 window.logError = logError;
 
-// فتح مودال إعدادات واجهة الحجز
-function openBookingSettingsModal() {
-  const modal = document.getElementById('bookingSettingsModal');
-  if (modal) {
-    modal.classList.add('show');
-    loadBookingSettingsToModal();
-  }
-}
 
-// إغلاق المودال
-function closeBookingSettingsModal() {
-  const modal = document.getElementById('bookingSettingsModal');
-  if (modal) {
-    modal.classList.remove('show');
-  }
-}
+
+
 
 async function loadBookingSettingsToModal() {
   const body = document.getElementById('bookingSettingsBody');
@@ -2052,86 +2022,7 @@ function printQRCode() {
   `;
 }
 
-async function saveBookingSettings() {
-  const businessId = currentUser?.business_id || BUSINESS_ID || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
-  
-  // الإعدادات العامة
-  const booking_enabled = document.getElementById('booking_enabled_toggle')?.classList.contains('active') || false;
-  const direct_link_enabled = document.getElementById('direct_link_enabled_toggle')?.classList.contains('active') || false;
-  const qr_code_enabled = document.getElementById('qr_code_enabled_toggle')?.classList.contains('active') || false;
-  const advance_booking_days = parseInt(document.getElementById('advance_booking_days')?.value) || 3;
-  const booking_interval_minutes = parseInt(document.getElementById('booking_interval_minutes')?.value) || 30;
-  
-  // الطابور الحالي
-  const show_current_queue = document.getElementById('show_current_queue_toggle')?.classList.contains('active') || false;
-  const show_waiting_count = document.getElementById('show_waiting_count_toggle')?.classList.contains('active') || false;
-  const show_avg_wait_time = document.getElementById('show_avg_wait_time_toggle')?.classList.contains('active') || false;
-  const show_last_called = document.getElementById('show_last_called_toggle')?.classList.contains('active') || false;
-  const queue_display_style = document.getElementById('queue_display_style')?.value || 'circle';
-  
-  // نموذج الحجز
-  const show_name_field = document.getElementById('show_name_field_toggle')?.classList.contains('active') || false;
-  const show_phone_field = document.getElementById('show_phone_field_toggle')?.classList.contains('active') || false;
-  const show_party_size_field = document.getElementById('show_party_size_field_toggle')?.classList.contains('active') || false;
-  const show_zone_field = document.getElementById('show_zone_field_toggle')?.classList.contains('active') || false;
-  const show_notes_field = document.getElementById('show_notes_field_toggle')?.classList.contains('active') || false;
-  const show_preferred_time_field = document.getElementById('show_preferred_time_field_toggle')?.classList.contains('active') || false;
-  
-  // النصوص
-  const page_title = document.getElementById('page_title')?.value || 'EASY-Q | حجز وانتظار';
-  const welcome_message = document.getElementById('welcome_message_input')?.value || '';
-  const submit_button_text = document.getElementById('submit_button_text')?.value || 'تأكيد الحجز';
-  const success_message = document.getElementById('success_message')?.value || 'تم إضافة طلبك بنجاح';
-  const error_message = document.getElementById('error_message')?.value || 'حدث خطأ، حاول مرة أخرى';
-  
-  // الإشعارات
-  const enable_notification_prompt = document.getElementById('enable_notification_prompt_toggle')?.classList.contains('active') || false;
-  const notify_when_near = document.getElementById('notify_when_near_toggle')?.classList.contains('active') || false;
-  const notify_when_table_ready = document.getElementById('notify_when_table_ready_toggle')?.classList.contains('active') || false;
-  const notification_sound = document.getElementById('notification_sound')?.value || 'default';
-  
-  // المظهر
-  const primary_color = document.getElementById('primary_color_input')?.value || '#8B0000';
-  const secondary_color = document.getElementById('secondary_color_input')?.value || '#FFD700';
-  
-  // القيود
-  const prevent_duplicate_minutes = parseInt(document.getElementById('prevent_duplicate_minutes')?.value) || 10;
-  const max_party_size = parseInt(document.getElementById('max_party_size')?.value) || 20;
-  const min_party_size = parseInt(document.getElementById('min_party_size')?.value) || 1;
-  const enable_captcha = document.getElementById('enable_captcha_toggle')?.classList.contains('active') || false;
-  
-  // التكامل
-  const whatsapp_confirmation = document.getElementById('whatsapp_confirmation_toggle')?.classList.contains('active') || false;
-  const google_maps_link = document.getElementById('google_maps_link')?.value || '';
-  const google_analytics_id = document.getElementById('google_analytics_id')?.value || '';
-  
-  const settings = {
-    booking_enabled, direct_link_enabled, qr_code_enabled, advance_booking_days, booking_interval_minutes,
-    show_current_queue, show_waiting_count, show_avg_wait_time, show_last_called, queue_display_style,
-    show_name_field, show_phone_field, show_party_size_field, show_zone_field, show_notes_field, show_preferred_time_field,
-    page_title, welcome_message, submit_button_text, success_message, error_message,
-    enable_notification_prompt, notify_when_near, notify_when_table_ready, notification_sound,
-    primary_color, secondary_color,
-    prevent_duplicate_minutes, max_party_size, min_party_size, enable_captcha,
-    whatsapp_confirmation, google_maps_link, google_analytics_id
-  };
-  
-  const { error } = await supabase
-    .from('restaurant_settings')
-    .upsert({
-      business_id: businessId,
-      setting_key: 'booking_settings',
-      setting_value: JSON.stringify(settings),
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'business_id,setting_key' });
-  
-  if (error) {
-    alert('❌ فشل حفظ الإعدادات: ' + error.message);
-  } else {
-    alert('✅ تم حفظ الإعدادات بنجاح');
-    closeBookingSettingsModal();
-  }
-}
+
 
 function copyBookingUrl() {
   const businessId = currentUser?.business_id || BUSINESS_ID || '5a2fd95a-0f88-4c70-89db-e6ee7ba8f49c';
