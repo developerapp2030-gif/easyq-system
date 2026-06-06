@@ -10,6 +10,7 @@ let currentQueueNumber = null;
 let currentBusinessId = null;
 let currentCustomerId = null;
 let realtimeChannel = null;
+let isGuestViewOnly = false;
 // ============================================================
 // إعدادات Realtime Watchdog
 // ============================================================
@@ -30,6 +31,7 @@ let previousStatus = null;  // <--- أضف هذا السطر هنا
 // ========== منع تكرار التنبيهات ==========
 let lastCustomerAlertKey = null;
 let hasInitialStatusLoaded = false;
+let readyAlertStartedForRequestId = null;
 
 // ========== كشف سرعة المتصفح ==========
 let browserSpeedTested = false;
@@ -334,6 +336,39 @@ function formatTime(timestamp) {
   return date.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
 }
 
+async function getBookingCustomerName(request) {
+  // 1) إذا الاسم موجود داخل كائن الطلب نفسه
+  if (request?.customer_name) {
+    return request.customer_name;
+  }
+
+  // 2) إذا الاسم محفوظ كسنابشوت داخل table_requests
+  if (request?.customer_name_snapshot) {
+    return request.customer_name_snapshot;
+  }
+
+  // 3) إذا الاسم موجود مؤقتًا في نفس الجهاز
+  if (window.currentCustomerName && window.currentCustomerName !== 'ضيف') {
+    return window.currentCustomerName;
+  }
+
+  // 4) جلب الاسم الحقيقي من جدول customers عبر customer_id
+  if (request?.customer_id) {
+    const { data, error } = await supabase
+      .from('customers')
+      .select('name')
+      .eq('id', request.customer_id)
+      .maybeSingle();
+
+    if (!error && data?.name) {
+      return data.name;
+    }
+  }
+
+  // 5) آخر حل
+  return 'ضيف';
+}
+
 async function renderStatusPage(requestData = null) {
   let request = requestData;
 
@@ -359,7 +394,7 @@ async function renderStatusPage(requestData = null) {
     return;
   }
 
-  window.currentCustomerName = request.customer_name || window.currentCustomerName || 'ضيف';
+  window.currentCustomerName = await getBookingCustomerName(request);
   let customerName = window.currentCustomerName;
   let partySize = request.requested_party_size || 2;
   let bookingTime = formatTime(request.created_at);
@@ -372,6 +407,29 @@ async function renderStatusPage(requestData = null) {
   const originalQueueNumber = window.originalQueueNumber;
   const currentQueueNumber = request?.queue_position || window.currentQueueNumber || originalQueueNumber;
   window.currentQueueNumber = currentQueueNumber;
+    // جلب رقم الطاولة المعيّنة للعميل عند حالة "طاولتك جاهزة"
+  let assignedTableName = "";
+
+  if (request.status === "offered" || request.status === "reserved") {
+    const { data: assignmentData, error: assignmentError } = await supabase
+      .from("table_assignments")
+      .select(`
+        table_id,
+        status,
+        dining_tables (
+          table_name
+        )
+      `)
+      .eq("request_id", request.id)
+      .in("status", ["offered", "reserved"])
+      .order("assigned_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!assignmentError && assignmentData?.dining_tables?.table_name) {
+      assignedTableName = assignmentData.dining_tables.table_name;
+    }
+  }
 
   const isWaiting = request.status === 'waiting';
   const isOffered = request.status === 'offered';
@@ -426,7 +484,19 @@ if (isWaiting) {
 else if (isOffered) {
       if (remainingSeconds !== null && remainingSeconds > 0) {
           numberText = formatCountdownTime(remainingSeconds);
-          labelText = 'طاولتك جاهزة';
+
+          labelText = assignedTableName
+  ? `
+    <div class="turn-ready-title">حان دورك</div>
+    <div class="ready-table-line">
+      طاولتك <span class="assigned-table-number">رقم ${assignedTableName}</span> جاهزة
+    </div>
+  `
+  : `
+    <div class="turn-ready-title">حان دورك</div>
+    <div class="ready-table-line">طاولتك جاهزة</div>
+  `;
+
           statusMessage = 'يجب عليك الحضور قبل انتهاء الوقت';
           showTimer = true;
       } else {
@@ -455,29 +525,36 @@ else if (isCleaning) {
       showCancelButton = true;
   }
 
-  if (window.previousQueueNumber === undefined) {
-    window.previousQueueNumber = currentQueueNumber;
-  }
-  if (window.previousStatus === undefined) {
-    window.previousStatus = request.status;
-  }
-  
+  const previousQueueNumber = window.previousQueueNumber;
+  const previousStatus = window.previousStatus;
+
   if (window.audioEnabled) {
-    if (window.previousQueueNumber !== currentQueueNumber && isWaiting) {
+    if (previousQueueNumber !== undefined && previousQueueNumber !== currentQueueNumber && isWaiting) {
       if (currentQueueNumber === 2 && shouldTriggerCustomerAlert('near')) {
         playBookingAlert('near');
       } else if (currentQueueNumber === 1 && shouldTriggerCustomerAlert('next')) {
         playBookingAlert('next');
       }
     }
-    
-    if (isOffered && window.previousStatus !== 'offered' && shouldTriggerCustomerAlert('offered')) {
-        playBookingAlert('ready');
-        startContinuousAlert();
-        showStopAlertButton();
+
+    // تنبيه الطاولة الجاهزة:
+    // يعمل مرة واحدة لكل حجز عندما تصبح الحالة offered
+    // حتى لو فتحت الصفحة بعد أن أصبحت الطاولة جاهزة
+    if (
+      isOffered &&
+      remainingSeconds !== null &&
+      remainingSeconds > 0 &&
+      readyAlertStartedForRequestId !== request.id
+    ) {
+      readyAlertStartedForRequestId = request.id;
+      isAlertStopped = false;
+
+      playBookingAlert('ready');
+      startContinuousAlert();
+      showStopAlertButton();
     }
   }
-  
+
   window.previousQueueNumber = currentQueueNumber;
   window.previousStatus = request.status;
 
@@ -531,38 +608,63 @@ else if (isCleaning) {
         
 
 
+${!isGuestViewOnly ? `
 <div class="booking-ref-code" style="text-align: center; margin: 10px 0;">
-          <div style="color: #FF4444; font-weight: bold; font-size: 13px;">
-             رقم حجزك المرجعي: 
-            <span style="font-size: 16px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
-              ${request.booking_code || '---'}
-              <i onclick="copyBookingCode('${request.booking_code}')" 
-                 style="cursor: pointer; font-size: 12px; color: #FF8888;" 
-                 class="fas fa-copy"></i>
-            </span>
-          </div>
-          <div style="color: #FF8888; font-size: 11px; margin-top: 8px;">
-            💡 قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها
-          </div>
-        </div>
 
+  <div class="share-booking-hint" onclick="shareBookingViewOnly('${request.id}')">
+    <span>شارك أصدقاءك ليتابعوا ويشاهدوا حجزك فقط، لن يتمكنوا من إلغاء الحجز.</span>
+    <i class="fas fa-share-alt"></i>
+  </div>
+
+  <div style="color: #FF4444; font-weight: bold; font-size: 13px;">
+     رقم حجزك المرجعي: 
+    <span style="font-size: 16px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
+      ${request.booking_code || '---'}
+      <i onclick="copyBookingCode('${request.booking_code}')" 
+         style="cursor: pointer; font-size: 12px; color: #FF8888;" 
+         class="fas fa-copy"></i>
+    </span>
+  </div>
+
+  <div style="color: #918d8d; font-size: 12px; margin-top: 8px;">
+    💡قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها 
+  </div>
+
+</div>
+` : `
+<div class="guest-view-note">
+  <i class="fas fa-eye"></i>
+  <span>هذا رابط متابعة الحجز، ويمكن لصاحب الحجز فقط إلغاؤه عند الحاجة</span>
+</div>
+`}
 <div class="premium-queue-status">
-          <i class="fas fa-heart"></i>
           <span>
             ${isOccupied ? '' : (isOffered ? 'نحن بانتظارك' : (isWaiting ? 'نشكر لك صبرك دورك يتقدم' : ''))}
           </span>
         </div>
       </div>
 
-${showCancelButton ? `
-        <div class="cancel-link" id="cancelBookingLink" style="text-align: center; margin: 20px auto; padding: 12px 25px; background: rgba(239,68,68,0.15); color: #EF4444; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 16px; width: fit-content;">
-          إلغاء الحجز
+${!isGuestViewOnly ? `
+  ${showCancelButton ? `
+    <div 
+      class="${isOffered ? 'cannot-attend-card' : 'cancel-link'}" 
+      id="${isOffered ? 'cannotAttendLink' : 'cancelBookingLink'}"
+    >
+      ${isOffered ? `
+        <div class="cannot-attend-title">لا أستطيع الحضور</div>
+        <div class="cannot-attend-sub">
+          اضغط هنا إذا لم تتمكن من الحضور، لتحرير الطاولة لعميل آخر.
         </div>
       ` : `
-        <div class="exit-link" id="exitBookingLink" style="text-align: center; margin: 20px auto; padding: 12px 25px; background: rgba(16,185,129,0.15); color: #10B981; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 16px; width: fit-content;">
-          خروج
-        </div>
+        إلغاء الحجز
       `}
+    </div>
+  ` : `
+    <div class="exit-link" id="exitBookingLink" style="text-align: center; margin: 20px auto; padding: 12px 25px; background: rgba(16,185,129,0.15); color: #10B981; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 16px; width: fit-content;">
+      خروج
+    </div>
+  `}
+` : ``}
     </div>
   `;
 
@@ -586,6 +688,7 @@ ${showCancelButton ? `
   }
 
   document.getElementById('cancelBookingLink')?.addEventListener('click', cancelBooking);
+  document.getElementById('cannotAttendLink')?.addEventListener('click', cannotAttendBooking);
   document.getElementById('exitBookingLink')?.addEventListener('click', async () => {
       await supabase
           .from('table_requests')
@@ -604,6 +707,7 @@ ${showCancelButton ? `
 
 async function submitBooking() {
   const name = document.getElementById('customerName')?.value.trim();
+  window.currentCustomerName = name;
   const phone = document.getElementById('customerPhone')?.value.trim();
   const partySize = parseInt(document.getElementById('partySizeValue')?.innerText || '2');
   const zone = document.getElementById('customerZone')?.value || null;
@@ -749,7 +853,55 @@ async function cancelBooking() {
   }
 }
 
+async function cannotAttendBooking() {
+  if (!currentRequestId) {
+    currentRequestId = localStorage.getItem('current_booking_id');
+  }
 
+  const requestId = currentRequestId;
+
+  if (!requestId) {
+    alert('لا يوجد حجز نشط');
+    return;
+  }
+
+  const confirmed = confirm('هل أنت متأكد أنك لا تستطيع الحضور؟ سيتم تحرير الطاولة لعميل آخر.');
+  if (!confirmed) return;
+
+  try {
+    // إيقاف التنبيه المستمر إن كان يعمل
+    if (typeof stopContinuousAlert === 'function') {
+      stopContinuousAlert();
+    }
+
+    const { data, error } = await supabase.rpc('customer_cannot_attend', {
+      p_request_id: requestId
+    });
+
+    if (error) throw error;
+
+    if (data?.success === false) {
+      alert(data.message || 'لم يتم تنفيذ العملية');
+      return;
+    }
+
+    localStorage.removeItem('current_booking_id');
+    sessionStorage.removeItem('current_booking_id');
+    sessionStorage.setItem('booking_cancelled', 'true');
+
+    currentRequestId = null;
+
+    await cleanupRealtime();
+    stopCustomerSafetyPolling();
+
+    alert('تم تحرير الطاولة بنجاح، شكرًا لإبلاغنا.');
+    await renderBookingForm();
+
+  } catch (err) {
+    console.error('❌ فشل تحرير الطاولة:', err);
+    alert('لم يتم تحرير الطاولة: ' + err.message);
+  }
+}
 
 
 
@@ -773,6 +925,29 @@ function copyBookingCode(code) {
   }, 1000);
   
   alert(`✅ تم نسخ الرقم المرجعي: ${code}`);
+}
+
+async function shareBookingViewOnly(requestId) {
+  if (!requestId) return;
+
+  const shareUrl = `${window.location.origin}${window.location.pathname}?view=guest&request_id=${requestId}`;
+
+  const shareText = `تابع حالة حجزي في EASY-Q للمشاهدة فقط:\n${shareUrl}`;
+
+  try {
+    if (navigator.share) {
+      await navigator.share({
+        title: 'متابعة الحجز',
+        text: 'تابع حالة حجزي للمشاهدة فقط',
+        url: shareUrl
+      });
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      alert('✅ تم نسخ رابط المشاركة');
+    }
+  } catch (err) {
+    console.log('Share cancelled or failed:', err);
+  }
 }
 
 function showAudioModal() {
@@ -880,7 +1055,7 @@ function startCustomerSafetyPolling() {
                 // ✅ تم تصحيح الأعمدة وحذف العمود غير الموجود customer_name
                 const { data: request, error } = await supabase
                     .from('table_requests')
-                    .select('id,status,queue_position,original_queue_position,booking_code,requested_party_size,created_at')
+                    .select('id,status,queue_position,original_queue_position,booking_code,requested_party_size,created_at,customer_id,customer_name_snapshot,customer_phone_snapshot')
                     .eq('id', currentRequestId)
                     .maybeSingle();
                 
@@ -979,7 +1154,7 @@ async function safeRefreshCustomerStatus(reason = 'unknown') {
         // ✅ تم تصحيح الأعمدة وحذف العمود غير الموجود customer_name
         const { data: request, error } = await supabase
             .from('table_requests')
-            .select('id,status,queue_position,original_queue_position,booking_code,requested_party_size,created_at')
+            .select('id,status,queue_position,original_queue_position,booking_code,requested_party_size,created_at,customer_id,customer_name_snapshot,customer_phone_snapshot')
             .eq('id', currentRequestId)
             .maybeSingle();
 
@@ -1241,6 +1416,39 @@ async function startBookingPage() {
 
     updateDateTime();
     setInterval(updateDateTime, 1000);
+        // ✅ وضع المشاهدة فقط عبر رابط المشاركة
+    const initialUrlParams = new URLSearchParams(window.location.search);
+    const viewMode = initialUrlParams.get('view');
+    const sharedRequestId = initialUrlParams.get('request_id');
+
+    if (viewMode === 'guest' && sharedRequestId) {
+        isGuestViewOnly = true;
+        currentRequestId = sharedRequestId;
+
+        console.log('👀 Guest view only mode:', currentRequestId);
+
+        await getBusinessSettings();
+
+        const { data: request, error } = await supabase
+            .from('table_requests')
+            .select('*')
+            .eq('id', currentRequestId)
+            .in('status', ['waiting', 'offered', 'occupied', 'cleaning', 'completed'])
+            .maybeSingle();
+
+        if (error || !request) {
+            console.error('❌ لم يتم العثور على الحجز المشترك:', error);
+            await renderBookingForm();
+            return;
+        }
+
+        await renderStatusPage(request);
+
+        setupRealtime();
+        startCustomerSafetyPolling();
+
+        return;
+    }
 
     // ✅ استعادة الحجز من localStorage (بعد إغلاق الصفحة)
     const savedBookingId = localStorage.getItem('current_booking_id');

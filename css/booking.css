@@ -919,4 +919,163 @@ select.form-input option {
     background: rgba(255, 255, 255, 0.2);
 }
 
+/* ============================================================
+   READY TABLE MESSAGE
+============================================================ */
 
+.premium-ring-label:has(.turn-ready-title) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  white-space: normal !important;
+  line-height: 1.25 !important;
+}
+
+.turn-ready-title {
+  display: block !important;
+  width: 100% !important;
+  text-align: center !important;
+  color: #10B981 !important;
+  font-size: clamp(14px, 4vw, 18px) !important;
+  font-weight: 900 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  text-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+}
+
+.ready-table-line {
+  display: block !important;
+  width: 100% !important;
+  text-align: center !important;
+  color: rgba(255, 255, 255, 0.82) !important;
+  font-size: clamp(11px, 3.5vw, 14px) !important;
+  font-weight: 800 !important;
+  line-height: 1.35 !important;
+  white-space: nowrap !important;
+}
+
+.assigned-table-number {
+  display: inline-block !important;
+  color: #FFD700 !important;
+  font-weight: 950 !important;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.35);
+  padding: 0 4px;
+}
+
+/* ============================================================
+   CANNOT ATTEND CARD
+============================================================ */
+
+.cannot-attend-card {
+  width: 100%;
+  max-width: 500px;
+  margin: 20px auto 0;
+  padding: 18px 22px;
+  border-radius: 30px;
+  cursor: pointer;
+  text-align: center;
+
+  background:
+    linear-gradient(
+      145deg,
+      #111827 0%,
+      #0B1220 100%
+    );
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+
+  box-shadow:
+    0 12px 45px rgba(0, 0, 0, 0.35);
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.cannot-attend-card:active {
+  transform: scale(0.98);
+}
+
+.cannot-attend-card:hover {
+  border-color: rgba(244, 210, 138, 0.35);
+}
+
+.cannot-attend-title {
+  color: #F4D28A;
+  font-size: 16px;
+  font-weight: 900;
+  margin-bottom: 7px;
+  line-height: 1.3;
+}
+
+.cannot-attend-sub {
+  color: #FFFFFF;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.7;
+  opacity: 0.88;
+}
+
+/* ============================================================
+   SHARE BOOKING HINT
+============================================================ */
+
+.share-booking-hint {
+  color: #10B981;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.7;
+  margin-bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  text-align: center;
+  max-width: 92%;
+}
+
+.share-booking-hint span {
+  color: #10B981;
+}
+
+.share-booking-hint i {
+  color: #10B981;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.share-booking-hint:active {
+  transform: scale(0.98);
+}
+
+/* ============================================================
+   GUEST VIEW NOTE
+============================================================ */
+
+.guest-view-note {
+  width: fit-content;
+  max-width: 92%;
+  margin: 12px auto 4px;
+  padding: 10px 16px;
+  border-radius: 22px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  color: #f8faf9;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  text-align: center;
+}
+
+.guest-view-note i {
+  color: #06713a;
+  flex-shrink: 0;
+}

@@ -2738,8 +2738,94 @@ body.logged-in .topbar {
   background-repeat: no-repeat;
   background-position: center;
   background-size: min(62%, 520px) auto;
-  opacity: 0.12;
+  opacity: 0.10;
   pointer-events: none;
   z-index: 0;
   filter: grayscale(10%);
+}
+
+/* =========================================================
+   SUCCESS TOAST NOTIFICATION
+========================================================= */
+
+.toast-notification {
+  position: fixed;
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100050;
+  min-width: 260px;
+  max-width: 90vw;
+  min-height: 54px;
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  direction: rtl;
+  animation: toastSlideDown 0.25s ease;
+}
+
+.toast-message {
+  font-size: 14px;
+  font-weight: 800;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.spinner-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid rgba(14, 20, 109, 0.18);
+  border-top-color: #0e146d;
+  animation: toastSpin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.restaurant-icon,
+.check-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.restaurant-icon {
+  background: rgba(14, 20, 109, 0.10);
+  color: #0e146d;
+}
+
+.check-icon {
+  background: rgba(16, 185, 129, 0.14);
+  color: #10b981;
+}
+
+.hidden-icon {
+  display: none !important;
+}
+
+@keyframes toastSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes toastSlideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }

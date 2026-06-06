@@ -91,45 +91,81 @@ function processReadyAlerts() {
 // ============================================================
 
 function showSuccessNotification(message, callback) {
+  // حذف أي انبثاق سابق من النسخة الجديدة أو القديمة
+  document.querySelectorAll('.easyq-success-toast, .toast-notification').forEach(el => el.remove());
+
   const notification = document.createElement('div');
-  notification.className = 'toast-notification';
-  
-  const spinner = document.createElement('div');
-  spinner.className = 'spinner-circle';
-  
-  const restaurantIcon = document.createElement('div');
-  restaurantIcon.className = 'restaurant-icon hidden-icon';
-  restaurantIcon.innerHTML = '<i class="fas fa-utensils"></i>';
-  
-  const checkIcon = document.createElement('div');
-  checkIcon.className = 'check-icon hidden-icon';
-  checkIcon.innerHTML = '<i class="fas fa-check"></i>';
-  
+  notification.className = 'easyq-success-toast';
+
+  notification.style.cssText = `
+    position: fixed !important;
+    top: 86px !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateY(-10px) !important;
+    z-index: 9999999 !important;
+    min-width: 260px !important;
+    max-width: 90vw !important;
+    min-height: 56px !important;
+    padding: 12px 18px !important;
+    border-radius: 999px !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: 1px solid rgba(16,185,129,0.35) !important;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.28) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    direction: rtl !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.25s ease, transform 0.25s ease !important;
+    animation: none !important;
+  `;
+
+  const icon = document.createElement('div');
+  icon.innerHTML = '<i class="fas fa-check"></i>';
+  icon.style.cssText = `
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    background: rgba(16,185,129,0.14) !important;
+    color: #10b981 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    font-size: 15px !important;
+  `;
+
   const messageSpan = document.createElement('div');
-  messageSpan.className = 'toast-message';
   messageSpan.innerText = message;
-  
-  notification.appendChild(spinner);
-  notification.appendChild(restaurantIcon);
-  notification.appendChild(checkIcon);
+  messageSpan.style.cssText = `
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    color: #111827 !important;
+    white-space: nowrap !important;
+  `;
+
+  notification.appendChild(icon);
   notification.appendChild(messageSpan);
-  
   document.body.appendChild(notification);
-  
+
+  // إجبار المتصفح على تطبيق الستايل ثم إظهار العنصر
   setTimeout(() => {
-    spinner.classList.add('hidden-icon');
-    restaurantIcon.classList.remove('hidden-icon');
-  }, 600);
-  
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateX(-50%) translateY(0)';
+  }, 20);
+
   setTimeout(() => {
-    restaurantIcon.classList.add('hidden-icon');
-    checkIcon.classList.remove('hidden-icon');
-  }, 1000);
-  
-  setTimeout(() => {
-    notification.remove();
-    if (callback) callback();
-  }, 1500);
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateX(-50%) translateY(-10px)';
+
+    setTimeout(() => {
+      notification.remove();
+      if (typeof callback === 'function') callback();
+    }, 300);
+  }, 2600);
 }
 
 function showPersistentAlert(message, bgColor = '#3B82F6') {

@@ -724,6 +724,10 @@ function openFullPagePanel(title, subtitle, contentHtml) {
   titleEl.innerHTML = title || "";
   subtitleEl.innerHTML = subtitle || "";
   bodyEl.innerHTML = contentHtml || "";
+  const closeBtn = document.querySelector(".full-page-panel-close");
+if (closeBtn) {
+  closeBtn.style.display = "inline-flex";
+}
 
   panel.classList.add("show");
 
@@ -887,20 +891,26 @@ function openBusinessProfileModal() {
         </button>
 
         <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
-          إلغاء
+        إغلاق
         </button>
-      </div>
+        </div>
 
     </div>
   `;
 
-  openFullPagePanel(
-    "بيانات المطعم / الفرع",
-    "إدارة الاسم، العنوان، الشعار، وبيانات الظهور في واجهة النظام وواجهة الحجز",
-    contentHtml
-  );
+openFullPagePanel(
+  "بيانات المطعم / الفرع",
+  "إدارة الاسم، العنوان، الشعار، وبيانات الظهور في واجهة النظام وواجهة الحجز",
+  contentHtml
+);
 
-  loadBusinessProfile();
+// إخفاء زر الإغلاق العلوي لهذه الصفحة فقط
+const closeBtn = document.querySelector(".full-page-panel-close");
+if (closeBtn) {
+  closeBtn.style.display = "none";
+}
+
+loadBusinessProfile();
 }
 
 async function loadBusinessProfile() {
@@ -1021,10 +1031,19 @@ async function saveBusinessProfile() {
     return;
   }
 
-  showSuccessNotification("✅ تم حفظ بيانات المطعم بنجاح");
+ // تحديث اسم المطعم في أعلى الواجهة فورًا
+updateTopbarBusinessIdentity(data);
 
-  // تحديث اسم المطعم في أعلى الواجهة فورًا
-  updateTopbarBusinessIdentity(data);
+// تحديث خلفية شعار لوحة الطاولات فورًا
+if (typeof renderFloorPlan === "function") {
+  renderFloorPlan();
+}
+
+// إغلاق شاشة بيانات المطعم
+closeFullPagePanel();
+
+// إظهار إشعار نجاح بعد الإغلاق
+showSuccessNotification("✅ تم حفظ بيانات المطعم بنجاح");
 }
 
 function previewBusinessLogoFromInput() {
