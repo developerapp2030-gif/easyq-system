@@ -16,6 +16,19 @@
   --booking-button-text: #FFFFFF;
 }
 
+:root {
+  --booking-bg-end: #1A1A2A;
+  --booking-primary: #8B0000;
+  --booking-primary-2: #C62828;
+  --booking-accent: #FFD700;
+  --booking-progress: #D4AF37;
+  --booking-success: #10B981;
+  --booking-text: #FFFFFF;
+  --booking-muted-text: rgba(255,255,255,0.65);
+  --booking-card-bg: rgba(255,255,255,0.05);
+  --booking-button-text: #FFFFFF;
+}
+
 
 * {
   margin: 0;
@@ -24,10 +37,11 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
-background: linear-gradient(145deg, var(--booking-bg-start) 0%, var(--booking-bg-end) 100%);  min-height: 100vh;
-  padding: 20px;
-  color: #FFFFFF;
+font-family: 'Inter', sans-serif;
+background: linear-gradient(145deg, var(--booking-bg-start) 0%, var(--booking-bg-end) 100%);  
+min-height: 100vh;
+padding: 20px;
+color: var(--booking-text);
 }
 
 .container {
@@ -47,7 +61,7 @@ background: linear-gradient(145deg, var(--booking-bg-start) 0%, var(--booking-bg
 .restaurant-logo {
   width: 92px;
   height: 92px;
-  background: linear-gradient(135deg, #8B0000, #C62828);
+  background: linear-gradient(135deg, var(--booking-primary), var(--booking-primary-2));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -55,12 +69,12 @@ background: linear-gradient(145deg, var(--booking-bg-start) 0%, var(--booking-bg
   margin: 0 auto 16px;
   box-shadow: 0 10px 30px rgba(139, 0, 0, 0.3);
   overflow: hidden;
-  border: 2px solid rgba(255, 215, 0, 0.28);
+  border: 2px solid color-mix(in srgb, var(--booking-accent) 35%, transparent);
 }
 
 .restaurant-logo i {
   font-size: 38px;
-  color: #FFD700;
+  color: var(--booking-accent);
 }
 
 .restaurant-logo img {
@@ -130,7 +144,7 @@ background: linear-gradient(145deg, var(--booking-bg-start) 0%, var(--booking-bg
 .current-number-circle {
   width: 140px;
   height: 140px;
-  background: linear-gradient(135deg, #8B0000, #C62828);
+  background: linear-gradient(135deg, var(--booking-primary), var(--booking-primary-2));
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -142,7 +156,7 @@ background: linear-gradient(145deg, var(--booking-bg-start) 0%, var(--booking-bg
 .current-number {
   font-size: 56px;
   font-weight: 800;
-  color: #FFD700;
+  color: var(--booking-accent);
 }
 
 .current-queue-sub {
@@ -225,7 +239,7 @@ select.form-input option {
   border: none;
   border-radius: 40px;
   font-size: 24px;
-  color: #FFD700;
+  color: var(--booking-accent);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -246,12 +260,12 @@ select.form-input option {
 .submit-btn {
   width: 100%;
   padding: 18px;
-  background: linear-gradient(135deg, #8B0000, #C62828);
+  background: linear-gradient(135deg, var(--booking-primary), var(--booking-primary-2));
   border: none;
   border-radius: 40px;
   font-size: 18px;
   font-weight: 700;
-  color: #FFFFFF;
+  color: var(--booking-button-text);
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 8px;

@@ -41,7 +41,7 @@ const DEFAULT_EASYQ_BOOKING_SETTINGS = {
   share_booking_enabled: true,
   cancel_waiting_enabled: true,
   cannot_attend_enabled: true,
-show_current_queue: false,
+  show_current_queue: false,
   show_zone_selector: true,
   show_business_logo: true,
   show_business_info: true,
@@ -669,35 +669,38 @@ async function renderStatusPage(requestData = null) {
   
 if (isWaiting) {
       numberText = currentQueueNumber;
+
       if (currentQueueNumber === 2) {
-          labelText = 'اقترب دورك';
+          labelText = bookingText("waiting_near_label");
           statusMessage = '';
       } else if (currentQueueNumber === 1) {
-          labelText = 'أنت التالي';
+          labelText = bookingText("waiting_next_label");
           statusMessage = '';
       } else {
-          labelText = 'رقمك في الانتظار';
+          labelText = bookingText("waiting_default_label");
           statusMessage = '';
       }
+
       showCancelButton = true;
   }
 else if (isOffered) {
       if (remainingSeconds !== null && remainingSeconds > 0) {
           numberText = formatCountdownTime(remainingSeconds);
 
-          labelText = assignedTableName
-  ? `
-    <div class="turn-ready-title">حان دورك</div>
-    <div class="ready-table-line">
-      طاولتك <span class="assigned-table-number">رقم ${assignedTableName}</span> جاهزة
-    </div>
-  `
-  : `
-    <div class="turn-ready-title">حان دورك</div>
-    <div class="ready-table-line">طاولتك جاهزة</div>
-  `;
+          const tableReadyWithNumber = bookingText("table_ready_with_number_text")
+            .replace("{table}", `<span class="assigned-table-number">${assignedTableName}</span>`);
 
-          statusMessage = 'يجب عليك الحضور قبل انتهاء الوقت';
+          labelText = assignedTableName
+            ? `
+              <div class="turn-ready-title">${bookingText("ready_title_text")}</div>
+              <div class="ready-table-line">${tableReadyWithNumber}</div>
+            `
+            : `
+              <div class="turn-ready-title">${bookingText("ready_title_text")}</div>
+              <div class="ready-table-line">${bookingText("table_ready_text")}</div>
+            `;
+
+          statusMessage = bookingText("ready_sub_text");
           showTimer = true;
       } else {
           numberText = '0';
@@ -708,14 +711,14 @@ else if (isOffered) {
   }
 else if (isOccupied) {
       numberText = '🎉';
-      labelText = 'تم وصولك أهلاً وسهلاً بك';
-      statusMessage = 'شرفت المكان';
+      labelText = bookingText("occupied_title_text");
+      statusMessage = bookingText("occupied_sub_text");
       showCancelButton = false;
   }
 else if (isCleaning) {
       numberText = '🙏';
-      labelText = 'شكراً لزيارتك';
-      statusMessage = 'نتمنى زيارتك قريبا';
+      labelText = bookingText("cleaning_title_text");
+      statusMessage = bookingText("cleaning_sub_text");
       showCancelButton = false;
   }
   else {
@@ -765,7 +768,7 @@ else if (isCleaning) {
       <div class="premium-waiting-card">
         <div class="premium-waiting-header">
           <span class="premium-line"></span>
-          <h2>متابعة الحجز</h2>
+          <h2>${bookingText("status_page_title")}</h2>
           <span class="premium-line"></span>
         </div>
         
@@ -799,32 +802,36 @@ else if (isCleaning) {
 
 
 ${!isGuestViewOnly ? `
-<div class="booking-ref-code" style="text-align: center; margin: 10px 0;">
+  ${bookingEnabled("show_reference_code") ? `
+    <div class="booking-ref-code" style="text-align: center; margin: 10px 0;">
 
-  <div class="share-booking-hint" onclick="shareBookingViewOnly('${request.id}')">
-    <span>شارك أصدقاءك ليتابعوا ويشاهدوا حجزك فقط، لن يتمكنوا من إلغاء الحجز.</span>
-    <i class="fas fa-share-alt"></i>
-  </div>
+      ${bookingEnabled("share_booking_enabled") ? `
+        <div class="share-booking-hint" onclick="shareBookingViewOnly('${request.id}')">
+          <span>${bookingText("share_hint_text")}</span>
+          <i class="fas fa-share-alt"></i>
+        </div>
+      ` : ""}
 
-  <div style="color: #FF4444; font-weight: bold; font-size: 13px;">
-     رقم حجزك المرجعي: 
-    <span style="font-size: 16px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
-      ${request.booking_code || '---'}
-      <i onclick="copyBookingCode('${request.booking_code}')" 
-         style="cursor: pointer; font-size: 12px; color: #FF8888;" 
-         class="fas fa-copy"></i>
-    </span>
-  </div>
+      <div style="color: #FF4444; font-weight: bold; font-size: 13px;">
+        ${bookingText("reference_label_text")}
+        <span style="font-size: 16px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
+          ${request.booking_code || '---'}
+          <i onclick="copyBookingCode('${request.booking_code}')" 
+             style="cursor: pointer; font-size: 12px; color: #FF8888;" 
+             class="fas fa-copy"></i>
+        </span>
+      </div>
 
-  <div style="color: #918d8d; font-size: 12px; margin-top: 8px;">
-    💡قم بحفظ رقم حجزك المرجعي لاستعراض صفحة انتظار حجزك من أي هاتف آخر أو في حال إغلاقها 
-  </div>
+      <div style="color: #918d8d; font-size: 12px; margin-top: 8px;">
+        ${bookingText("reference_save_hint_text")}
+      </div>
 
-</div>
+    </div>
+  ` : ""}
 ` : `
 <div class="guest-view-note">
   <i class="fas fa-eye"></i>
-  <span>هذا رابط متابعة الحجز، ويمكن لصاحب الحجز فقط إلغاؤه عند الحاجة</span>
+  <span>${bookingText("guest_view_text")}</span>
 </div>
 `}
 <div class="premium-queue-status">
@@ -836,22 +843,25 @@ ${!isGuestViewOnly ? `
 
 ${!isGuestViewOnly ? `
   ${showCancelButton ? `
-    <div 
-      class="${isOffered ? 'cannot-attend-card' : 'cancel-link'}" 
-      id="${isOffered ? 'cannotAttendLink' : 'cancelBookingLink'}"
-    >
-      ${isOffered ? `
-        <div class="cannot-attend-title">لا أستطيع الحضور</div>
-        <div class="cannot-attend-sub">
-          اضغط هنا إذا لم تتمكن من الحضور، لتحرير الطاولة لعميل آخر.
-        </div>
-      ` : `
-        إلغاء الحجز
-      `}
-    </div>
+    ${
+      isOffered
+        ? bookingEnabled("cannot_attend_enabled") ? `
+          <div class="cannot-attend-card" id="cannotAttendLink">
+            <div class="cannot-attend-title">${bookingText("cannot_attend_title")}</div>
+            <div class="cannot-attend-sub">
+              ${bookingText("cannot_attend_sub")}
+            </div>
+          </div>
+        ` : ""
+        : bookingEnabled("cancel_waiting_enabled") ? `
+          <div class="cancel-link" id="cancelBookingLink">
+            ${bookingText("cancel_waiting_text")}
+          </div>
+        ` : ""
+    }
   ` : `
-    <div class="exit-link" id="exitBookingLink" style="text-align: center; margin: 20px auto; padding: 12px 25px; background: rgba(16,185,129,0.15); color: #10B981; border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 16px; width: fit-content;">
-      خروج
+    <div class="exit-link" id="exitBookingLink" style="text-align: center; margin: 20px auto; padding: 12px 25px; background: rgba(16,185,129,0.15); color: var(--booking-success); border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 16px; width: fit-content;">
+      ${bookingText("exit_text")}
     </div>
   `}
 ` : ``}
@@ -1003,6 +1013,10 @@ return;
 }
 
 async function cancelBooking() {
+    if (!bookingEnabled("cancel_waiting_enabled")) {
+    alert("إلغاء الحجز غير متاح حاليًا من قبل المطعم.");
+    return;
+  }
   // ✅ تأكد من وجود requestId
   if (!currentRequestId) {
     currentRequestId = localStorage.getItem('current_booking_id');
@@ -1044,6 +1058,10 @@ async function cancelBooking() {
 }
 
 async function cannotAttendBooking() {
+    if (!bookingEnabled("cannot_attend_enabled")) {
+    alert("خيار لا أستطيع الحضور غير متاح حاليًا من قبل المطعم.");
+    return;
+  }
   if (!currentRequestId) {
     currentRequestId = localStorage.getItem('current_booking_id');
   }
@@ -1118,6 +1136,10 @@ function copyBookingCode(code) {
 }
 
 async function shareBookingViewOnly(requestId) {
+    if (!bookingEnabled("share_booking_enabled")) {
+    alert("مشاركة الحجز غير متاحة حاليًا من قبل المطعم.");
+    return;
+  }
   if (!requestId) return;
 
   const shareUrl = `${window.location.origin}${window.location.pathname}?view=guest&request_id=${requestId}`;

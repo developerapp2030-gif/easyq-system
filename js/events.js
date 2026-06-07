@@ -809,7 +809,7 @@ const DEFAULT_EASYQ_BOOKING_SETTINGS = {
   share_booking_enabled: true,
   cancel_waiting_enabled: true,
   cannot_attend_enabled: true,
-  show_current_queue: true,
+  show_current_queue: false,
   show_zone_selector: true,
   show_business_logo: true,
   show_business_info: true,
@@ -865,16 +865,39 @@ function bookingSettingsTextInput(settings, key, label, placeholder = "") {
 }
 
 function bookingSettingsColorInput(settings, key, label) {
+  const safeValue = escapeBookingSetting(settings[key]);
+
   return `
     <div class="form-group">
       <label>${label}</label>
-      <input
-        type="color"
-        id="bookingSetting_${key}"
-        class="business-profile-input"
-        value="${escapeBookingSetting(settings[key])}"
-        style="height: 46px; padding: 6px;"
-      >
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <input
+          type="color"
+          id="bookingSetting_${key}_picker"
+          class="business-profile-input"
+          value="${safeValue}"
+          style="width:70px; height:46px; padding:6px; flex:0 0 70px;"
+          oninput="
+            const textInput = document.getElementById('bookingSetting_${key}');
+            if (textInput) textInput.value = this.value;
+          "
+        >
+
+        <input
+          type="text"
+          id="bookingSetting_${key}"
+          class="business-profile-input"
+          value="${safeValue}"
+          placeholder="#000000"
+          maxlength="20"
+          style="flex:1; direction:ltr; text-align:left;"
+          oninput="
+            const picker = document.getElementById('bookingSetting_${key}_picker');
+            if (picker && /^#[0-9A-Fa-f]{6}$/.test(this.value)) picker.value = this.value;
+          "
+        >
+      </div>
     </div>
   `;
 }
