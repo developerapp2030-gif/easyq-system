@@ -779,6 +779,19 @@ const DEFAULT_EASYQ_BOOKING_SETTINGS = {
   submit_button_text: "تأكيد الحجز",
   notification_button_text: "تفعيل إشعارات الدور",
 
+  name_label_text: "الاسم",
+name_placeholder_text: "أدخل اسمك",
+phone_label_text: "رقم الجوال",
+phone_placeholder_text: "05xxxxxxxx",
+zone_label_text: "المنطقة",
+zone_no_preference_text: "بدون تفضيل",
+party_size_label_text: "عدد الأشخاص",
+name_required_alert_text: "الرجاء إدخال الاسم",
+phone_invalid_alert_text: "الرجاء إدخال رقم جوال صحيح (05xxxxxxxx)",
+checking_booking_text: "جاري التحقق...",
+creating_booking_text: "جاري الحجز...",
+booking_failed_text: "فشل الحجز:",
+
   // النصوص - المتابعة
   status_page_title: "متابعة الحجز",
   waiting_default_label: "رقمك في الانتظار",
@@ -827,8 +840,11 @@ const DEFAULT_EASYQ_BOOKING_SETTINGS = {
   success_color: "#10B981",
   text_color: "#FFFFFF",
   muted_text_color: "rgba(255,255,255,0.65)",
-  card_bg_color: "rgba(255,255,255,0.05)",
-  button_text_color: "#FFFFFF"
+card_bg_color: "rgba(255,255,255,0.05)",
+welcome_bg_color: "rgba(255,255,255,0.08)",
+restore_hint_bg_color: "rgba(255,255,255,0.05)",
+booking_card_bg_color: "rgba(255,255,255,0.06)",
+button_text_color: "#FFFFFF"
 };
 
 let easyQBookingSettingsAdmin = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
@@ -849,10 +865,98 @@ function isBookingSettingChecked(settings, key) {
   return settings?.[key] === true ? "checked" : "";
 }
 
+function getBookingSettingLabelTranslation(label) {
+  const translations = {
+
+"تنبيه الاسم مطلوب": "Name required alert",
+"تنبيه رقم الجوال غير صحيح": "Invalid phone alert",
+"نص جاري التحقق": "Checking booking text",
+"نص جاري الحجز": "Creating booking text",
+"نص فشل الحجز": "Booking failed text",
+
+"عنوان حقل الاسم": "Name field label",
+"نص داخل حقل الاسم": "Name field placeholder",
+"عنوان حقل الجوال": "Phone field label",
+"نص داخل حقل الجوال": "Phone field placeholder",
+"عنوان حقل المنطقة": "Zone field label",
+"نص خيار بدون تفضيل": "No preference option text",
+"عنوان عدد الأشخاص": "Party size label",
+    // نصوص نموذج الحجز
+    "عبارة الترحيب": "Welcome message",
+    "عبارة استعادة الحجز - البداية": "Restore booking hint - prefix",
+    "نص رابط استعادة الحجز": "Restore booking link text",
+    "عبارة استعادة الحجز - النهاية": "Restore booking hint - suffix",
+    "عنوان الطابور الحالي": "Current queue title",
+    "وصف الطابور الحالي": "Current queue description",
+    "نص زر الحجز": "Booking button text",
+    "نص زر الإشعارات": "Notification button text",
+
+    // نصوص صفحة المتابعة
+    "عنوان صفحة المتابعة": "Status page title",
+    "نص الحالة العادية": "Default waiting label",
+    "نص اقترب دورك": "Near turn label",
+    "نص أنت التالي": "Next turn label",
+    "نص حان دورك": "Ready title",
+    "نص طاولتك جاهزة": "Table ready text",
+    "نص طاولتك رقم جاهزة": "Table ready with number text",
+    "نص الحضور قبل انتهاء الوقت": "Ready countdown message",
+    "نص تم وصولك": "Arrived message",
+    "نص شرفت المكان": "Arrived subtitle",
+    "نص شكراً لزيارتك": "Thank you message",
+    "نص نتمنى زيارتك": "Visit again message",
+    "النص أسفل الحلقة أثناء الانتظار": "Waiting footer text",
+    "النص أسفل الحلقة عند جاهزية الطاولة": "Ready footer text",
+
+    // المشاركة والرقم المرجعي
+    "عبارة مشاركة الحجز": "Share booking message",
+    "عبارة رابط المشاهدة فقط": "Guest view message",
+    "عنوان الرقم المرجعي": "Reference code label",
+    "عبارة حفظ الرقم المرجعي": "Reference save hint",
+    "نص إلغاء الحجز": "Cancel booking text",
+    "عنوان لا أستطيع الحضور": "Cannot attend title",
+    "وصف لا أستطيع الحضور": "Cannot attend description",
+    "نص زر الخروج": "Exit button text",
+
+    // التفعيل والتعطيل
+    "تفعيل مشاركة الحجز": "Enable booking sharing",
+    "تفعيل إلغاء الحجز أثناء الانتظار": "Enable waiting cancellation",
+    "تفعيل زر لا أستطيع الحضور": "Enable cannot attend button",
+    "إظهار الطابور الحالي": "Show current queue",
+    "إظهار اختيار المنطقة": "Show zone selector",
+    "إظهار شعار المطعم": "Show restaurant logo",
+    "إظهار بيانات المطعم": "Show restaurant information",
+    "إظهار سطر استعادة الحجز": "Show restore booking hint",
+    "إظهار الرقم المرجعي": "Show reference code",
+    "إظهار زر الإشعارات": "Show notification button",
+
+    // الألوان
+    "لون بداية الخلفية": "Background start color",
+    "لون نهاية الخلفية": "Background end color",
+    "اللون الرئيسي": "Primary color",
+    "اللون الرئيسي الثاني": "Secondary primary color",
+    "اللون الذهبي / المميز": "Accent color",
+    "لون الحلقة أثناء الانتظار": "Waiting ring color",
+    "لون النجاح / الجاهزية": "Success / ready color",
+    "لون النص الأساسي": "Main text color",
+    "لون نص الأزرار": "Button text color"
+    "لون خلفية رسالة الترحيب": "Welcome message background",
+"لون خلفية سطر استعادة الحجز": "Restore hint background",
+"لون خلفية كرت نموذج الحجز": "Booking form card background",
+  };
+
+  return translations[label] || "";
+}
+
 function bookingSettingsTextInput(settings, key, label, placeholder = "") {
+  const labelTranslation = getBookingSettingLabelTranslation(label);
+
   return `
     <div class="form-group">
-      <label>${label}</label>
+      <label>
+        <span>${label}</span>
+        ${labelTranslation ? `<small class="booking-setting-label-translation">${labelTranslation}</small>` : ""}
+      </label>
+
       <input
         type="text"
         id="bookingSetting_${key}"
@@ -866,10 +970,14 @@ function bookingSettingsTextInput(settings, key, label, placeholder = "") {
 
 function bookingSettingsColorInput(settings, key, label) {
   const safeValue = escapeBookingSetting(settings[key]);
+  const labelTranslation = getBookingSettingLabelTranslation(label);
 
   return `
     <div class="form-group">
-      <label>${label}</label>
+      <label>
+        <span>${label}</span>
+        ${labelTranslation ? `<small class="booking-setting-label-translation">${labelTranslation}</small>` : ""}
+      </label>
 
       <div style="display:flex; gap:10px; align-items:center;">
         <input
@@ -903,10 +1011,15 @@ function bookingSettingsColorInput(settings, key, label) {
 }
 
 function bookingSettingsToggle(settings, key, label, hint = "") {
+  const labelTranslation = getBookingSettingLabelTranslation(label);
+
   return `
     <div class="booking-setting-toggle-row">
       <div>
-        <div class="booking-setting-toggle-title">${label}</div>
+        <div class="booking-setting-toggle-title">
+          <span>${label}</span>
+          ${labelTranslation ? `<small class="booking-setting-label-translation">${labelTranslation}</small>` : ""}
+        </div>
         ${hint ? `<div class="booking-setting-toggle-hint">${hint}</div>` : ""}
       </div>
 
@@ -1058,6 +1171,18 @@ function renderBookingSettingsV2Panel(settings) {
             ${bookingSettingsTextInput(settings, "current_queue_sub", "وصف الطابور الحالي")}
             ${bookingSettingsTextInput(settings, "submit_button_text", "نص زر الحجز")}
             ${bookingSettingsTextInput(settings, "notification_button_text", "نص زر الإشعارات")}
+            ${bookingSettingsTextInput(settings, "name_label_text", "عنوان حقل الاسم")}
+            ${bookingSettingsTextInput(settings, "name_placeholder_text", "نص داخل حقل الاسم")}
+            ${bookingSettingsTextInput(settings, "phone_label_text", "عنوان حقل الجوال")}
+            ${bookingSettingsTextInput(settings, "phone_placeholder_text", "نص داخل حقل الجوال")}
+            ${bookingSettingsTextInput(settings, "zone_label_text", "عنوان حقل المنطقة")}
+            ${bookingSettingsTextInput(settings, "zone_no_preference_text", "نص خيار بدون تفضيل")}
+            ${bookingSettingsTextInput(settings, "party_size_label_text", "عنوان عدد الأشخاص")}
+            ${bookingSettingsTextInput(settings, "name_required_alert_text", "تنبيه الاسم مطلوب")}
+            ${bookingSettingsTextInput(settings, "phone_invalid_alert_text", "تنبيه رقم الجوال غير صحيح")}
+            ${bookingSettingsTextInput(settings, "checking_booking_text", "نص جاري التحقق")}
+            ${bookingSettingsTextInput(settings, "creating_booking_text", "نص جاري الحجز")}
+            ${bookingSettingsTextInput(settings, "booking_failed_text", "نص فشل الحجز")}
           </div>
         </div>
 
@@ -1140,21 +1265,6 @@ function renderBookingSettingsV2Panel(settings) {
           </div>
         </div>
 
-        <div class="business-profile-card">
-          <div class="business-profile-card-title">
-            <i class="fas fa-info-circle"></i>
-            ملاحظة مهمة
-          </div>
-
-          <div style="font-size: 14px; line-height: 1.9; color: #4b5563;">
-            سيتم حفظ جميع هذه الإعدادات داخل جدول
-            <strong>restaurant_settings</strong>
-            بالمفتاح:
-            <strong>${EASYQ_BOOKING_SETTINGS_KEY}</strong>
-            <br><br>
-            ربط النصوص والألوان سيتم تدريجيًا في صفحة الحجز بدون تغيير قاعدة البيانات مرة أخرى.
-          </div>
-        </div>
 
       </div>
 

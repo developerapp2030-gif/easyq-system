@@ -1116,3 +1116,100 @@ select.form-input option {
   color: #06713a;
   flex-shrink: 0;
 }
+
+/* زر تبديل لغة صفحة الحجز */
+.booking-header {
+  position: relative;
+}
+
+.booking-lang-toggle {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  min-width: 42px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--booking-text);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  z-index: 5;
+  backdrop-filter: blur(8px);
+}
+
+.booking-lang-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ============================================================
+   INTERNATIONAL PHONE INPUT FIX
+   توحيد شكل حقل الجوال الدولي مع باقي الحقول
+============================================================ */
+
+.iti {
+  width: 100% !important;
+  display: block !important;
+  direction: ltr !important;
+}
+
+.iti input.form-input,
+.iti input#customerPhone {
+  width: 100% !important;
+  height: 56px !important;
+  box-sizing: border-box !important;
+  direction: ltr !important;
+  text-align: left !important;
+  padding-left: 96px !important;
+  padding-right: 16px !important;
+}
+
+.iti .iti__country-container {
+  left: 0 !important;
+  right: auto !important;
+}
+
+.iti .iti__selected-country {
+  direction: ltr !important;
+  padding-left: 12px !important;
+  padding-right: 8px !important;
+}
+
+.iti .iti__dropdown-content {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* ============================================================
+   INTERNATIONAL PHONE DROPDOWN - COMPACT MODE
+============================================================ */
+
+.iti__dropdown-content {
+  width: 300px !important;
+  max-width: calc(100vw - 32px) !important;
+  max-height: 260px !important;
+  overflow-y: auto !important;
+  border-radius: 16px !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.28) !important;
+  z-index: 99999 !important;
+}
+
+.iti__country-list {
+  max-height: 220px !important;
+  overflow-y: auto !important;
+}
+
+.iti__search-input {
+  height: 42px !important;
+  font-size: 14px !important;
+}
+
+.iti--fullscreen-popup .iti__dropdown-content {
+  position: absolute !important;
+  inset: auto !important;
+  width: 300px !important;
+  height: auto !important;
+  max-height: 260px !important;
+}

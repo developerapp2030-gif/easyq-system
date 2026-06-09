@@ -12,6 +12,7 @@ let currentCustomerId = null;
 let realtimeChannel = null;
 let isGuestViewOnly = false;
 let currentBusinessProfile = null;
+let bookingPhoneInputInstance = null;
 
 // ============================================================
 // إعدادات واجهة الحجز V2
@@ -28,6 +29,18 @@ const DEFAULT_EASYQ_BOOKING_SETTINGS = {
   current_queue_sub: "يتم تحديث الرقم مباشرة",
   submit_button_text: "تأكيد الحجز",
   notification_button_text: "تفعيل إشعارات الدور",
+  name_label_text: "الاسم",
+  name_placeholder_text: "أدخل اسمك",
+  phone_label_text: "رقم الجوال",
+  phone_placeholder_text: "05xxxxxxxx",
+  zone_label_text: "المنطقة",
+  zone_no_preference_text: "بدون تفضيل",
+  party_size_label_text: "عدد الأشخاص",
+  name_required_alert_text: "الرجاء إدخال الاسم",
+phone_invalid_alert_text: "الرجاء إدخال رقم جوال صحيح (05xxxxxxxx)",
+checking_booking_text: "جاري التحقق...",
+creating_booking_text: "جاري الحجز...",
+booking_failed_text: "فشل الحجز:",
 
   share_hint_text: "شارك أصدقاءك ليتابعوا ويشاهدوا حجزك فقط، لن يتمكنوا من إلغاء الحجز.",
   guest_view_text: "يمكنك متابعة الحجز من هنا، والإلغاء متاح لصاحب الحجز فقط",
@@ -64,12 +77,143 @@ const DEFAULT_EASYQ_BOOKING_SETTINGS = {
 
 let easyQBookingSettings = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
 
+// اللغة الافتراضية دائماً عربي عند فتح الصفحة
+let bookingPageLang = "ar";
+
+const EASYQ_BOOKING_EN_TEXTS = {
+  welcome_message: "Welcome, book your turn easily and follow your waiting status live.",
+  restore_hint_prefix: "If you already have an active booking",
+  restore_hint_link: "click here",
+  restore_hint_suffix: "... or fill the form below for a new booking",
+  current_queue_title: "Current Queue",
+  current_queue_sub: "The number updates live",
+  submit_button_text: "Confirm Booking",
+  notification_button_text: "Enable Turn Notifications",
+
+  name_label_text: "Name",
+  name_placeholder_text: "Enter your name",
+  phone_label_text: "Mobile Number",
+  phone_placeholder_text: "05xxxxxxxx",
+  zone_label_text: "Area",
+  zone_no_preference_text: "No preference",
+  party_size_label_text: "Number of guests",
+
+  name_required_alert_text: "Please enter your name",
+  phone_invalid_alert_text: "Please enter a valid mobile number",
+  checking_booking_text: "Checking...",
+  creating_booking_text: "Booking...",
+  booking_failed_text: "Booking failed:",
+
+  status_page_title: "Booking Status",
+  waiting_default_label: "Your waiting number",
+  waiting_near_label: "Your turn is near",
+  waiting_next_label: "You are next",
+  ready_title_text: "It is your turn",
+  table_ready_text: "Your table is ready",
+  table_ready_with_number_text: "Your table {table} is ready",
+  ready_sub_text: "Please arrive before the time expires",
+  occupied_title_text: "Welcome, you have arrived",
+  occupied_sub_text: "We are happy to have you",
+  cleaning_title_text: "Thank you for your visit",
+  cleaning_sub_text: "We hope to see you again soon",
+  queue_status_waiting_text: "Thank you for your patience, your turn is moving forward",
+  queue_status_offered_text: "We are waiting for you",
+
+  share_hint_text: "Share this link so others can view your booking only. They cannot cancel it.",
+  guest_view_text: "You can view the booking from here. Cancellation is only available to the booking owner.",
+  reference_label_text: "Your booking reference:",
+  reference_save_hint_text: "💡 Save your booking reference to view your waiting page from another phone or after closing the page",
+  cancel_waiting_text: "Cancel Booking",
+  cannot_attend_title: "I cannot attend",
+  cannot_attend_sub: "Tap here if you cannot attend, so the table can be released for another guest.",
+  exit_text: "Exit"
+};
+
 function bookingText(key) {
+  if (bookingPageLang === "en" && EASYQ_BOOKING_EN_TEXTS[key]) {
+    return EASYQ_BOOKING_EN_TEXTS[key];
+  }
+
   return easyQBookingSettings?.[key] ?? DEFAULT_EASYQ_BOOKING_SETTINGS[key] ?? "";
 }
 
 function bookingEnabled(key) {
   return easyQBookingSettings?.[key] !== false;
+}
+
+function toggleBookingPageLanguage() {
+  bookingPageLang = bookingPageLang === "ar" ? "en" : "ar";
+  document.documentElement.lang = bookingPageLang;
+  document.documentElement.dir = bookingPageLang === "ar" ? "rtl" : "ltr";
+
+  if (currentRequestId) {
+    renderStatusPage();
+  } else {
+    renderBookingForm();
+  }
+}
+
+function initBookingPhoneInput() {
+  const phoneInput = document.getElementById("customerPhone");
+
+  if (!phoneInput || typeof window.intlTelInput !== "function") {
+    return;
+  }
+
+  bookingPhoneInputInstance = window.intlTelInput(phoneInput, {
+    initialCountry: "sa",
+    separateDialCode: true,
+    nationalMode: true,
+    autoPlaceholder: "aggressive",
+    strictMode: true,
+    useFullscreenPopup: false
+  });
+
+  phoneInput.placeholder = "512345678";
+  phoneInput.setAttribute("inputmode", "numeric");
+  phoneInput.setAttribute("maxlength", "9");
+
+  phoneInput.addEventListener("input", function () {
+    let value = this.value.replace(/\D/g, "");
+
+    // منع البداية بصفر نهائيًا
+    if (value.startsWith("0")) {
+      value = value.replace(/^0+/, "");
+    }
+
+    // حد أقصى 9 أرقام للرقم السعودي المحلي بدون صفر
+    if (bookingPhoneInputInstance?.getSelectedCountryData()?.iso2 === "sa") {
+      value = value.slice(0, 9);
+    }
+
+    this.value = value;
+  });
+}
+
+function getBookingZoneLabel(zone) {
+  const arZoneLabels = {
+    Indoor: "داخلي",
+    Outdoor: "خارجي",
+    VIP: "VIP",
+    Family: "عائلي",
+    Smoking: "مدخنين",
+    General: "عام"
+  };
+
+  const enZoneLabels = {
+    Indoor: "Indoor",
+    Outdoor: "Outdoor",
+    VIP: "VIP",
+    Family: "Family",
+    Smoking: "Smoking",
+    General: "General"
+  };
+
+  if (bookingPageLang === "en") {
+    return enZoneLabels[zone] || zone;
+  }
+
+  return arZoneLabels[zone] || zone;
 }
 
 async function loadEasyQBookingSettings() {
@@ -428,6 +572,14 @@ function getBookingBusinessHeaderHtml() {
         <span id="currentTime"></span>
       </div>
 
+      <button 
+        type="button"
+        class="booking-lang-toggle"
+        onclick="toggleBookingPageLanguage()"
+      >
+        ${bookingPageLang === "ar" ? "EN" : "ع"}
+      </button>
+
     </div>
   `;
 }
@@ -462,27 +614,27 @@ async function renderBookingForm() {
       
       <div class="booking-card">
         <div class="form-group">
-          <label class="form-label">الاسم</label>
-          <input type="text" id="customerName" class="form-input" placeholder="أدخل اسمك">
+          <label class="form-label">${bookingText("name_label_text")}</label>
+<input type="text" id="customerName" class="form-input" placeholder="${bookingText("name_placeholder_text")}">
         </div>
         
         <div class="form-group">
-          <label class="form-label">رقم الجوال</label>
-          <input type="tel" id="customerPhone" class="form-input" placeholder="05xxxxxxxx" maxlength="10">
+          <label class="form-label">${bookingText("phone_label_text")}</label>
+<input type="tel" id="customerPhone" class="form-input" placeholder="${bookingText("phone_placeholder_text")}" maxlength="10">
         </div>
         
         ${(zonesEnabled && bookingEnabled("show_zone_selector")) ? `
         <div class="form-group">
-          <label class="form-label">المنطقة</label>
-          <select id="customerZone" class="form-input">
-            <option value="">بدون تفضيل</option>
-            ${availableZones.map(zone => `<option value="${zone}">${zone}</option>`).join('')}
+          <label class="form-label">${bookingText("zone_label_text")}</label>
+<select id="customerZone" class="form-input">
+  <option value="">${bookingText("zone_no_preference_text")}</option>
+            ${availableZones.map(zone => `<option value="${zone}">${getBookingZoneLabel(zone)}</option>`).join('')}
           </select>
         </div>
         ` : ''}
         
         <div class="form-group">
-          <label class="form-label">عدد الأشخاص</label>
+          <label class="form-label">${bookingText("party_size_label_text")}</label>
           <div class="party-stepper">
             <button class="stepper-btn" onclick="changePartySize(-1)">-</button>
             <span class="stepper-value" id="partySizeValue">2</span>
@@ -507,6 +659,7 @@ async function renderBookingForm() {
   
   document.getElementById('submitBookingBtn')?.addEventListener('click', submitBooking);
   document.getElementById('enableNotifBtn')?.addEventListener('click', () => requestNotificationPermission(true));
+  initBookingPhoneInput();
 }
 
 
@@ -908,23 +1061,38 @@ ${!isGuestViewOnly ? `
 async function submitBooking() {
   const name = document.getElementById('customerName')?.value.trim();
   window.currentCustomerName = name;
-  const phone = document.getElementById('customerPhone')?.value.trim();
+  const phoneInputEl = document.getElementById('customerPhone');
+const rawPhone = phoneInputEl?.value.trim() || "";
+const selectedCountry = bookingPhoneInputInstance?.getSelectedCountryData?.();
+const dialCode = selectedCountry?.dialCode || "966";
+const phone = `+${dialCode}${rawPhone}`;
   const partySize = parseInt(document.getElementById('partySizeValue')?.innerText || '2');
   const zone = document.getElementById('customerZone')?.value || null;
   
-  if (!name) {
-    alert('الرجاء إدخال الاسم');
-    return;
-  }
+if (!name) {
+  alert(bookingText("name_required_alert_text"));
+  return;
+}
   
-  if (!phone || phone.length !== 10 || !phone.startsWith('05')) {
-    alert('الرجاء إدخال رقم جوال صحيح (05xxxxxxxx)');
+if (selectedCountry?.iso2 === "sa") {
+  if (!/^[1-9][0-9]{8}$/.test(rawPhone)) {
+    alert(
+      bookingPageLang === "en"
+        ? "Please enter 9 digits without starting with 0"
+        : "يجب إدخال 9 أرقام بدون أن يبدأ الرقم بـ 0"
+    );
     return;
   }
+} else {
+  if (!/^[0-9]{6,15}$/.test(rawPhone)) {
+    alert(bookingText("phone_invalid_alert_text"));
+    return;
+  }
+}
   
   const submitBtn = document.getElementById('submitBookingBtn');
   submitBtn.disabled = true;
-  submitBtn.innerHTML = '<div class="spinner"></div> جاري التحقق...';
+  submitBtn.innerHTML = `<div class="spinner"></div> ${bookingText("checking_booking_text")}`;
   
   try {
     // ✅ الخطوة 1: التحقق من وجود حجز نشط لنفس الجوال
@@ -963,7 +1131,7 @@ return;
     }
     
     // ✅ الخطوة 2: لا يوجد حجز نشط، تابع إنشاء حجز جديد
-    submitBtn.innerHTML = '<div class="spinner"></div> جاري الحجز...';
+    submitBtn.innerHTML = `<div class="spinner"></div> ${bookingText("creating_booking_text")}`;
     
     // استخدام RPC لإنشاء عميل
     const { data: customerId, error: customerError } = await supabase.rpc('create_customer_safe', {
@@ -1004,11 +1172,11 @@ return;
     showAudioModal();
     startCustomerSafetyPolling();
     
-  } catch (err) {
-    alert('فشل الحجز: ' + err.message);
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = 'تأكيد الحجز';
-  }
+} catch (err) {
+  alert(`${bookingText("booking_failed_text")} ${err.message}`);
+  submitBtn.disabled = false;
+  submitBtn.innerHTML = bookingText("submit_button_text");
+}
   
 }
 

@@ -2834,6 +2834,50 @@ body.logged-in .topbar {
    BOOKING SETTINGS V2 PANEL
 ============================================================ */
 
+/* ============================================================
+   BOOKING SETTINGS V2 - CLEAN COMPACT LAYOUT
+============================================================ */
+
+.booking-settings-v2-page .business-profile-grid {
+  display: block !important;
+  column-count: 2;
+  column-gap: 18px;
+}
+
+.booking-settings-v2-page .business-profile-card {
+  display: inline-block;
+  width: 100%;
+  margin: 0 0 18px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.booking-settings-v2-page .business-profile-form {
+  gap: 12px;
+}
+
+.booking-settings-v2-page .form-group {
+  margin-bottom: 12px;
+}
+
+.booking-settings-v2-page .business-profile-card-title {
+  margin-bottom: 14px;
+}
+
+.booking-settings-v2-page .booking-setting-toggle-row {
+  padding: 11px 0;
+}
+
+.booking-settings-v2-page .business-profile-actions {
+  margin-top: 8px;
+}
+
+@media (max-width: 900px) {
+  .booking-settings-v2-page .business-profile-grid {
+    column-count: 1;
+  }
+}
+
 .booking-settings-v2-page .business-profile-grid {
   align-items: flex-start;
 }
@@ -2899,4 +2943,19 @@ body.logged-in .topbar {
 
 .booking-setting-switch input:checked + span::before {
   transform: translateX(22px);
+}
+
+.booking-setting-label-translation {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--gray-500);
+  direction: ltr;
+  text-align: inherit;
+  opacity: 0.85;
+}
+
+.booking-setting-toggle-title .booking-setting-label-translation {
+  margin-top: 4px;
 }
