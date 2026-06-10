@@ -173,17 +173,17 @@
   <!-- مودال عرض الحجز -->
 <div class="modal-backdrop" id="restoreModal">
   <div class="modal" style="max-width: 400px;">
-    <div class="modal-title">عرض حجز نشط</div>
-    <div class="modal-sub">أدخل رقم الحجز المرجعي و رقم الجوال</div>
-    
-    <input type="text" id="restoreCode" class="form-input" placeholder="رقم الحجز المرجعي (مثال: A4821)" style="margin-bottom: 12px;">
-    <div style="text-align: center; margin: 10px 0;">و</div>
-    <input type="tel" id="restorePhone" class="form-input" placeholder="رقم الجوال (05xxxxxxxx)" maxlength="10">
-    
-    <div style="display: flex; gap: 12px; margin-top: 20px;">
-      <button class="settings-save" onclick="viewBooking()" style="flex: 1;">عرض الحجز</button>
-      <button class="settings-close" onclick="closeRestoreModal()" style="flex: 1;">إغلاق</button>
-    </div>
+<div class="modal-title" id="restoreModalTitle">عرض حجز نشط</div>
+<div class="modal-sub" id="restoreModalSub">أدخل رقم الحجز المرجعي و رقم الجوال</div>
+
+<input type="text" id="restoreCode" class="form-input" placeholder="رقم الحجز المرجعي (مثال: A4821)" style="margin-bottom: 12px;">
+<div id="restoreModalAndText" style="text-align: center; margin: 10px 0;">و</div>
+<input type="tel" id="restorePhone" class="form-input" placeholder="رقم الجوال (05xxxxxxxx)" maxlength="10">
+
+<div style="display: flex; gap: 12px; margin-top: 20px;">
+  <button class="settings-save" id="restoreViewBtn" onclick="viewBooking()" style="flex: 1;">عرض الحجز</button>
+  <button class="settings-close" id="restoreCloseBtn" onclick="closeRestoreModal()" style="flex: 1;">إغلاق</button>
+</div>
   </div>
 </div>
 </body>

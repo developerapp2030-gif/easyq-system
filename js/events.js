@@ -830,20 +830,27 @@ booking_failed_text: "فشل الحجز:",
   show_reference_code: true,
   show_notification_button: true,
 
-  // الألوان
-  page_bg_start: "#0A0A0F",
-  page_bg_end: "#1A1A2A",
-  primary_color: "#8B0000",
-  primary_color_2: "#C62828",
-  accent_color: "#FFD700",
-  progress_color: "#D4AF37",
-  success_color: "#10B981",
-  text_color: "#FFFFFF",
-  muted_text_color: "rgba(255,255,255,0.65)",
+// الألوان
+page_bg_start: "#0A0A0F",
+page_bg_end: "#1A1A2A",
+primary_color: "#8B0000",
+primary_color_2: "#C62828",
+accent_color: "#FFD700",
+progress_color: "#D4AF37",
+success_color: "#10B981",
+text_color: "#FFFFFF",
+muted_text_color: "rgba(255,255,255,0.65)",
 card_bg_color: "rgba(255,255,255,0.05)",
+
 welcome_bg_color: "rgba(255,255,255,0.08)",
+welcome_text_color: "#FFFFFF",
+
 restore_hint_bg_color: "rgba(255,255,255,0.05)",
+restore_hint_text_color: "#FFFFFF",
+
 booking_card_bg_color: "rgba(255,255,255,0.06)",
+booking_card_text_color: "#FFFFFF",
+
 button_text_color: "#FFFFFF"
 };
 
@@ -929,19 +936,26 @@ function getBookingSettingLabelTranslation(label) {
     "إظهار الرقم المرجعي": "Show reference code",
     "إظهار زر الإشعارات": "Show notification button",
 
-    // الألوان
-    "لون بداية الخلفية": "Background start color",
-    "لون نهاية الخلفية": "Background end color",
-    "اللون الرئيسي": "Primary color",
-    "اللون الرئيسي الثاني": "Secondary primary color",
-    "اللون الذهبي / المميز": "Accent color",
-    "لون الحلقة أثناء الانتظار": "Waiting ring color",
-    "لون النجاح / الجاهزية": "Success / ready color",
-    "لون النص الأساسي": "Main text color",
-    "لون نص الأزرار": "Button text color"
-    "لون خلفية رسالة الترحيب": "Welcome message background",
+// الألوان
+"لون بداية الخلفية": "Background start color",
+"لون نهاية الخلفية": "Background end color",
+"اللون الرئيسي": "Primary color",
+"اللون الرئيسي الثاني": "Secondary primary color",
+"اللون الذهبي / المميز": "Accent color",
+"لون الحلقة أثناء الانتظار": "Waiting ring color",
+"لون النجاح / الجاهزية": "Success / ready color",
+"لون النص الأساسي": "Main text color",
+
+"لون خلفية رسالة الترحيب": "Welcome message background",
+"لون نص رسالة الترحيب": "Welcome message text color",
+
 "لون خلفية سطر استعادة الحجز": "Restore hint background",
+"لون نص سطر استعادة الحجز": "Restore hint text color",
+
 "لون خلفية كرت نموذج الحجز": "Booking form card background",
+"لون نصوص كرت نموذج الحجز": "Booking form card text color",
+
+"لون نص الأزرار": "Button text color"
   };
 
   return translations[label] || "";
@@ -1150,6 +1164,290 @@ async function saveBookingSettingsV2() {
   }
 }
 
+async function resetBookingSettingsToDefault() {
+  const confirmed = confirm(
+    "هل أنت متأكد من استعادة الإعدادات الافتراضية لواجهة الحجز؟\nسيتم استبدال جميع النصوص والألوان والخيارات الحالية."
+  );
+
+  if (!confirmed) return;
+
+  const businessId = getBookingSettingsBusinessId();
+
+  if (!businessId) {
+    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    return;
+  }
+
+  const resetBtn = event?.target?.closest("button");
+
+  if (resetBtn) {
+    resetBtn.disabled = true;
+    resetBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري الاستعادة...`;
+  }
+
+  const defaultSettings = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+
+  try {
+    const { data: existing, error: readError } = await supabase
+      .from("restaurant_settings")
+      .select("setting_key")
+      .eq("business_id", businessId)
+      .eq("setting_key", EASYQ_BOOKING_SETTINGS_KEY)
+      .maybeSingle();
+
+    if (readError) throw readError;
+
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from("restaurant_settings")
+        .update({
+          setting_value: JSON.stringify(defaultSettings)
+        })
+        .eq("business_id", businessId)
+        .eq("setting_key", EASYQ_BOOKING_SETTINGS_KEY);
+
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from("restaurant_settings")
+        .insert({
+          business_id: businessId,
+          setting_key: EASYQ_BOOKING_SETTINGS_KEY,
+          setting_value: JSON.stringify(defaultSettings)
+        });
+
+      if (insertError) throw insertError;
+    }
+
+    easyQBookingSettingsAdmin = defaultSettings;
+
+    const bodyEl = document.getElementById("fullPagePanelBody");
+    if (bodyEl) {
+      bodyEl.innerHTML = renderBookingSettingsV2Panel(defaultSettings);
+    }
+
+    showSuccessNotification("✅ تم استعادة الإعدادات الافتراضية لواجهة الحجز");
+  } catch (err) {
+    console.error("❌ فشل استعادة إعدادات واجهة الحجز:", err);
+    showAlert("فشل استعادة الإعدادات الافتراضية: " + err.message);
+  } finally {
+    if (resetBtn) {
+      resetBtn.disabled = false;
+      resetBtn.innerHTML = `<i class="fas fa-undo"></i> استعادة الاعدادت الافتراضية`;
+    }
+  }
+}
+
+function getBookingPageQrUrl() {
+  const businessId = getBookingSettingsBusinessId();
+
+  if (!businessId) {
+    return "";
+  }
+
+  return `${window.location.origin}/booking.html?business_id=${businessId}`;
+}
+
+function renderBookingPageQr() {
+  const qrContainer = document.getElementById("bookingPageQrContainer");
+  const qrUrlInput = document.getElementById("bookingPageQrUrl");
+  const bookingUrl = getBookingPageQrUrl();
+
+  if (qrUrlInput) {
+    qrUrlInput.value = bookingUrl;
+  }
+
+  if (!qrContainer || !bookingUrl) {
+    return;
+  }
+
+  qrContainer.innerHTML = "";
+
+  if (typeof QRCode === "undefined") {
+    qrContainer.innerHTML = `
+      <div style="font-size:12px; color:#8B0000; text-align:center; line-height:1.7;">
+        مكتبة QR غير محملة
+      </div>
+    `;
+    return;
+  }
+
+  new QRCode(qrContainer, {
+    text: bookingUrl,
+    width: 160,
+    height: 160,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+}
+
+async function copyBookingPageQrUrl() {
+  const bookingUrl = getBookingPageQrUrl();
+
+  if (!bookingUrl) {
+    showAlert("لم يتم العثور على رابط صفحة الحجز");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(bookingUrl);
+    showSuccessNotification("✅ تم نسخ رابط صفحة الحجز");
+  } catch (err) {
+    console.error("❌ فشل نسخ رابط صفحة الحجز:", err);
+    showAlert("فشل نسخ الرابط");
+  }
+}
+
+function downloadBookingPageQr() {
+  const qrContainer = document.getElementById("bookingPageQrContainer");
+
+  if (!qrContainer) {
+    showAlert("لم يتم العثور على QR");
+    return;
+  }
+
+  const canvas = qrContainer.querySelector("canvas");
+  const img = qrContainer.querySelector("img");
+
+  let imageUrl = "";
+
+  if (canvas) {
+    imageUrl = canvas.toDataURL("image/png");
+  } else if (img) {
+    imageUrl = img.src;
+  }
+
+  if (!imageUrl) {
+    showAlert("لم يتم توليد QR بعد");
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = imageUrl;
+  link.download = "easyq-booking-qr.png";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function printBookingPageQr() {
+  const bookingUrl = getBookingPageQrUrl();
+  const qrContainer = document.getElementById("bookingPageQrContainer");
+
+  if (!bookingUrl || !qrContainer) {
+    showAlert("لم يتم العثور على QR");
+    return;
+  }
+
+  const qrHtml = qrContainer.innerHTML;
+
+  const businessName =
+    currentUser?.business_name ||
+    window.currentBusinessProfile?.name ||
+    "EASY-Q";
+
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    showAlert("المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.");
+    return;
+  }
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>QR Code صفحة الحجز</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 40px;
+          font-family: Arial, sans-serif;
+          background: #ffffff;
+          color: #111827;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+        }
+
+        .qr-print-card {
+          width: 360px;
+          text-align: center;
+          border: 2px solid #111827;
+          border-radius: 24px;
+          padding: 28px;
+        }
+
+        .qr-title {
+          font-size: 24px;
+          font-weight: 800;
+          margin-bottom: 8px;
+        }
+
+        .qr-subtitle {
+          font-size: 16px;
+          margin-bottom: 20px;
+          color: #4B5563;
+        }
+
+        .qr-box {
+          width: 220px;
+          height: 220px;
+          margin: 0 auto 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .qr-box img,
+        .qr-box canvas {
+          width: 220px !important;
+          height: 220px !important;
+        }
+
+        .qr-link {
+          direction: ltr;
+          word-break: break-all;
+          font-size: 11px;
+          color: #6B7280;
+          margin-top: 14px;
+        }
+
+        .qr-footer {
+          margin-top: 18px;
+          font-size: 13px;
+          color: #111827;
+          font-weight: 700;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="qr-print-card">
+        <div class="qr-title">${businessName}</div>
+        <div class="qr-subtitle">امسح الرمز لفتح صفحة الحجز</div>
+
+        <div class="qr-box">
+          ${qrHtml}
+        </div>
+
+        <div class="qr-footer">EASY-Q Booking</div>
+        <div class="qr-link">${bookingUrl}</div>
+      </div>
+    </body>
+    </html>
+  `);
+
+  printWindow.document.close();
+
+  setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 300);
+}
+
 function renderBookingSettingsV2Panel(settings) {
   return `
     <div class="business-profile-page booking-settings-v2-page">
@@ -1247,37 +1545,131 @@ function renderBookingSettingsV2Panel(settings) {
         </div>
 
         <div class="business-profile-card">
+  <div class="business-profile-card-title">
+    <i class="fas fa-qrcode"></i>
+    QR Code لصفحة الحجز
+  </div>
+
+  <div class="business-profile-form">
+
+    <div class="form-group">
+      <label>
+        <span>رابط صفحة الحجز</span>
+        <small class="booking-setting-label-translation">Booking page link</small>
+      </label>
+
+      <input
+        type="text"
+        id="bookingPageQrUrl"
+        class="business-profile-input"
+        readonly
+        value="${getBookingPageQrUrl()}"
+        style="direction:ltr; text-align:left;"
+      >
+    </div>
+
+    <div style="display:flex; justify-content:center; margin:16px 0;">
+      <div
+        id="bookingPageQrContainer"
+        style="
+          width:190px;
+          height:190px;
+          background:#fff;
+          border-radius:18px;
+          padding:14px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 12px 30px rgba(0,0,0,.12);
+        "
+      ></div>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button
+        type="button"
+        class="business-profile-cancel-btn"
+        onclick="copyBookingPageQrUrl()"
+        style="flex:1;"
+      >
+        <i class="fas fa-copy"></i>
+        نسخ الرابط
+      </button>
+
+      <button
+        type="button"
+        class="business-profile-cancel-btn"
+        onclick="downloadBookingPageQr()"
+        style="flex:1;"
+      >
+        <i class="fas fa-download"></i>
+        تحميل QR
+      </button>
+
+      <button
+        type="button"
+        class="business-profile-cancel-btn"
+        onclick="printBookingPageQr()"
+        style="flex:1;"
+      >
+        <i class="fas fa-print"></i>
+        طباعة
+      </button>
+    </div>
+
+  </div>
+</div>
+
+        <div class="business-profile-card">
           <div class="business-profile-card-title">
             <i class="fas fa-palette"></i>
             ألوان صفحة الحجز
           </div>
 
           <div class="business-profile-form">
-            ${bookingSettingsColorInput(settings, "page_bg_start", "لون بداية الخلفية")}
-            ${bookingSettingsColorInput(settings, "page_bg_end", "لون نهاية الخلفية")}
-            ${bookingSettingsColorInput(settings, "primary_color", "اللون الرئيسي")}
-            ${bookingSettingsColorInput(settings, "primary_color_2", "اللون الرئيسي الثاني")}
-            ${bookingSettingsColorInput(settings, "accent_color", "اللون الذهبي / المميز")}
-            ${bookingSettingsColorInput(settings, "progress_color", "لون الحلقة أثناء الانتظار")}
-            ${bookingSettingsColorInput(settings, "success_color", "لون النجاح / الجاهزية")}
-            ${bookingSettingsColorInput(settings, "text_color", "لون النص الأساسي")}
-            ${bookingSettingsColorInput(settings, "button_text_color", "لون نص الأزرار")}
+${bookingSettingsColorInput(settings, "page_bg_start", "لون بداية الخلفية")}
+${bookingSettingsColorInput(settings, "page_bg_end", "لون نهاية الخلفية")}
+
+${bookingSettingsColorInput(settings, "primary_color", "اللون الرئيسي")}
+${bookingSettingsColorInput(settings, "primary_color_2", "اللون الرئيسي الثاني")}
+${bookingSettingsColorInput(settings, "accent_color", "اللون الذهبي / المميز")}
+
+${bookingSettingsColorInput(settings, "progress_color", "لون الحلقة أثناء الانتظار")}
+${bookingSettingsColorInput(settings, "success_color", "لون النجاح / الجاهزية")}
+
+${bookingSettingsColorInput(settings, "text_color", "لون النص الأساسي")}
+
+${bookingSettingsColorInput(settings, "welcome_bg_color", "لون خلفية رسالة الترحيب")}
+${bookingSettingsColorInput(settings, "welcome_text_color", "لون نص رسالة الترحيب")}
+
+${bookingSettingsColorInput(settings, "restore_hint_bg_color", "لون خلفية سطر استعادة الحجز")}
+${bookingSettingsColorInput(settings, "restore_hint_text_color", "لون نص سطر استعادة الحجز")}
+
+${bookingSettingsColorInput(settings, "booking_card_bg_color", "لون خلفية كرت نموذج الحجز")}
+${bookingSettingsColorInput(settings, "booking_card_text_color", "لون نصوص كرت نموذج الحجز")}
+
+${bookingSettingsColorInput(settings, "button_text_color", "لون نص الأزرار")}
           </div>
         </div>
 
 
       </div>
 
-      <div class="business-profile-actions">
-        <button class="business-profile-save-btn" id="saveBookingSettingsV2Btn" onclick="saveBookingSettingsV2()">
-          <i class="fas fa-save"></i>
-          حفظ الإعدادات
-        </button>
+<div class="business-profile-actions">
+  <button class="business-profile-save-btn" id="saveBookingSettingsV2Btn" onclick="saveBookingSettingsV2()">
+    <i class="fas fa-save"></i>
+    حفظ الإعدادات
+  </button>
 
-        <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
-          إغلاق
-        </button>
-      </div>
+  <button class="business-profile-cancel-btn" onclick="resetBookingSettingsToDefault()">
+    <i class="fas fa-undo"></i>
+    استعادة الاعدادت الافتراضية
+  </button>
+
+  <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
+    إغلاق
+  </button>
+</div>
 
     </div>
   `;
@@ -1302,14 +1694,20 @@ async function openBookingSettingsModal() {
 
   easyQBookingSettingsAdmin = await loadBookingSettingsV2ForAdmin();
 
-  const bodyEl = document.getElementById("fullPagePanelBody");
-  if (bodyEl) {
-    bodyEl.innerHTML = renderBookingSettingsV2Panel(easyQBookingSettingsAdmin);
-  }
+const bodyEl = document.getElementById("fullPagePanelBody");
+if (bodyEl) {
+  bodyEl.innerHTML = renderBookingSettingsV2Panel(easyQBookingSettingsAdmin);
+  setTimeout(renderBookingPageQr, 50);
+}
 }
 
 window.openBookingSettingsModal = openBookingSettingsModal;
 window.saveBookingSettingsV2 = saveBookingSettingsV2;
+window.resetBookingSettingsToDefault = resetBookingSettingsToDefault;
+window.renderBookingPageQr = renderBookingPageQr;
+window.copyBookingPageQrUrl = copyBookingPageQrUrl;
+window.downloadBookingPageQr = downloadBookingPageQr;
+window.printBookingPageQr = printBookingPageQr;
 
 function openBusinessProfileModal() {
   const contentHtml = `

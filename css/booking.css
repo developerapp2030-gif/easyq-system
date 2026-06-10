@@ -1203,7 +1203,7 @@ select.form-input option {
 
 .iti__search-input {
   height: 42px !important;
-  font-size: 14px !important;
+  font-size: 12px !important;
 }
 
 .iti--fullscreen-popup .iti__dropdown-content {
@@ -1212,4 +1212,50 @@ select.form-input option {
   width: 300px !important;
   height: auto !important;
   max-height: 260px !important;
+}
+
+/* ============================================================
+   BOOKING CUSTOM SECTION BACKGROUNDS + TEXT COLORS
+   ألوان مستقلة للخلفيات والنصوص
+============================================================ */
+
+.welcome-message {
+  background: var(--booking-welcome-bg) !important;
+  color: var(--booking-welcome-text) !important;
+}
+
+.restore-hint {
+  background: var(--booking-restore-hint-bg) !important;
+  color: var(--booking-restore-hint-text) !important;
+}
+
+.restore-hint span {
+  color: var(--booking-restore-hint-text) !important;
+}
+
+.booking-card {
+  background: var(--booking-form-card-bg) !important;
+  color: var(--booking-form-card-text) !important;
+}
+
+.booking-card .form-label,
+.booking-card .stepper-value {
+  color: var(--booking-form-card-text) !important;
+}
+
+/* ============================================================
+   PHONE DIAL CODE CUSTOM STYLE
+   تثبيت شكل مفتاح الدولة +966
+============================================================ */
+
+.iti .iti__selected-dial-code {
+  font-size: 15px !important;
+  font-weight: 300 !important;
+  margin-left: 2px !important;
+  margin-right: 8px !important;
+}
+
+/* مسافة بين مفتاح الدولة والرقم */
+.iti input#customerPhone {
+  padding-left: 95px !important;
 }

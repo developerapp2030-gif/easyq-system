@@ -37,10 +37,10 @@ const DEFAULT_EASYQ_BOOKING_SETTINGS = {
   zone_no_preference_text: "بدون تفضيل",
   party_size_label_text: "عدد الأشخاص",
   name_required_alert_text: "الرجاء إدخال الاسم",
-phone_invalid_alert_text: "الرجاء إدخال رقم جوال صحيح (05xxxxxxxx)",
-checking_booking_text: "جاري التحقق...",
-creating_booking_text: "جاري الحجز...",
-booking_failed_text: "فشل الحجز:",
+  phone_invalid_alert_text: "الرجاء إدخال رقم جوال صحيح (05xxxxxxxx)",
+  checking_booking_text: "جاري التحقق...",
+  creating_booking_text: "جاري الحجز...",
+  booking_failed_text: "فشل الحجز:",
 
   share_hint_text: "شارك أصدقاءك ليتابعوا ويشاهدوا حجزك فقط، لن يتمكنوا من إلغاء الحجز.",
   guest_view_text: "يمكنك متابعة الحجز من هنا، والإلغاء متاح لصاحب الحجز فقط",
@@ -62,17 +62,28 @@ booking_failed_text: "فشل الحجز:",
   show_reference_code: true,
   show_notification_button: true,
 
-  page_bg_start: "#0A0A0F",
-  page_bg_end: "#1A1A2A",
-  primary_color: "#8B0000",
-  primary_color_2: "#C62828",
-  accent_color: "#FFD700",
-  progress_color: "#D4AF37",
-  success_color: "#10B981",
-  text_color: "#FFFFFF",
-  muted_text_color: "rgba(255,255,255,0.65)",
-  card_bg_color: "rgba(255,255,255,0.05)",
-  button_text_color: "#FFFFFF"
+// الألوان
+page_bg_start: "#0A0A0F",
+page_bg_end: "#1A1A2A",
+primary_color: "#8B0000",
+primary_color_2: "#C62828",
+accent_color: "#FFD700",
+progress_color: "#D4AF37",
+success_color: "#10B981",
+text_color: "#FFFFFF",
+muted_text_color: "rgba(255,255,255,0.65)",
+card_bg_color: "rgba(255,255,255,0.05)",
+
+welcome_bg_color: "rgba(255,255,255,0.08)",
+welcome_text_color: "#FFFFFF",
+
+restore_hint_bg_color: "rgba(255,255,255,0.05)",
+restore_hint_text_color: "#FFFFFF",
+
+booking_card_bg_color: "rgba(255,255,255,0.06)",
+booking_card_text_color: "#FFFFFF",
+
+button_text_color: "#FFFFFF"
 };
 
 let easyQBookingSettings = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
@@ -169,7 +180,7 @@ function initBookingPhoneInput() {
     useFullscreenPopup: false
   });
 
-  phoneInput.placeholder = "512345678";
+  phoneInput.placeholder = " 512345678";
   phoneInput.setAttribute("inputmode", "numeric");
   phoneInput.setAttribute("maxlength", "9");
 
@@ -269,8 +280,17 @@ function applyEasyQBookingTheme() {
   root.style.setProperty("--booking-success", s.success_color);
   root.style.setProperty("--booking-text", s.text_color);
   root.style.setProperty("--booking-muted-text", s.muted_text_color);
-  root.style.setProperty("--booking-card-bg", s.card_bg_color);
-  root.style.setProperty("--booking-button-text", s.button_text_color);
+root.style.setProperty("--booking-card-bg", s.card_bg_color);
+root.style.setProperty("--booking-welcome-bg", s.welcome_bg_color);
+root.style.setProperty("--booking-welcome-text", s.welcome_text_color);
+
+root.style.setProperty("--booking-restore-hint-bg", s.restore_hint_bg_color);
+root.style.setProperty("--booking-restore-hint-text", s.restore_hint_text_color);
+
+root.style.setProperty("--booking-form-card-bg", s.booking_card_bg_color);
+root.style.setProperty("--booking-form-card-text", s.booking_card_text_color);
+
+root.style.setProperty("--booking-button-text", s.button_text_color);
 }
 // ============================================================
 // إعدادات Realtime Watchdog
@@ -1737,7 +1757,28 @@ function setupRealtime() {
     }
 }
 
+function updateRestoreModalLanguage() {
+  const isEn = bookingPageLang === "en";
+
+  const titleEl = document.getElementById("restoreModalTitle");
+  const subEl = document.getElementById("restoreModalSub");
+  const codeInput = document.getElementById("restoreCode");
+  const phoneInput = document.getElementById("restorePhone");
+  const andText = document.getElementById("restoreModalAndText");
+  const viewBtn = document.getElementById("restoreViewBtn");
+  const closeBtn = document.getElementById("restoreCloseBtn");
+
+  if (titleEl) titleEl.innerText = isEn ? "View Active Booking" : "عرض حجز نشط";
+  if (subEl) subEl.innerText = isEn ? "Enter your booking reference and mobile number" : "أدخل رقم الحجز المرجعي و رقم الجوال";
+  if (codeInput) codeInput.placeholder = isEn ? "Booking reference, e.g. A4821" : "رقم الحجز المرجعي (مثال: A4821)";
+  if (phoneInput) phoneInput.placeholder = isEn ? "Mobile number" : "رقم الجوال";
+  if (andText) andText.innerText = isEn ? "and" : "و";
+  if (viewBtn) viewBtn.innerText = isEn ? "View Booking" : "عرض الحجز";
+  if (closeBtn) closeBtn.innerText = isEn ? "Close" : "إغلاق";
+}
+
 function openRestoreModal() {
+  updateRestoreModalLanguage();
   document.getElementById('restoreModal').classList.add('show');
 }
 
