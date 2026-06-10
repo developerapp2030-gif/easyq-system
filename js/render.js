@@ -54,6 +54,51 @@ async function renderFloorPlan() {
     return;
   }
   
+const tables = filteredFloorData();
+
+/*
+  جلب حالة إبلاغ واتساب للتعيينات النشطة
+  حتى نعرف هل نعرض النتوء رمادي أو أخضر
+*/
+const activeTableIds = tables
+  .filter(t => t.status === "reserved" || t.status === "occupied")
+  .map(t => t.id);
+
+if (activeTableIds.length > 0) {
+  const { data: whatsappAssignments, error: whatsappAssignmentsError } = await supabase
+    .from("table_assignments")
+    .select("id, table_id, request_id, whatsapp_notified, whatsapp_notified_at")
+    .in("table_id", activeTableIds)
+    .in("status", ["offered", "reserved", "occupied"]);
+
+  if (whatsappAssignmentsError) {
+    console.warn("⚠️ فشل جلب حالة إبلاغ واتساب:", whatsappAssignmentsError);
+  } else {
+    const whatsappMap = {};
+
+    (whatsappAssignments || []).forEach(a => {
+      whatsappMap[a.table_id] = a;
+    });
+
+    tables.forEach(t => {
+      const assignment = whatsappMap[t.id];
+
+      if (assignment) {
+        t.active_assignment_id = assignment.id;
+        t.active_request_id = assignment.request_id;
+        t.whatsapp_notified = assignment.whatsapp_notified === true;
+        t.whatsapp_notified_at = assignment.whatsapp_notified_at || null;
+      } else {
+        t.active_assignment_id = null;
+        t.active_request_id = null;
+        t.whatsapp_notified = false;
+        t.whatsapp_notified_at = null;
+      }
+    });
+  }
+}
+  
+
 container.innerHTML = "";
 container.style.cssText = `
   display: block;
@@ -62,7 +107,7 @@ container.style.cssText = `
   background-color: var(--gray-50);
   border-radius: 16px;
   padding: 20px;
-  overflow: hidden;
+  overflow: visible;
 `;
 
 const businessLogoUrl = window.currentBusinessProfile?.logo_url;
@@ -73,9 +118,7 @@ if (businessLogoUrl) {
   watermark.style.backgroundImage = `url("${businessLogoUrl}")`;
   container.appendChild(watermark);
 }
-  
-  const tables = filteredFloorData();
-  
+
   tables.forEach(table => {
 const card = document.createElement("div");
 card.className = "table-card";
@@ -169,8 +212,24 @@ const nameHtml = `
       }
     }
     
+const whatsappNotifyHtml =
+  (status === "reserved" && table.customer_name && table.active_assignment_id)
+    ? `
+      <button
+        type="button"
+        class="table-whatsapp-notify ${table.whatsapp_notified ? "notified" : "pending"}"
+        onclick="event.stopPropagation(); openTableWhatsAppNotifyModal('${table.id}')"
+        title="${table.whatsapp_notified ? "تم الإبلاغ عبر واتساب" : "إبلاغ العميل عبر واتساب"}"
+      >
+        <i class="fab fa-whatsapp"></i>
+      </button>
+    `
+    : "";
+
 card.innerHTML = `
   
+  ${whatsappNotifyHtml}
+
   <div class="table-status-bar ${status}"></div>
 
   <div class="table-info ${infoClass}">

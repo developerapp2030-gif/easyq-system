@@ -184,13 +184,7 @@ async function assignRequestToTable(reqId, partySize, row) {
     
     console.log("✅ التعيين تم بنجاح، الدقائق المستخدمة:", result.hold_minutes_used);
     
-    const requestData = waitingData.find(w => w.request_id === reqId);
-    
-    if (requestData && requestData.phone) {
-      sendWhatsAppMessage(requestData.phone, 
-        `🍽️ أهلاً *${requestData.customer_name || 'ضيفنا'}*، طاولتك بانتظارك الآن!\nلطفاً التوجه خلال *${holdMinutes} دقائق* قبل إلغاء الحجز.`
-      );
-    }
+
     
     clearSelection();
     await loadAll();

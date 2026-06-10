@@ -52,14 +52,78 @@ async function doLogin() {
       return;
     }
     
-    // باقي الكود للمستخدمين العاديين
-    await supabase.rpc('set_current_business_id', { p_business_id: user.business_id });
-    if (typeof setCurrentBusinessId === 'function') setCurrentBusinessId(user.business_id);
-    currentUser = user;
-    localStorage.setItem('easyq_user', JSON.stringify(user));
-    const loginOverlay = document.getElementById('loginOverlay');
-    if (loginOverlay) loginOverlay.style.display = 'none';
-    document.body.classList.add('logged-in');
+// باقي الكود للمستخدمين العاديين
+await supabase.rpc('set_current_business_id', { p_business_id: user.business_id });
+
+if (typeof setCurrentBusinessId === 'function') {
+  setCurrentBusinessId(user.business_id);
+}
+
+// ============================================================
+// SUBSCRIPTION CHECK - EASY-Q
+// فحص اشتراك المطعم قبل تشغيل النظام
+// ============================================================
+const { data: licenseRows, error: licenseError } = await supabase
+  .rpc('get_my_license_status');
+
+if (licenseError) {
+  console.error('License check error:', licenseError);
+  await supabase.auth.signOut();
+
+  if (errorEl) {
+    errorEl.innerText = 'تعذر التحقق من اشتراك المطعم. الرجاء المحاولة لاحقًا.';
+    errorEl.classList.add('show');
+  }
+
+  return;
+}
+
+const licenseStatus = Array.isArray(licenseRows) ? licenseRows[0] : null;
+
+if (!licenseStatus) {
+  console.warn('No license status returned for this user');
+  await supabase.auth.signOut();
+
+  if (errorEl) {
+    errorEl.innerText = 'لا يوجد اشتراك مرتبط بهذا الحساب. يرجى التواصل مع إدارة EASY-Q.';
+    errorEl.classList.add('show');
+  }
+
+  return;
+}
+
+if (licenseStatus.access_allowed === false) {
+  console.warn('Subscription access denied:', licenseStatus);
+  await supabase.auth.signOut();
+
+  let message = 'انتهى اشتراك المطعم. يرجى التواصل مع إدارة EASY-Q لتجديد الاشتراك.';
+
+  if (licenseStatus.effective_status === 'suspended') {
+    message = licenseStatus.suspension_reason || 'تم إيقاف اشتراك المطعم مؤقتًا. يرجى التواصل مع إدارة EASY-Q.';
+  }
+
+  if (licenseStatus.effective_status === 'cancelled') {
+    message = 'تم إلغاء اشتراك المطعم. يرجى التواصل مع إدارة EASY-Q.';
+  }
+
+  if (errorEl) {
+    errorEl.innerText = message;
+    errorEl.classList.add('show');
+  }
+
+  return;
+}
+
+// حفظ بيانات المستخدم والاشتراك بعد نجاح الفحص
+currentUser = user;
+localStorage.setItem('easyq_user', JSON.stringify(user));
+localStorage.setItem('easyq_license_status', JSON.stringify(licenseStatus));
+
+const loginOverlay = document.getElementById('loginOverlay');
+if (loginOverlay) loginOverlay.style.display = 'none';
+
+document.body.classList.add('logged-in');
+
 await loadUserPermissions();
 
 /* تحميل بيانات المطعم الحالي بعد تسجيل الدخول */
@@ -70,13 +134,141 @@ await loadAll();
 const currentUserNameSpan = document.getElementById('currentUserName');
 if (currentUserNameSpan) currentUserNameSpan.innerText = user.display_name;
 
-showSuccessNotification(`مرحباً ${user.display_name}`);
+// عرض تنبيه الاشتراك داخل الواجهة إن وجد
+showSubscriptionNotice(licenseStatus);
+
+// تشغيل تحديث الاشتراك تلقائيًا كل 5 دقائق أثناء بقاء النظام مفتوحًا
+if (window.subscriptionRefreshInterval) {
+  clearInterval(window.subscriptionRefreshInterval);
+}
+
+window.subscriptionRefreshInterval = setInterval(() => {
+  refreshSubscriptionStatus();
+}, 5 * 60 * 1000);
+
+if (licenseStatus.should_show_expiry_warning) {
+  showSuccessNotification(`مرحباً ${user.display_name} - تنبيه: اشتراك المطعم ينتهي بعد ${licenseStatus.days_remaining} يوم`);
+} else if (licenseStatus.effective_status === 'grace') {
+  showSuccessNotification(`مرحباً ${user.display_name} - الاشتراك في فترة السماح، متبقي ${licenseStatus.grace_days_remaining} يوم`);
+} else {
+  showSuccessNotification(`مرحباً ${user.display_name}`);
+}
     
   } catch (err) {
     console.error("Login error:", err);
     if (errorEl) errorEl.classList.add('show');
   }
 }
+
+// ============================================================
+// SUBSCRIPTION NOTICE UI - EASY-Q
+// عرض تنبيه الاشتراك بجوار اسم المستخدم داخل الواجهة
+// ============================================================
+
+function showSubscriptionNotice(licenseStatus) {
+  if (!licenseStatus) return;
+
+  // إزالة أي تنبيه قديم حتى لا يتكرر
+  const oldNotice = document.getElementById('subscriptionNoticeBadge');
+  if (oldNotice) oldNotice.remove();
+
+  // لا نعرض تنبيه إذا الاشتراك طبيعي ولا يوجد قرب انتهاء
+  if (
+    licenseStatus.access_allowed === true &&
+    licenseStatus.should_show_expiry_warning !== true &&
+    licenseStatus.effective_status !== 'grace'
+  ) {
+    return;
+  }
+
+  let message = '';
+  let bgColor = '#FF1F1F';
+
+  if (licenseStatus.effective_status === 'grace') {
+    message = `الاشتراك في فترة السماح - متبقي ${licenseStatus.grace_days_remaining} يوم`;
+    bgColor = '#FF1F1F';
+  } else if (licenseStatus.should_show_expiry_warning === true) {
+    message = `ينتهي الاشتراك بعد ${licenseStatus.days_remaining} يوم`;
+    bgColor = '#FF1F1F';
+  } else if (licenseStatus.access_allowed === false) {
+    message = 'الاشتراك منتهي';
+    bgColor = '#DC2626';
+  } else {
+    return;
+  }
+
+  const currentUserNameSpan = document.getElementById('currentUserName');
+
+  if (!currentUserNameSpan) {
+    console.warn('currentUserName element not found for subscription notice');
+    return;
+  }
+
+  const badge = document.createElement('span');
+  badge.id = 'subscriptionNoticeBadge';
+  badge.innerText = message;
+
+  badge.style.cssText = `
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: ${bgColor};
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(255, 31, 31, 0.35);
+    vertical-align: middle;
+  `;
+
+  currentUserNameSpan.insertAdjacentElement('afterend', badge);
+}
+
+// ============================================================
+// REFRESH SUBSCRIPTION STATUS - EASY-Q
+// تحديث حالة الاشتراك أثناء عمل النظام
+// ============================================================
+
+async function refreshSubscriptionStatus() {
+  if (!currentUser || currentUser.role === 'super_admin') return;
+
+  try {
+    const { data: licenseRows, error } = await supabase
+      .rpc('get_my_license_status');
+
+    if (error) {
+      console.error('Refresh subscription status error:', error);
+      return;
+    }
+
+    const licenseStatus = Array.isArray(licenseRows) ? licenseRows[0] : null;
+
+    if (!licenseStatus) {
+      console.warn('No license status returned while refreshing subscription');
+      return;
+    }
+
+    localStorage.setItem('easyq_license_status', JSON.stringify(licenseStatus));
+
+    showSubscriptionNotice(licenseStatus);
+
+    if (licenseStatus.access_allowed === false) {
+      showAlert('انتهى اشتراك المطعم. سيتم تسجيل الخروج من النظام.');
+
+      setTimeout(() => {
+        logoutAndClean();
+      }, 1500);
+    }
+
+  } catch (err) {
+    console.error('Unexpected refreshSubscriptionStatus error:', err);
+  }
+}
+
 // ============================================================
 // CHECK EXISTING SESSION
 // ============================================================
@@ -93,16 +285,106 @@ async function checkExistingSession() {
         .eq('is_active', true)
         .single();
       
-      if (validUser) {
-        currentUser = validUser;
-        const loginOverlay = document.getElementById('loginOverlay');
-        if (loginOverlay) loginOverlay.style.display = 'none';
-        document.body.classList.add('logged-in');
-        await loadUserPermissions();
-        const currentUserNameSpan = document.getElementById('currentUserName');
-        if (currentUserNameSpan) currentUserNameSpan.innerText = validUser.display_name;
-        return;
-      }
+if (validUser) {
+  // السوبر أدمن له لوحة خاصة ولا نطبق عليه فحص اشتراك مطعم
+  if (validUser.role === 'super_admin') {
+    currentUser = validUser;
+    localStorage.setItem('easyq_user', JSON.stringify(validUser));
+
+    const loginOverlay = document.getElementById('loginOverlay');
+    if (loginOverlay) loginOverlay.style.display = 'none';
+
+    document.body.classList.add('logged-in');
+    showSuperAdminDashboard();
+    return;
+  }
+
+  // تثبيت business_id للمستخدم الحالي قبل فحص الاشتراك
+  await supabase.rpc('set_current_business_id', { p_business_id: validUser.business_id });
+
+  if (typeof setCurrentBusinessId === 'function') {
+    setCurrentBusinessId(validUser.business_id);
+  }
+
+  // ============================================================
+  // SUBSCRIPTION CHECK ON EXISTING SESSION - EASY-Q
+  // فحص الاشتراك عند تحديث الصفحة أو وجود جلسة محفوظة
+  // ============================================================
+  const { data: licenseRows, error: licenseError } = await supabase
+    .rpc('get_my_license_status');
+
+  if (licenseError) {
+    console.error('Existing session license check error:', licenseError);
+
+    await supabase.auth.signOut();
+    localStorage.removeItem('easyq_user');
+    localStorage.removeItem('easyq_license_status');
+
+    const loginOverlay = document.getElementById('loginOverlay');
+    if (loginOverlay) loginOverlay.style.display = 'flex';
+
+    document.body.classList.remove('logged-in');
+
+    showAlert('تعذر التحقق من اشتراك المطعم. الرجاء تسجيل الدخول مرة أخرى.');
+    return;
+  }
+
+  const licenseStatus = Array.isArray(licenseRows) ? licenseRows[0] : null;
+
+  if (!licenseStatus || licenseStatus.access_allowed === false) {
+    console.warn('Existing session subscription denied:', licenseStatus);
+
+    await supabase.auth.signOut();
+    localStorage.removeItem('easyq_user');
+    localStorage.removeItem('easyq_license_status');
+
+    const loginOverlay = document.getElementById('loginOverlay');
+    if (loginOverlay) loginOverlay.style.display = 'flex';
+
+    document.body.classList.remove('logged-in');
+
+    let message = 'انتهى اشتراك المطعم. يرجى التواصل مع إدارة EASY-Q لتجديد الاشتراك.';
+
+    if (licenseStatus?.effective_status === 'suspended') {
+      message = licenseStatus.suspension_reason || 'تم إيقاف اشتراك المطعم مؤقتًا. يرجى التواصل مع إدارة EASY-Q.';
+    }
+
+    if (licenseStatus?.effective_status === 'cancelled') {
+      message = 'تم إلغاء اشتراك المطعم. يرجى التواصل مع إدارة EASY-Q.';
+    }
+
+    showAlert(message);
+    return;
+  }
+
+  currentUser = validUser;
+  localStorage.setItem('easyq_user', JSON.stringify(validUser));
+  localStorage.setItem('easyq_license_status', JSON.stringify(licenseStatus));
+
+  const loginOverlay = document.getElementById('loginOverlay');
+  if (loginOverlay) loginOverlay.style.display = 'none';
+
+  document.body.classList.add('logged-in');
+
+  await loadUserPermissions();
+
+const currentUserNameSpan = document.getElementById('currentUserName');
+if (currentUserNameSpan) currentUserNameSpan.innerText = validUser.display_name;
+
+// عرض تنبيه الاشتراك بعد تحديث الصفحة أو استعادة الجلسة
+showSubscriptionNotice(licenseStatus);
+
+// تشغيل تحديث الاشتراك تلقائيًا كل 5 دقائق بعد تحديث الصفحة
+if (window.subscriptionRefreshInterval) {
+  clearInterval(window.subscriptionRefreshInterval);
+}
+
+window.subscriptionRefreshInterval = setInterval(() => {
+  refreshSubscriptionStatus();
+}, 5 * 60 * 1000);
+
+return;
+}
     } catch(e) {
       console.log("Session check error:", e);
     }
@@ -415,8 +697,34 @@ async function saveUser() {
     return;
   }
   
-  try {
-    const session = await supabase.auth.getSession();
+try {
+  // ============================================================
+  // PACKAGE LIMIT CHECK - USERS
+  // فحص حد المستخدمين حسب باقة الاشتراك
+  // null في max_users يعني بدون حد
+  // ============================================================
+  const { data: usageRows, error: usageError } = await supabase
+    .rpc('get_my_license_usage');
+
+  if (usageError) {
+    console.error('License usage check error:', usageError);
+    showAlert('تعذر التحقق من حدود الباقة. حاول مرة أخرى.');
+    return;
+  }
+
+  const usage = Array.isArray(usageRows) ? usageRows[0] : null;
+
+  if (!usage) {
+    showAlert('لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.');
+    return;
+  }
+
+  if (usage.max_users !== null && usage.user_limit_reached === true) {
+    showAlert(`وصلت للحد الأقصى للمستخدمين في باقتك الحالية (${usage.current_users_count} من ${usage.max_users}).`);
+    return;
+  }
+
+  const session = await supabase.auth.getSession();
     const accessToken = session.data.session?.access_token;
     
     const { data, error } = await supabase.functions.invoke('create-user', {
@@ -430,8 +738,56 @@ async function saveUser() {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
     
-    if (error) throw new Error(error.message);
-    if (!data.success) throw new Error(data.message);
+if (error) {
+  console.error('Create user edge function error:', error);
+
+  let edgeMessage = error.message || 'فشل استدعاء دالة إنشاء المستخدم';
+
+  try {
+    if (error.context && typeof error.context.json === 'function') {
+      const errorBody = await error.context.json();
+      console.error('Create user edge function error body:', errorBody);
+
+      edgeMessage =
+        errorBody?.message ||
+        errorBody?.error ||
+        JSON.stringify(errorBody);
+    }
+  } catch (parseErr) {
+    console.warn('Could not parse create-user error body:', parseErr);
+  }
+
+let friendlyMessage = edgeMessage;
+
+if (
+  edgeMessage.includes('Unable to validate email address') ||
+  edgeMessage.includes('invalid format')
+) {
+  friendlyMessage = 'البريد الإلكتروني غير صحيح. الرجاء إدخال بريد كامل مثل: name@example.com';
+}
+
+if (
+  edgeMessage.includes('already registered') ||
+  edgeMessage.includes('already exists') ||
+  edgeMessage.includes('User already registered')
+) {
+  friendlyMessage = 'هذا البريد الإلكتروني مستخدم مسبقًا. الرجاء استخدام بريد آخر.';
+}
+
+if (
+  edgeMessage.includes('Password') ||
+  edgeMessage.includes('password')
+) {
+  friendlyMessage = 'كلمة المرور غير مقبولة. اجعلها 6 أحرف أو أكثر.';
+}
+
+throw new Error(friendlyMessage);
+}
+
+if (!data || data.success !== true) {
+  console.error('Create user edge function response:', data);
+  throw new Error(data?.message || data?.error || 'فشل إنشاء المستخدم من دالة create-user');
+}
     
     showSuccessNotification('تم إضافة المستخدم بنجاح');
     cancelAddUser();
@@ -818,10 +1174,17 @@ document.addEventListener('keydown', function(e) {
 // ============================================================
 
 async function logoutAndClean() {
-  await supabase.auth.signOut();
+await supabase.auth.signOut();
 
-  currentUser = null;
-  localStorage.removeItem('easyq_user');
+// إيقاف مؤقت تحديث الاشتراك عند تسجيل الخروج
+if (window.subscriptionRefreshInterval) {
+  clearInterval(window.subscriptionRefreshInterval);
+  window.subscriptionRefreshInterval = null;
+}
+
+currentUser = null;
+localStorage.removeItem('easyq_user');
+localStorage.removeItem('easyq_license_status');
 
   settings = {
     ready_mode: "any_match",

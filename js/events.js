@@ -321,10 +321,51 @@ async function saveTable() {
     }
     showSuccessNotification(currentLang === "ar" ? "تم تحديث الطاولة" : "Table updated");
   } else {
+    const businessId = currentUser?.business_id;
+
+    if (!businessId) {
+      showAlert(currentLang === 'ar'
+        ? 'لم يتم العثور على مطعم المستخدم الحالي'
+        : 'Current business was not found');
+      return;
+    }
+
+    // ============================================================
+    // PACKAGE LIMIT CHECK - TABLES
+    // فحص حد الطاولات حسب باقة الاشتراك
+    // null في max_tables يعني بدون حد
+    // ============================================================
+    const { data: usageRows, error: usageError } = await supabase
+      .rpc('get_my_license_usage');
+
+    if (usageError) {
+      console.error('License usage check error:', usageError);
+      showAlert(currentLang === 'ar'
+        ? 'تعذر التحقق من حدود الباقة. حاول مرة أخرى.'
+        : 'Could not verify package limits. Please try again.');
+      return;
+    }
+
+    const usage = Array.isArray(usageRows) ? usageRows[0] : null;
+
+    if (!usage) {
+      showAlert(currentLang === 'ar'
+        ? 'لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.'
+        : 'Could not read this business package limits.');
+      return;
+    }
+
+    if (usage.max_tables !== null && usage.table_limit_reached === true) {
+      showAlert(currentLang === 'ar'
+        ? `وصلت للحد الأقصى للطاولات في باقتك الحالية (${usage.current_tables_count} من ${usage.max_tables}).`
+        : `You have reached your table limit (${usage.current_tables_count} of ${usage.max_tables}).`);
+      return;
+    }
+
     const { error } = await supabase
       .from('dining_tables')
       .insert({
-        business_id: BUSINESS_ID,
+        business_id: businessId,
         table_name: tableName,
         capacity: capacity,
         floor_number: floorNumber,
@@ -340,6 +381,7 @@ async function saveTable() {
       alert(currentLang === 'ar' ? 'فشل إضافة الطاولة' : 'Failed to add');
       return;
     }
+
     showSuccessNotification(currentLang === "ar" ? "تم إضافة الطاولة" : "Table added");
   }
   
@@ -2168,3 +2210,174 @@ async function handleBusinessLogoFileSelected(event) {
     if (statusEl) statusEl.innerText = "فشل الرفع";
   }
 }
+
+// ============================================================
+// TABLE WHATSAPP NOTIFY MODAL
+// ============================================================
+
+let currentWhatsAppNotifyTable = null;
+
+function normalizeWhatsAppPhone(phone) {
+  if (!phone) return "";
+
+  let digits = String(phone).replace(/\D/g, "");
+
+  // إذا كان الرقم سعودي محلي يبدأ بـ 05 نحوله إلى 9665
+  if (digits.startsWith("05")) {
+    digits = "966" + digits.substring(1);
+  }
+
+  // إذا كان الرقم يبدأ بـ 5 فقط نخليه سعودي
+  if (digits.length === 9 && digits.startsWith("5")) {
+    digits = "966" + digits;
+  }
+
+  return digits;
+}
+
+function buildAssignedTableWhatsAppMessage(table) {
+  const customerName = table.customer_name || "ضيفنا";
+  const tableName = table.table_name || "";
+  const restaurantName =
+    window.currentBusinessProfile?.name ||
+    currentUser?.business_name ||
+    "المطعم";
+
+  const holdMinutes = Number(settings?.reservation_hold_minutes || 10);
+
+  return `مرحباً ${customerName}
+
+طاولتك رقم ${tableName} جاهزة الآن.
+يرجى التوجه إلى الاستقبال خلال ${holdMinutes} دقائق حتى لا يتم إلغاء الحجز.
+
+شكراً لاختيارك ${restaurantName}.`;
+}
+
+async function getAssignedCustomerPhone(table) {
+  // 1) محاولة من بيانات الطاولة نفسها
+  const directPhone =
+    table.phone ||
+    table.customer_phone ||
+    table.customer_phone_snapshot ||
+    table.whatsapp_number ||
+    "";
+
+  if (directPhone) return directPhone;
+
+  // 2) إذا لم يوجد رقم داخل الطاولة، نجلبه من الطلب المرتبط
+  if (!table.active_request_id) return "";
+
+  const { data: requestData, error } = await supabase
+    .from("table_requests")
+    .select(`
+      id,
+      customer_phone_snapshot,
+      customers (
+        phone
+      )
+    `)
+    .eq("id", table.active_request_id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("❌ فشل جلب رقم العميل من الطلب:", error);
+    return "";
+  }
+
+  return (
+    requestData?.customer_phone_snapshot ||
+    requestData?.customers?.phone ||
+    ""
+  );
+}
+
+function openTableWhatsAppNotifyModal(tableId) {
+  const table = floorData.find(t => String(t.id) === String(tableId));
+
+  if (!table) {
+    showAlert("لم يتم العثور على بيانات الطاولة");
+    return;
+  }
+
+  if (!table.customer_name) {
+    showAlert("لا يوجد عميل مرتبط بهذه الطاولة");
+    return;
+  }
+
+  currentWhatsAppNotifyTable = table;
+
+  const message = buildAssignedTableWhatsAppMessage(table);
+
+  const modal = document.getElementById("whatsappNotifyModal");
+  const customerNameEl = document.getElementById("whatsappNotifyCustomerName");
+  const tableNameEl = document.getElementById("whatsappNotifyTableName");
+  const messageEl = document.getElementById("whatsappNotifyMessage");
+  const tableIdEl = document.getElementById("whatsappNotifyTableId");
+
+  if (!modal || !customerNameEl || !tableNameEl || !messageEl || !tableIdEl) {
+    showAlert("مودل إبلاغ واتساب غير موجود في الصفحة");
+    return;
+  }
+
+  customerNameEl.textContent = table.customer_name || "-";
+  tableNameEl.textContent = table.table_name || "-";
+  messageEl.value = message;
+  tableIdEl.value = table.id;
+
+  modal.classList.add("show");
+}
+
+function closeTableWhatsAppNotifyModal() {
+  const modal = document.getElementById("whatsappNotifyModal");
+  if (modal) modal.classList.remove("show");
+
+  currentWhatsAppNotifyTable = null;
+}
+
+async function openWhatsAppForAssignedCustomer() {
+  const table = currentWhatsAppNotifyTable;
+
+  if (!table) {
+    showAlert("لم يتم العثور على بيانات الطاولة");
+    return;
+  }
+
+const phone = await getAssignedCustomerPhone(table);
+const waPhone = normalizeWhatsAppPhone(phone);
+
+  if (!waPhone) {
+    showAlert("لا يوجد رقم جوال لهذا العميل");
+    return;
+  }
+
+  const message = buildAssignedTableWhatsAppMessage(table);
+  const whatsappUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+
+  window.open(whatsappUrl, "_blank");
+
+  if (table.active_assignment_id) {
+    const { error } = await supabase
+      .from("table_assignments")
+      .update({
+        whatsapp_notified: true,
+        whatsapp_notified_at: new Date().toISOString(),
+        whatsapp_notified_by: currentUser?.id || null
+      })
+      .eq("id", table.active_assignment_id);
+
+    if (error) {
+      console.error("❌ فشل تحديث حالة إبلاغ واتساب:", error);
+      showAlert("تم فتح واتساب، لكن فشل حفظ حالة الإبلاغ");
+      return;
+    }
+
+    table.whatsapp_notified = true;
+  }
+
+  closeTableWhatsAppNotifyModal();
+  await loadAll();
+}
+
+window.openTableWhatsAppNotifyModal = openTableWhatsAppNotifyModal;
+window.closeTableWhatsAppNotifyModal = closeTableWhatsAppNotifyModal;
+window.openWhatsAppForAssignedCustomer = openWhatsAppForAssignedCustomer;

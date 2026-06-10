@@ -830,7 +830,7 @@
     <div id="usersList" style="max-height: 300px; overflow-y: auto;"></div>
     
     <div id="addUserForm" style="display: none; margin-top: 16px;">
-      <input type="text" id="newUsername" class="walkin-input" placeholder="اسم المستخدم" style="margin-bottom: 8px;">
+      <input type="email" id="newUsername" class="walkin-input" placeholder="البريد الإلكتروني email" style="margin-bottom: 8px; direction: ltr; text-align: left;">
       <input type="text" id="newDisplayName" class="walkin-input" placeholder="الاسم الظاهر" style="margin-bottom: 8px;">
       <input type="password" id="newPassword" class="walkin-input" placeholder="كلمة المرور" style="margin-bottom: 8px;">
       <select id="newRole" class="walkin-input" style="margin-bottom: 8px;">
@@ -2388,5 +2388,62 @@ document.addEventListener('click', function(e) {
   setTimeout(initPremiumTheme, 300);
 })();
 </script>
+
+<!-- WhatsApp Notify Customer Modal -->
+<div id="whatsappNotifyModal" class="modal-backdrop">
+  <div class="modal" style="max-width: 500px;">
+    <div class="modal-header">
+      <div>
+        <h3 id="whatsappNotifyTitle">إبلاغ العميل عبر واتساب</h3>
+        <p id="whatsappNotifySub" style="margin: 6px 0 0; color: var(--gray-500); font-size: 13px;">
+          سيتم فتح واتساب برسالة جاهزة للعميل
+        </p>
+      </div>
+
+      <button class="modal-close" onclick="closeTableWhatsAppNotifyModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div style="padding: 16px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+        <div style="background: var(--gray-50); border-radius: 12px; padding: 10px;">
+          <div style="font-size: 11px; color: var(--gray-500); margin-bottom: 4px;">العميل</div>
+          <div id="whatsappNotifyCustomerName" style="font-weight: 800; color: var(--text-primary);">-</div>
+        </div>
+
+        <div style="background: var(--gray-50); border-radius: 12px; padding: 10px;">
+          <div style="font-size: 11px; color: var(--gray-500); margin-bottom: 4px;">الطاولة</div>
+          <div id="whatsappNotifyTableName" style="font-weight: 800; color: var(--text-primary);">-</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 10px; font-size: 12px; color: var(--gray-500);">
+        نص الرسالة:
+      </div>
+
+      <textarea
+        id="whatsappNotifyMessage"
+        class="form-input"
+        readonly
+        style="height: 150px; resize: none; line-height: 1.8;"
+      ></textarea>
+
+      <input type="hidden" id="whatsappNotifyTableId">
+    </div>
+
+    <div class="modal-actions" style="padding: 0 16px 16px;">
+      <button class="settings-save" onclick="openWhatsAppForAssignedCustomer()" style="flex: 1;">
+        <i class="fab fa-whatsapp"></i>
+        فتح واتساب
+      </button>
+
+      <button class="settings-close" onclick="closeTableWhatsAppNotifyModal()" style="flex: 1;">
+        إغلاق
+      </button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
