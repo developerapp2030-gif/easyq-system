@@ -1751,6 +1751,12 @@ function updateUIBasedOnPermissions() {
   if (usersSection) {
     usersSection.style.display = canDo('manage_users') ? 'block' : 'none';
   }
+
+  const permissionsItem = document.querySelector('[onclick="openPermissionsModal()"]');
+
+if (permissionsItem) {
+  permissionsItem.style.display = currentUser?.role === 'admin' ? 'flex' : 'none';
+}
   
   const zonesItem = document.querySelector('[data-view="zones-list"]');
   if (zonesItem) {
@@ -1972,10 +1978,46 @@ async function deleteUser(userId, username) {
 
 // ============================================================
 // PERMISSIONS MODAL
+// مودل صلاحيات الموظفين بتبويبات المناصب
 // ============================================================
 
+let permissionsDraft = {};
+let activePermissionsRole = 'manager';
+
+const EASYQ_PERMISSION_ROLES = [
+  {
+    key: 'manager',
+    ar: 'مشرف',
+    en: 'Manager',
+    icon: 'fa-user-tie',
+    desc: 'صلاحيات تشغيل وإشراف يحددها مالك الحساب'
+  },
+  {
+    key: 'staff',
+    ar: 'موظف',
+    en: 'Staff',
+    icon: 'fa-user',
+    desc: 'صلاحيات التشغيل اليومية التي يمنحها مالك الحساب'
+  }
+];
+
 function openPermissionsModal() {
-  document.getElementById('permissionsModal').classList.add('show');
+  // مودل الصلاحيات خاص بمالك الحساب فقط
+  // المشرف والموظف لا يملكون حق تعديل صلاحيات الآخرين
+  if (!currentUser || currentUser.role !== 'admin') {
+    showAlert('ليس لديك صلاحية لإدارة صلاحيات الموظفين');
+    return;
+  }
+
+  const permissionsModal = document.getElementById('permissionsModal');
+
+  if (!permissionsModal) {
+    console.warn('permissionsModal غير موجود');
+    return;
+  }
+
+  permissionsModal.classList.add('show');
+  activePermissionsRole = 'manager';
   loadPermissions();
 }
 
@@ -1988,91 +2030,309 @@ async function loadPermissions() {
     .from('role_permissions')
     .select('*')
     .order('role');
-  
-  console.log('Permissions loaded:', permissions);
-  
-  if (error) return;
-  
-  const roles = ['admin', 'manager', 'staff'];
-  const roleNames = { admin: 'مدير النظام', manager: 'مشرف', staff: 'موظف' };
-  
+
+  if (error) {
+    console.error('Permissions load error:', error);
+    showAlert('فشل تحميل الصلاحيات');
+    return;
+  }
+
+  permissionsDraft = {};
+
+  EASYQ_PERMISSION_ROLES.forEach(role => {
+    permissionsDraft[role.key] = {};
+
+    PERMISSION_KEYS.forEach(permissionItem => {
+      const found = (permissions || []).find(row =>
+        row.role === role.key &&
+        row.permission_key === permissionItem.key
+      );
+
+      permissionsDraft[role.key][permissionItem.key] = found
+        ? found.is_enabled === true
+        : false;
+    });
+  });
+
+  renderPermissionsTabs();
+  renderPermissionsRolePanel(activePermissionsRole);
+}
+
+function renderPermissionsTabs() {
   const container = document.getElementById('permissionsList');
   if (!container) return;
-  
-  container.innerHTML = roles.map(role => {
-    const rolePermissions = permissions.filter(p => p.role === role);
-    
-    return `
-      <div style="margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
-        <h4 style="margin-bottom: 12px; color: var(--primary);">${roleNames[role]}</h4>
-        ${PERMISSION_KEYS.map(p => {
-          const perm = rolePermissions.find(rp => rp.permission_key === p.key);
-          const isEnabled = perm ? perm.is_enabled : false;
+
+container.innerHTML = `
+    <div style="
+      margin-bottom: 12px;
+      padding: 11px 13px;
+      border-radius: 14px;
+      background: #FFFBEB;
+      border: 1px solid #F4D28A;
+      color: #6B4E00;
+      font-size: 12px;
+      line-height: 1.7;
+      font-weight: 700;
+    ">
+      <i class="fas fa-info-circle"></i>
+      مالك الحساب / الأدمن يملك جميع الصلاحيات دائمًا. من هنا يمكنك التحكم فقط في صلاحيات المشرف والموظف.
+    </div>
+
+    <div style="
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      background: var(--gray-100, #F3F4F6);
+      padding: 8px;
+      border-radius: 16px;
+      overflow-x: auto;
+    ">
+      ${EASYQ_PERMISSION_ROLES.map(role => `
+        <button
+          type="button"
+          class="permissions-role-tab ${activePermissionsRole === role.key ? 'active' : ''}"
+          onclick="switchPermissionsRole('${role.key}')"
+          style="
+            border: none;
+            background: ${activePermissionsRole === role.key ? '#0E146D' : '#FFFFFF'};
+            color: ${activePermissionsRole === role.key ? '#FFFFFF' : '#111827'};
+            padding: 10px 13px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 900;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            white-space: nowrap;
+            box-shadow: ${activePermissionsRole === role.key ? '0 6px 14px rgba(14,20,109,0.18)' : '0 1px 4px rgba(0,0,0,0.04)'};
+          "
+        >
+          <i class="fas ${role.icon}"></i>
+          ${currentLang === 'ar' ? role.ar : role.en}
+        </button>
+      `).join('')}
+    </div>
+
+    <div id="permissionsRolePanel"></div>
+  `;
+}
+
+function switchPermissionsRole(roleKey) {
+  activePermissionsRole = roleKey;
+  renderPermissionsTabs();
+  renderPermissionsRolePanel(roleKey);
+}
+
+function renderPermissionsRolePanel(roleKey) {
+  const panel = document.getElementById('permissionsRolePanel');
+  if (!panel) return;
+
+  const roleInfo = EASYQ_PERMISSION_ROLES.find(role => role.key === roleKey);
+
+  panel.innerHTML = `
+    <div style="
+      border: 1px solid var(--border-color, #E5E7EB);
+      border-radius: 16px;
+      padding: 16px;
+      background: var(--card-bg, #FFFFFF);
+    ">
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-color, #E5E7EB);
+      ">
+        <div>
+          <div style="
+            font-size: 16px;
+            font-weight: 900;
+            color: var(--text-primary, #111827);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          ">
+            <i class="fas ${roleInfo?.icon || 'fa-user'}" style="color:#0E146D;"></i>
+            صلاحيات ${currentLang === 'ar' ? roleInfo?.ar : roleInfo?.en}
+          </div>
+
+          <div style="
+            margin-top: 5px;
+            font-size: 12px;
+            color: var(--gray-500, #6B7280);
+          ">
+            ${roleInfo?.desc || ''}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onclick="toggleAllPermissionsForRole('${roleKey}')"
+          style="
+            border: 1px solid #D1D5DB;
+            background: #FFFFFF;
+            color: #111827;
+            padding: 8px 11px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 12px;
+            white-space: nowrap;
+          "
+        >
+          تحديد الكل
+        </button>
+      </div>
+
+      <div>
+        ${PERMISSION_KEYS.map(permissionItem => {
+          const isEnabled = permissionsDraft?.[roleKey]?.[permissionItem.key] === true;
+
           return `
-            <div class="zone-item" style="padding: 8px 12px; margin-bottom: 4px;">
-              <span style="font-size: 13px;">${currentLang === 'ar' ? p.ar : p.en}</span>
-              <button class="toggle-switch ${isEnabled ? 'active' : ''}" 
-                      onclick="this.classList.toggle('active')" 
-                      data-role="${role}" 
-                      data-key="${p.key}">
+            <div class="zone-item" style="
+              padding: 10px 12px;
+              margin-bottom: 7px;
+              border-radius: 12px;
+              background: ${isEnabled ? 'rgba(14,20,109,0.04)' : 'transparent'};
+            ">
+              <span style="
+                font-size: 13px;
+                font-weight: 700;
+                color: var(--text-primary, #111827);
+              ">
+                ${currentLang === 'ar' ? permissionItem.ar : permissionItem.en}
+              </span>
+
+              <button
+                type="button"
+                class="toggle-switch ${isEnabled ? 'active' : ''}"
+                onclick="togglePermissionDraft('${roleKey}', '${permissionItem.key}')"
+                data-role="${roleKey}"
+                data-key="${permissionItem.key}">
               </button>
             </div>
           `;
         }).join('')}
       </div>
-    `;
-  }).join('');
+    </div>
+  `;
+}
+
+function togglePermissionDraft(roleKey, permissionKey) {
+  if (!permissionsDraft[roleKey]) {
+    permissionsDraft[roleKey] = {};
+  }
+
+  permissionsDraft[roleKey][permissionKey] = !permissionsDraft[roleKey][permissionKey];
+
+  renderPermissionsRolePanel(roleKey);
+}
+
+function toggleAllPermissionsForRole(roleKey) {
+  if (!permissionsDraft[roleKey]) {
+    permissionsDraft[roleKey] = {};
+  }
+
+  const currentValues = PERMISSION_KEYS.map(item => permissionsDraft[roleKey][item.key] === true);
+  const shouldEnableAll = currentValues.some(value => value === false);
+
+  PERMISSION_KEYS.forEach(item => {
+    permissionsDraft[roleKey][item.key] = shouldEnableAll;
+  });
+
+  renderPermissionsRolePanel(roleKey);
 }
 
 async function savePermissions() {
-  const buttons = document.querySelectorAll('#permissionsList .toggle-switch');
-  const total = buttons.length;
+  const total = EASYQ_PERMISSION_ROLES.length * PERMISSION_KEYS.length;
   let completed = 0;
-  
+
   const progressBar = document.createElement('div');
   progressBar.style.cssText = `
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: var(--card-bg); padding: 20px 30px; border-radius: 16px;
-    box-shadow: var(--shadow-lg); z-index: 10000; text-align: center;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--card-bg, #FFFFFF);
+    padding: 20px 30px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg, 0 20px 40px rgba(0,0,0,0.18));
+    z-index: 10000;
+    text-align: center;
     min-width: 250px;
   `;
+
   progressBar.innerHTML = `
-    <div style="font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">
-      <i class="fas fa-spinner fa-pulse" style="color: var(--primary); margin-right: 8px;"></i>
+    <div style="font-weight: 800; margin-bottom: 12px; color: var(--text-primary, #111827);">
+      <i class="fas fa-spinner fa-pulse" style="color: #0E146D; margin-left: 8px;"></i>
       جاري حفظ الصلاحيات...
     </div>
-    <div style="background: var(--gray-200); border-radius: 10px; height: 8px; overflow: hidden;">
-      <div id="progressFill" style="background: var(--primary); height: 100%; width: 0%; border-radius: 10px; transition: width 0.2s;"></div>
+
+    <div style="background: var(--gray-200, #E5E7EB); border-radius: 10px; height: 8px; overflow: hidden;">
+      <div id="progressFill" style="
+        background: #0E146D;
+        height: 100%;
+        width: 0%;
+        border-radius: 10px;
+        transition: width 0.2s;
+      "></div>
     </div>
-    <div id="progressText" style="margin-top: 6px; font-size: 12px; color: var(--gray-500);">0%</div>
+
+    <div id="progressText" style="margin-top: 6px; font-size: 12px; color: var(--gray-500, #6B7280);">
+      0%
+    </div>
   `;
+
   document.body.appendChild(progressBar);
-  
+
   const fill = document.getElementById('progressFill');
   const text = document.getElementById('progressText');
-  
-  for (const btn of buttons) {
-    const role = btn.getAttribute('data-role');
-    const key = btn.getAttribute('data-key');
-    const isEnabled = btn.classList.contains('active');
-    
-    await supabase
-      .from('role_permissions')
-      .upsert({ role: role, permission_key: key, is_enabled: isEnabled }, { onConflict: 'role,permission_key' });
-    
-    completed++;
-    const percent = Math.round((completed / total) * 100);
-    if (fill) fill.style.width = percent + '%';
-    if (text) text.innerText = percent + '%';
-  }
-  
-  setTimeout(() => {
+
+  try {
+    for (const role of EASYQ_PERMISSION_ROLES) {
+      for (const permissionItem of PERMISSION_KEYS) {
+        const isEnabled = permissionsDraft?.[role.key]?.[permissionItem.key] === true;
+
+        const { error } = await supabase
+          .from('role_permissions')
+          .upsert(
+            {
+              role: role.key,
+              permission_key: permissionItem.key,
+              is_enabled: isEnabled
+            },
+            {
+              onConflict: 'role,permission_key'
+            }
+          );
+
+        if (error) throw error;
+
+        completed++;
+        const percent = Math.round((completed / total) * 100);
+
+        if (fill) fill.style.width = percent + '%';
+        if (text) text.innerText = percent + '%';
+      }
+    }
+
     progressBar.remove();
     closePermissionsModal();
-    showSuccessNotification('✅ تم حفظ الصلاحيات بنجاح');
-  }, 500);
-}
 
+    await loadUserPermissions();
+
+    showSuccessNotification('✅ تم حفظ الصلاحيات بنجاح');
+
+  } catch (err) {
+    console.error('Permissions save error:', err);
+
+    progressBar.remove();
+    showAlert('فشل حفظ الصلاحيات: ' + err.message);
+  }
+}
 
 // ============================================================
 // SUPER ADMIN DASHBOARD

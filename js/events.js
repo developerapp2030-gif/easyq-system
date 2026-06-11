@@ -1752,6 +1752,8 @@ window.downloadBookingPageQr = downloadBookingPageQr;
 window.printBookingPageQr = printBookingPageQr;
 
 function openBusinessProfileModal() {
+  const canViewSupportRef = ['super_admin', 'owner', 'admin'].includes(currentUser?.role);
+
   const contentHtml = `
     <div class="business-profile-page">
 
@@ -1764,6 +1766,66 @@ function openBusinessProfileModal() {
           </div>
 
           <div class="business-profile-form">
+
+            ${canViewSupportRef ? `
+              <div class="form-group">
+                <label>معرف المطعم للدعم</label>
+
+                <div style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: stretch;
+                ">
+                  <input 
+                    type="text" 
+                    id="businessSupportRef" 
+                    class="business-profile-input" 
+                    readonly
+                    placeholder="EQ-XXXXXX"
+                    style="
+                      direction: ltr;
+                      text-align: center;
+                      font-weight: 900;
+                      letter-spacing: 1px;
+                      background: #F9FAFB;
+                      color: #0E146D;
+                    "
+                  >
+
+                  <button 
+                    type="button"
+                    onclick="copyBusinessSupportRef()"
+style="
+  border: none;
+  background: #0E146D;
+  color: #FFFFFF;
+  height: 43px;
+  padding: 0 13px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 900;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+"
+                  >
+                    <i class="fas fa-copy"></i>
+                    نسخ
+                  </button>
+                </div>
+
+                <div style="
+                  margin-top: 7px;
+                  font-size: 11px;
+                  color: #6B7280;
+                  line-height: 1.6;
+                ">
+                  استخدم هذا المعرف عند التواصل مع دعم EASY-Q للوصول إلى حساب المطعم بسرعة.
+                </div>
+              </div>
+            ` : ''}
 
             <div class="form-group">
               <label>اسم المطعم</label>
@@ -1913,23 +1975,10 @@ async function loadBusinessProfile() {
     return;
   }
 
-  const { data, error } = await supabase
-    .from("businesses")
-    .select(`
-      id,
-      name,
-      branch_name,
-      city,
-      address,
-      phone,
-      email,
-      google_maps_url,
-      instagram_url,
-      website_url,
-      logo_url
-    `)
-    .eq("id", businessId)
-    .maybeSingle();
+  const { data: profileRows, error } = await supabase
+    .rpc('get_my_business_profile_secure');
+
+  const data = Array.isArray(profileRows) ? profileRows[0] : null;
 
   if (error) {
     console.error("❌ خطأ في تحميل بيانات المطعم:", error);
@@ -1943,6 +1992,10 @@ async function loadBusinessProfile() {
   }
 
   document.getElementById("businessProfileName").value = data.name || "";
+    const supportRefInput = document.getElementById("businessSupportRef");
+  if (supportRefInput) {
+    supportRefInput.value = data.support_ref || "";
+  }
   document.getElementById("businessProfileBranchName").value = data.branch_name || "";
   document.getElementById("businessProfileCity").value = data.city || "";
   document.getElementById("businessProfileAddress").value = data.address || "";
@@ -1954,6 +2007,25 @@ async function loadBusinessProfile() {
   document.getElementById("businessProfileLogoUrl").value = data.logo_url || "";
 
   previewBusinessLogo(data.logo_url);
+}
+
+function copyBusinessSupportRef() {
+  const input = document.getElementById("businessSupportRef");
+
+  if (!input || !input.value) {
+    showAlert("لا يوجد معرف مطعم لنسخه");
+    return;
+  }
+
+  navigator.clipboard.writeText(input.value)
+    .then(() => {
+      showSuccessNotification("✅ تم نسخ معرف المطعم");
+    })
+    .catch(() => {
+      input.select();
+      document.execCommand("copy");
+      showSuccessNotification("✅ تم نسخ معرف المطعم");
+    });
 }
 
 async function saveBusinessProfile() {
