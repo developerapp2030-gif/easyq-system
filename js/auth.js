@@ -129,6 +129,11 @@ await loadUserPermissions();
 /* تحميل بيانات المطعم الحالي بعد تسجيل الدخول */
 await loadSettings();
 await loadActiveSettings();
+
+if (typeof loadTopbarBusinessIdentity === 'function') {
+  await loadTopbarBusinessIdentity();
+}
+
 await loadAll();
 
 const currentUserNameSpan = document.getElementById('currentUserName');
@@ -927,232 +932,1592 @@ async function savePermissions() {
 // ============================================================
 // SUPER ADMIN DASHBOARD
 // ============================================================
-
 function showSuperAdminDashboard() {
-  // إخفاء العناصر العادية
+  // إخفاء واجهة المطعم بالكامل
   const appContainer = document.querySelector('.app-container');
   const topbar = document.querySelector('.topbar');
+  const sidebar = document.getElementById('sidebar');
+  const loginOverlay = document.getElementById('loginOverlay');
+
   if (appContainer) appContainer.style.display = 'none';
   if (topbar) topbar.style.display = 'none';
-  
-  // إزالة أي داشبورد موجود مسبقاً
+  if (sidebar) sidebar.style.display = 'none';
+  if (loginOverlay) loginOverlay.style.display = 'none';
+
+  document.body.classList.add('logged-in');
+  document.body.classList.add('super-admin-mode');
+
+  // إزالة أي لوحة موجودة مسبقًا
   const existingDashboard = document.getElementById('superAdminDashboard');
   if (existingDashboard) existingDashboard.remove();
-  
-  // إنشاء لوحة التحكم
+
   const dashboardHtml = `
-    <div id="superAdminDashboard" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--gray-100); z-index: 10000; overflow-y: auto;">
-      <div style="background: var(--primary); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <h2 style="color: white; margin: 0;"><i class="fas fa-crown"></i> لوحة تحكم المدير العام</h2>
-          <p style="color: rgba(255,255,255,0.8); margin: 5px 0 0;">مرحباً ${currentUser?.display_name || 'Super Admin'}</p>
+    <div id="superAdminDashboard" style="
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: #F3F4F6;
+      direction: rtl;
+      font-family: inherit;
+      color: #111827;
+      overflow: hidden;
+    ">
+      <div style="
+        height: 64px;
+        background: linear-gradient(135deg, #070219 0%, #060427 48%, #0E146D 100%);
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      ">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #F4D28A;
+            font-size: 20px;
+          ">
+            <i class="fas fa-crown"></i>
+          </div>
+
+          <div>
+            <div style="font-size: 18px; font-weight: 900; line-height: 1.2;">
+              EASY-Q Super Admin
+            </div>
+            <div style="font-size: 12px; color: rgba(255,255,255,0.72); margin-top: 3px;">
+              لوحة إدارة النظام والاشتراكات
+            </div>
+          </div>
         </div>
-        <button onclick="logoutAndClean()" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 10px 20px; border-radius: 10px; cursor: pointer;">
-          <i class="fas fa-sign-out-alt"></i> تسجيل خروج
-        </button>
+
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="text-align: left;">
+            <div style="font-size: 13px; font-weight: 800;">
+              ${currentUser?.display_name || 'Super Admin'}
+            </div>
+            <div style="font-size: 11px; color: rgba(255,255,255,0.7);">
+              مدير عام
+            </div>
+          </div>
+
+          <button onclick="logoutAndClean()" style="
+            border: 1px solid rgba(255,255,255,0.20);
+            background: rgba(255,255,255,0.10);
+            color: #ffffff;
+            padding: 9px 14px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 800;
+          ">
+            <i class="fas fa-sign-out-alt"></i>
+            تسجيل خروج
+          </button>
+        </div>
       </div>
-      
-      <div style="padding: 24px;">
-        <!-- الإحصائيات -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
-          <div style="background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            <i class="fas fa-store" style="font-size: 40px; color: var(--primary);"></i>
-            <h3 id="totalBusinesses">0</h3>
-            <p style="color: var(--gray-500);">إجمالي المطاعم</p>
+
+      <div style="
+        height: calc(100vh - 64px);
+        display: grid;
+        grid-template-columns: 250px 1fr;
+        overflow: hidden;
+      ">
+        <aside style="
+          background: #ffffff;
+          border-left: 1px solid #E5E7EB;
+          padding: 18px 14px;
+          overflow-y: auto;
+        ">
+          <div style="
+            font-size: 12px;
+            font-weight: 900;
+            color: #6B7280;
+            margin: 0 8px 12px;
+          ">
+            أقسام لوحة الإدارة
           </div>
-          <div style="background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            <i class="fas fa-users" style="font-size: 40px; color: var(--primary);"></i>
-            <h3 id="totalUsers">0</h3>
-            <p style="color: var(--gray-500);">إجمالي المستخدمين</p>
+
+          <button class="super-admin-nav active" data-super-view="overview" style="
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: none;
+            background: #0E146D;
+            color: white;
+            padding: 12px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 900;
+            margin-bottom: 8px;
+            text-align: right;
+          ">
+            <i class="fas fa-chart-pie"></i>
+            الرئيسية
+          </button>
+
+          <button class="super-admin-nav" data-super-view="subscriptions" style="
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: none;
+            background: transparent;
+            color: #111827;
+            padding: 12px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 800;
+            margin-bottom: 8px;
+            text-align: right;
+          ">
+            <i class="fas fa-credit-card"></i>
+            الاشتراكات
+          </button>
+
+          <button class="super-admin-nav" data-super-view="restaurants" style="
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: none;
+            background: transparent;
+            color: #111827;
+            padding: 12px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 800;
+            margin-bottom: 8px;
+            text-align: right;
+          ">
+            <i class="fas fa-store"></i>
+            المطاعم
+          </button>
+
+          <button class="super-admin-nav" data-super-view="alerts" style="
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: none;
+            background: transparent;
+            color: #111827;
+            padding: 12px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-weight: 800;
+            margin-bottom: 8px;
+            text-align: right;
+          ">
+            <i class="fas fa-bell"></i>
+            التنبيهات
+          </button>
+
+          <div style="
+            margin-top: 20px;
+            padding: 14px;
+            border-radius: 16px;
+            background: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            color: #6B7280;
+            font-size: 12px;
+            line-height: 1.7;
+          ">
+            هذه اللوحة مستقلة عن واجهة المطعم ولا تعرض عناصر التشغيل اليومية.
           </div>
-          <div style="background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            <i class="fas fa-check-circle" style="font-size: 40px; color: #10B981;"></i>
-            <h3 id="activeLicenses">0</h3>
-            <p style="color: var(--gray-500);">تراخيص نشطة</p>
+        </aside>
+
+        <main style="
+          overflow-y: auto;
+          padding: 24px;
+        ">
+          <div style="
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 22px;
+          ">
+            <div>
+              <h1 style="margin: 0; font-size: 26px; color: #111827;">
+                لوحة الإدارة العامة
+              </h1>
+              <p style="margin: 7px 0 0; color: #6B7280; font-size: 14px;">
+                متابعة المطاعم، الاشتراكات، حدود الباقات، وحالة الوصول للنظام.
+              </p>
+            </div>
+
+            <button onclick="loadSuperAdminData()" style="
+              border: none;
+              background: #0E146D;
+              color: white;
+              padding: 11px 16px;
+              border-radius: 12px;
+              cursor: pointer;
+              font-weight: 900;
+              box-shadow: 0 6px 14px rgba(14,20,109,0.18);
+            ">
+              <i class="fas fa-sync-alt"></i>
+              تحديث البيانات
+            </button>
           </div>
-          <div style="background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            <i class="fas fa-clock" style="font-size: 40px; color: #F59E0B;"></i>
-            <h3 id="expiringSoon">0</h3>
-            <p style="color: var(--gray-500);">تنتهي خلال 7 أيام</p>
-          </div>
-        </div>
-        
-        <!-- جدول المطاعم -->
-        <div style="background: white; border-radius: 16px; overflow-x: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-          <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background: var(--primary); color: white;">
-              <tr>
-                <th style="padding: 12px;">#</th>
-                <th style="padding: 12px;">اسم المطعم</th>
-                <th style="padding: 12px;">رقم الجوال</th>
-                <th style="padding: 12px;">الخطة</th>
-                <th style="padding: 12px;">تاريخ الانتهاء</th>
-                <th style="padding: 12px;">المستخدمين</th>
-                <th style="padding: 12px;">الحالة</th>
-                <th style="padding: 12px;">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody id="businessesTable">
-              <tr><td colspan="8" style="text-align: center; padding: 40px;">جاري التحميل...</td></tr>
-            </tbody>
-           </table>
-        </div>
+
+          <section id="superAdminOverview">
+            <div style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+              gap: 16px;
+              margin-bottom: 22px;
+            ">
+              <div style="background:#ffffff; border-radius:18px; padding:18px; box-shadow:0 4px 14px rgba(0,0,0,0.05); border:1px solid #E5E7EB;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="color:#6B7280; font-size:12px; font-weight:800;">إجمالي المطاعم</div>
+                    <h3 id="totalBusinesses" style="margin:8px 0 0; font-size:28px;">0</h3>
+                  </div>
+                  <i class="fas fa-store" style="font-size:28px; color:#0E146D;"></i>
+                </div>
+              </div>
+
+              <div style="background:#ffffff; border-radius:18px; padding:18px; box-shadow:0 4px 14px rgba(0,0,0,0.05); border:1px solid #E5E7EB;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="color:#6B7280; font-size:12px; font-weight:800;">إجمالي المستخدمين</div>
+                    <h3 id="totalUsers" style="margin:8px 0 0; font-size:28px;">0</h3>
+                  </div>
+                  <i class="fas fa-users" style="font-size:28px; color:#0E146D;"></i>
+                </div>
+              </div>
+
+              <div style="background:#ffffff; border-radius:18px; padding:18px; box-shadow:0 4px 14px rgba(0,0,0,0.05); border:1px solid #E5E7EB;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="color:#6B7280; font-size:12px; font-weight:800;">اشتراكات فعالة</div>
+                    <h3 id="activeLicenses" style="margin:8px 0 0; font-size:28px;">0</h3>
+                  </div>
+                  <i class="fas fa-check-circle" style="font-size:28px; color:#10B981;"></i>
+                </div>
+              </div>
+
+              <div style="background:#ffffff; border-radius:18px; padding:18px; box-shadow:0 4px 14px rgba(0,0,0,0.05); border:1px solid #E5E7EB;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <div>
+                    <div style="color:#6B7280; font-size:12px; font-weight:800;">تنتهي خلال 7 أيام</div>
+                    <h3 id="expiringSoon" style="margin:8px 0 0; font-size:28px;">0</h3>
+                  </div>
+                  <i class="fas fa-clock" style="font-size:28px; color:#F59E0B;"></i>
+                </div>
+              </div>
+              <div style="background:#ffffff; border-radius:18px; padding:18px; box-shadow:0 4px 14px rgba(0,0,0,0.05); border:1px solid #E5E7EB;">
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <div>
+      <div style="color:#6B7280; font-size:12px; font-weight:800;">اشتراكات منتهية</div>
+      <h3 id="expiredLicenses" style="margin:8px 0 0; font-size:28px;">0</h3>
+    </div>
+    <i class="fas fa-times-circle" style="font-size:28px; color:#DC2626;"></i>
+  </div>
+</div>
+            </div>
+
+            <div style="
+              background: #ffffff;
+              border-radius: 20px;
+              border: 1px solid #E5E7EB;
+              box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+              overflow: hidden;
+            ">
+              <div style="
+                padding: 16px 18px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #E5E7EB;
+              ">
+                <div>
+                  <div style="font-size: 16px; font-weight: 900;">المطاعم والاشتراكات</div>
+                  <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">عرض سريع لحالة كل مطعم</div>
+                </div>
+              </div>
+
+              <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; min-width: 980px;">
+                  <thead style="background: #F9FAFB; color: #374151;">
+                    <tr>
+                      <th style="padding: 12px; text-align:right;">#</th>
+                      <th style="padding: 12px; text-align:right;">المطعم</th>
+                      <th style="padding: 12px; text-align:right;">المدينة</th>
+                      <th style="padding: 12px; text-align:right;">الجوال</th>
+                      <th style="padding: 12px; text-align:right;">الخطة</th>
+                      <th style="padding: 12px; text-align:right;">الانتهاء</th>
+                      <th style="padding: 12px; text-align:right;">الأيام</th>
+                      <th style="padding: 12px; text-align:right;">الاستخدام</th>
+                      <th style="padding: 12px; text-align:right;">الحالة</th>
+                      <th style="padding: 12px; text-align:right;">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody id="businessesTable">
+                    <tr>
+                      <td colspan="10" style="text-align:center; padding:40px; color:#6B7280;">
+                        جاري تحميل بيانات الاشتراكات...
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        </main>
       </div>
     </div>
   `;
-  
+
   document.body.insertAdjacentHTML('beforeend', dashboardHtml);
-  
-  // تحميل البيانات
+
+  // تحميل بيانات السوبر أدمن
   loadSuperAdminData();
 }
 
 async function loadSuperAdminData() {
   try {
-    // جلب جميع المطاعم مع التراخيص وعدد المستخدمين
+    // جلب جميع المطاعم مع الاشتراكات والاستخدام من دالة السوبر أدمن الآمنة
     const { data: businesses, error } = await supabase
-      .from('businesses')
-      .select(`
-        *,
-        licenses (plan_type, expires_at, is_active),
-        app_users (count)
-      `)
-      .order('created_at', { ascending: false });
-    
+      .rpc('super_admin_list_subscriptions');
+
     if (error) throw error;
-    
+
+    const rows = Array.isArray(businesses) ? businesses : [];
+
     // تحديث الإحصائيات
-    const totalBusinesses = businesses.length;
-    let totalUsers = 0;
-    let activeLicenses = 0;
-    let expiringSoon = 0;
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-    
-    businesses.forEach(b => {
-      if (b.app_users && b.app_users.length) {
-        totalUsers += b.app_users.length;
-      }
-      if (b.licenses && b.licenses.is_active) {
-        activeLicenses++;
-        if (new Date(b.licenses.expires_at) <= sevenDaysFromNow) {
-          expiringSoon++;
-        }
-      }
-    });
-    
+    const totalBusinesses = rows.length;
+
+    const totalUsers = rows.reduce((sum, b) => {
+      return sum + Number(b.current_users_count || 0);
+    }, 0);
+
+    const activeLicenses = rows.filter(b => {
+      return b.access_allowed === true &&
+        ['active', 'trial', 'grace'].includes(b.effective_status);
+    }).length;
+
+    const expiringSoon = rows.filter(b => {
+      return b.access_allowed === true &&
+        Number(b.days_remaining || 0) > 0 &&
+        Number(b.days_remaining || 0) <= 7;
+    }).length;
+
+    const expiredLicenses = rows.filter(b => {
+      return b.effective_status === 'expired' ||
+        b.access_allowed === false ||
+        b.subscription_status === 'expired';
+    }).length;
+
     const totalBusinessesEl = document.getElementById('totalBusinesses');
     const totalUsersEl = document.getElementById('totalUsers');
     const activeLicensesEl = document.getElementById('activeLicenses');
     const expiringSoonEl = document.getElementById('expiringSoon');
-    
+    const expiredLicensesEl = document.getElementById('expiredLicenses');
+
     if (totalBusinessesEl) totalBusinessesEl.innerText = totalBusinesses;
     if (totalUsersEl) totalUsersEl.innerText = totalUsers;
     if (activeLicensesEl) activeLicensesEl.innerText = activeLicenses;
     if (expiringSoonEl) expiringSoonEl.innerText = expiringSoon;
-    
+    if (expiredLicensesEl) expiredLicensesEl.innerText = expiredLicenses;
+
     // عرض الجدول
     const tableBody = document.getElementById('businessesTable');
     if (!tableBody) return;
-    
-    if (businesses.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px;">لا توجد مطاعم مسجلة بعد</td></tr>';
+
+    if (rows.length === 0) {
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 40px; color: #6B7280;">
+            لا توجد مطاعم مسجلة بعد
+          </td>
+        </tr>
+      `;
       return;
     }
-    
-    tableBody.innerHTML = businesses.map((b, index) => `
-      <tr style="border-bottom: 1px solid var(--border-color);">
-        <td style="padding: 12px; text-align: center;">${index + 1}</td>
-        <td style="padding: 12px; font-weight: 500;">${b.name || '-'}</td>
-        <td style="padding: 12px;">${b.phone || '-'}</td>
-        <td style="padding: 12px;">
-          <span style="background: ${b.licenses?.plan_type === 'enterprise' ? '#8B5CF6' : b.licenses?.plan_type === 'pro' ? '#3B82F6' : '#10B981'}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px;">
-            ${b.licenses?.plan_type || 'بدون'}
-          </span>
-        </td>
-        <td style="padding: 12px;">${b.licenses?.expires_at ? new Date(b.licenses.expires_at).toLocaleDateString('ar-EG') : '-'}</td>
-        <td style="padding: 12px; text-align: center;">${b.app_users?.length || 0}</td>
-        <td style="padding: 12px;">
-          <span style="background: ${b.licenses?.is_active ? '#10B981' : '#EF4444'}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px;">
-            ${b.licenses?.is_active ? 'نشط' : 'منتهي'}
-          </span>
-        </td>
-        <td style="padding: 12px;">
-          <button onclick="viewBusinessDetails('${b.id}')" style="background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; margin-left: 8px;">
-            <i class="fas fa-eye"></i>
-          </button>
-          <button onclick="toggleBusinessStatus('${b.id}')" style="background: #F59E0B; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer;">
-            <i class="fas fa-power-off"></i>
-          </button>
-        </td>
-      </tr>
-    `).join('');
-    
+
+    tableBody.innerHTML = rows.map((b, index) => {
+      const planType = b.plan_type || 'بدون';
+      const effectiveStatus = b.effective_status || 'unknown';
+      const accessAllowed = b.access_allowed === true;
+
+      const planColor =
+        planType === 'enterprise' ? '#8B5CF6' :
+        planType === 'pro' ? '#3B82F6' :
+        planType === 'basic' ? '#10B981' :
+        planType === 'trial' ? '#F59E0B' :
+        '#6B7280';
+
+      const statusLabel =
+        effectiveStatus === 'active' ? 'نشط' :
+        effectiveStatus === 'trial' ? 'تجريبي' :
+        effectiveStatus === 'grace' ? 'فترة سماح' :
+        effectiveStatus === 'expired' ? 'منتهي' :
+        effectiveStatus === 'suspended' ? 'موقوف' :
+        effectiveStatus === 'cancelled' ? 'ملغي' :
+        accessAllowed ? 'مسموح' : 'غير مسموح';
+
+      const statusColor =
+        effectiveStatus === 'active' ? '#10B981' :
+        effectiveStatus === 'trial' ? '#F59E0B' :
+        effectiveStatus === 'grace' ? '#F97316' :
+        effectiveStatus === 'expired' ? '#DC2626' :
+        effectiveStatus === 'suspended' ? '#991B1B' :
+        effectiveStatus === 'cancelled' ? '#6B7280' :
+        accessAllowed ? '#10B981' : '#DC2626';
+
+      const expiresAt = b.expires_at
+        ? new Date(b.expires_at).toLocaleDateString('ar-SA')
+        : '-';
+
+      const daysText =
+        b.days_remaining === null || b.days_remaining === undefined
+          ? '-'
+          : `${b.days_remaining} يوم`;
+
+      const tableUsage = `${b.current_tables_count || 0}/${b.max_tables ?? '∞'}`;
+      const userUsage = `${b.current_users_count || 0}/${b.max_users ?? '∞'}`;
+      const zoneUsage = `${b.current_zones_count || 0}/${b.max_zones ?? '∞'}`;
+      const floorUsage = `${b.current_floors_count || 0}/${b.max_floors ?? '∞'}`;
+
+      return `
+        <tr style="border-bottom: 1px solid #E5E7EB;">
+          <td style="padding: 12px; text-align: center; color:#6B7280;">${index + 1}</td>
+
+          <td style="padding: 12px;">
+            <div style="font-weight: 900; color:#111827;">
+              ${b.business_name || '-'}
+            </div>
+            <div style="font-size: 12px; color:#6B7280; margin-top:4px;">
+              ${b.branch_name || 'بدون فرع'}
+            </div>
+          </td>
+
+          <td style="padding: 12px; color:#374151;">
+            ${b.city || '-'}
+          </td>
+
+          <td style="padding: 12px; color:#374151; direction:ltr; text-align:right;">
+            ${b.phone || '-'}
+          </td>
+
+          <td style="padding: 12px;">
+            <span style="
+              background: ${planColor};
+              color: white;
+              padding: 5px 11px;
+              border-radius: 999px;
+              font-size: 12px;
+              font-weight: 800;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+            ">
+              ${planType}
+            </span>
+          </td>
+
+          <td style="padding: 12px; color:#374151;">
+            ${expiresAt}
+          </td>
+
+          <td style="padding: 12px; color:#374151;">
+            ${daysText}
+          </td>
+
+          <td style="padding: 12px;">
+            <div style="font-size: 12px; line-height: 1.8; color:#374151;">
+              <div>طاولات: <strong>${tableUsage}</strong></div>
+              <div>مستخدمين: <strong>${userUsage}</strong></div>
+              <div>مناطق: <strong>${zoneUsage}</strong></div>
+              <div>أدوار: <strong>${floorUsage}</strong></div>
+            </div>
+          </td>
+
+          <td style="padding: 12px;">
+            <span style="
+              background: ${statusColor};
+              color: white;
+              padding: 5px 11px;
+              border-radius: 999px;
+              font-size: 12px;
+              font-weight: 800;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              white-space: nowrap;
+            ">
+              ${statusLabel}
+            </span>
+          </td>
+
+          <td style="padding: 12px; white-space: nowrap;">
+            <button onclick="viewBusinessDetails('${b.business_id}')" style="
+              background: #0E146D;
+              color: white;
+              border: none;
+              padding: 7px 10px;
+              border-radius: 9px;
+              cursor: pointer;
+              margin-left: 6px;
+            " title="عرض التفاصيل">
+              <i class="fas fa-eye"></i>
+            </button>
+
+            <button onclick="toggleBusinessStatus('${b.business_id}')" style="
+              background: #F59E0B;
+              color: white;
+              border: none;
+              padding: 7px 10px;
+              border-radius: 9px;
+              cursor: pointer;
+            " title="إدارة الحالة">
+              <i class="fas fa-power-off"></i>
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
   } catch (err) {
     console.error('خطأ في تحميل بيانات super admin:', err);
+
     const tableBody = document.getElementById('businessesTable');
     if (tableBody) {
-      tableBody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: red;">فشل تحميل البيانات</td></tr>';
+      tableBody.innerHTML = `
+        <tr>
+          <td colspan="10" style="text-align: center; padding: 40px; color: #DC2626;">
+            فشل تحميل البيانات
+          </td>
+        </tr>
+      `;
     }
   }
 }
 
 async function viewBusinessDetails(businessId) {
-  // يمكن تطويرها لاحقاً لعرض تفاصيل كاملة عن المطعم
-  alert(`سيتم عرض تفاصيل المطعم (قيد التطوير): ${businessId}`);
+  try {
+    const { data: subscriptions, error: subError } = await supabase
+      .rpc('super_admin_list_subscriptions');
+
+    if (subError) throw subError;
+
+    const rows = Array.isArray(subscriptions) ? subscriptions : [];
+    const business = rows.find(item => item.business_id === businessId);
+
+    if (!business) {
+      alert('لم يتم العثور على بيانات هذا المطعم');
+      return;
+    }
+
+    const { data: logs, error: logsError } = await supabase
+      .from('subscription_activity_logs')
+      .select(`
+        id,
+        action_type,
+        action_title,
+        action_description,
+        old_values,
+        new_values,
+        actor_role,
+        created_at
+      `)
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (logsError) throw logsError;
+
+    const oldModal = document.getElementById('businessDetailsModal');
+    if (oldModal) oldModal.remove();
+
+    const statusLabel =
+      business.effective_status === 'active' ? 'نشط' :
+      business.effective_status === 'trial' ? 'تجريبي' :
+      business.effective_status === 'grace' ? 'فترة سماح' :
+      business.effective_status === 'expired' ? 'منتهي' :
+      business.effective_status === 'suspended' ? 'موقوف' :
+      business.effective_status === 'cancelled' ? 'ملغي' :
+      'غير معروف';
+
+    const statusColor =
+      business.effective_status === 'active' ? '#10B981' :
+      business.effective_status === 'trial' ? '#F59E0B' :
+      business.effective_status === 'grace' ? '#F97316' :
+      business.effective_status === 'expired' ? '#DC2626' :
+      business.effective_status === 'suspended' ? '#991B1B' :
+      business.effective_status === 'cancelled' ? '#6B7280' :
+      '#6B7280';
+
+    const expiresAt = business.expires_at
+      ? new Date(business.expires_at).toLocaleDateString('ar-SA')
+      : '-';
+
+    const formatLimit = (current, max) => {
+      return `${current || 0}/${max ?? '∞'}`;
+    };
+
+    const formatLogDate = (dateValue) => {
+      if (!dateValue) return '-';
+      return new Date(dateValue).toLocaleString('ar-SA');
+    };
+
+    const logsHtml = (logs || []).length
+      ? logs.map(log => `
+        <div style="
+          border: 1px solid #E5E7EB;
+          border-radius: 14px;
+          padding: 12px;
+          margin-bottom: 10px;
+          background: #FFFFFF;
+        ">
+          <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
+            <div>
+              <div style="font-weight:900; color:#111827;">
+                ${log.action_title || '-'}
+              </div>
+              <div style="font-size:12px; color:#6B7280; margin-top:5px; line-height:1.6;">
+                ${log.action_description || ''}
+              </div>
+            </div>
+            <div style="font-size:11px; color:#6B7280; white-space:nowrap;">
+              ${formatLogDate(log.created_at)}
+            </div>
+          </div>
+          <div style="font-size:11px; color:#9CA3AF; margin-top:8px;">
+            ${log.action_type || '-'} · ${log.actor_role || '-'}
+          </div>
+        </div>
+      `).join('')
+      : `
+        <div style="
+          padding: 24px;
+          text-align: center;
+          color: #6B7280;
+          background: #F9FAFB;
+          border-radius: 14px;
+          border: 1px dashed #D1D5DB;
+        ">
+          لا توجد عمليات مسجلة بعد
+        </div>
+      `;
+
+    const modalHtml = `
+      <div id="businessDetailsModal" style="
+        position: fixed;
+        inset: 0;
+        z-index: 20000;
+        background: rgba(0,0,0,0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        direction: rtl;
+      ">
+        <div style="
+          width: min(900px, calc(100vw - 32px));
+          max-height: calc(100vh - 40px);
+          background: #F9FAFB;
+          border-radius: 24px;
+          box-shadow: 0 24px 70px rgba(0,0,0,0.25);
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        ">
+          <div style="
+            background: linear-gradient(135deg, #070219 0%, #060427 48%, #0E146D 100%);
+            color: white;
+            padding: 18px 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          ">
+            <div>
+              <div style="font-size: 19px; font-weight: 900;">
+                تفاصيل المطعم
+              </div>
+              <div style="font-size: 12px; opacity: 0.75; margin-top: 5px;">
+                ${business.business_name || '-'}
+              </div>
+            </div>
+
+<div style="display:flex; align-items:center; gap:8px;">
+  <button id="exportBusinessSubscriptionPdfBtn" style="
+    border: none;
+    background: rgba(255,255,255,0.14);
+    color: white;
+    height: 38px;
+    padding: 0 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 900;
+  ">
+    <i class="fas fa-file-pdf"></i>
+    تقرير PDF
+  </button>
+
+  <button id="closeBusinessDetailsModal" style="
+    border: none;
+    background: rgba(255,255,255,0.14);
+    color: white;
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    cursor: pointer;
+  ">
+    <i class="fas fa-times"></i>
+  </button>
+</div>
+          </div>
+
+          <div style="
+            padding: 20px;
+            overflow-y: auto;
+          ">
+            <div style="
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+              gap: 12px;
+              margin-bottom: 18px;
+            ">
+              <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:14px;">
+                <div style="font-size:12px; color:#6B7280; font-weight:800;">اسم المطعم</div>
+                <div style="font-size:16px; font-weight:900; margin-top:7px;">${business.business_name || '-'}</div>
+              </div>
+
+              <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:14px;">
+                <div style="font-size:12px; color:#6B7280; font-weight:800;">الفرع</div>
+                <div style="font-size:16px; font-weight:900; margin-top:7px;">${business.branch_name || '-'}</div>
+              </div>
+
+              <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:14px;">
+                <div style="font-size:12px; color:#6B7280; font-weight:800;">المدينة</div>
+                <div style="font-size:16px; font-weight:900; margin-top:7px;">${business.city || '-'}</div>
+              </div>
+
+              <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:16px; padding:14px;">
+                <div style="font-size:12px; color:#6B7280; font-weight:800;">الجوال</div>
+                <div style="font-size:16px; font-weight:900; margin-top:7px; direction:ltr; text-align:right;">${business.phone || '-'}</div>
+              </div>
+            </div>
+
+            <div style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 14px;
+              margin-bottom: 18px;
+            ">
+              <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:18px; padding:16px;">
+                <div style="font-size:15px; font-weight:900; margin-bottom:12px;">الاشتراك</div>
+
+                <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px;">
+                  <div>
+                    <div style="font-size:12px; color:#6B7280;">الخطة</div>
+                    <div style="font-weight:900; margin-top:5px;">${business.plan_type || '-'}</div>
+                  </div>
+
+                  <div>
+                    <div style="font-size:12px; color:#6B7280;">الحالة</div>
+                    <div style="
+                      display:inline-flex;
+                      margin-top:5px;
+                      background:${statusColor};
+                      color:white;
+                      padding:4px 9px;
+                      border-radius:999px;
+                      font-size:12px;
+                      font-weight:900;
+                    ">${statusLabel}</div>
+                  </div>
+
+                  <div>
+                    <div style="font-size:12px; color:#6B7280;">تاريخ الانتهاء</div>
+                    <div style="font-weight:900; margin-top:5px;">${expiresAt}</div>
+                  </div>
+
+                  <div>
+                    <div style="font-size:12px; color:#6B7280;">الأيام المتبقية</div>
+                    <div style="font-weight:900; margin-top:5px;">${business.days_remaining ?? 0} يوم</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:18px; padding:16px;">
+                <div style="font-size:15px; font-weight:900; margin-bottom:12px;">الاستخدام والحدود</div>
+
+                <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:10px;">
+                  <div>
+                    <div style="font-size:12px; color:#6B7280;">الطاولات</div>
+                    <div style="font-weight:900; margin-top:5px;">${formatLimit(business.current_tables_count, business.max_tables)}</div>
+                  </div>
+
+                  <div>
+                    <div style="font-size:12px; color:#6B7280;">المستخدمين</div>
+                    <div style="font-weight:900; margin-top:5px;">${formatLimit(business.current_users_count, business.max_users)}</div>
+                  </div>
+
+                  <div>
+                    <div style="font-size:12px; color:#6B7280;">المناطق</div>
+                    <div style="font-weight:900; margin-top:5px;">${formatLimit(business.current_zones_count, business.max_zones)}</div>
+                  </div>
+
+                  <div>
+                    <div style="font-size:12px; color:#6B7280;">الأدوار</div>
+                    <div style="font-weight:900; margin-top:5px;">${formatLimit(business.current_floors_count, business.max_floors)}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:#FFFFFF; border:1px solid #E5E7EB; border-radius:18px; padding:16px;">
+              <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:12px;
+              ">
+                <div>
+                  <div style="font-size:15px; font-weight:900;">آخر عمليات الاشتراك</div>
+                  <div style="font-size:12px; color:#6B7280; margin-top:4px;">آخر 10 عمليات على هذا المطعم</div>
+                </div>
+              </div>
+
+              ${logsHtml}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    document.getElementById('closeBusinessDetailsModal')?.addEventListener('click', () => {
+      document.getElementById('businessDetailsModal')?.remove();
+    });
+    document.getElementById('exportBusinessSubscriptionPdfBtn')?.addEventListener('click', async () => {
+  await exportBusinessSubscriptionPdf(business, logs || []);
+});
+
+  } catch (err) {
+    console.error('خطأ في عرض تفاصيل المطعم:', err);
+    alert('فشل عرض تفاصيل المطعم');
+  }
+}
+
+async function exportBusinessSubscriptionPdf(business, logs) {
+  try {
+    if (!business) {
+      alert('لا توجد بيانات مطعم لتصدير التقرير');
+      return;
+    }
+
+    // تحميل مكتبة html2pdf تلقائيًا عند الحاجة فقط
+    if (typeof html2pdf === 'undefined') {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    const formatDate = (value) => {
+      if (!value) return '-';
+      return new Date(value).toLocaleDateString('ar-SA');
+    };
+
+    const formatDateTime = (value) => {
+      if (!value) return '-';
+      return new Date(value).toLocaleString('ar-SA');
+    };
+
+    const statusLabel =
+      business.effective_status === 'active' ? 'نشط' :
+      business.effective_status === 'trial' ? 'تجريبي' :
+      business.effective_status === 'grace' ? 'فترة سماح' :
+      business.effective_status === 'expired' ? 'منتهي' :
+      business.effective_status === 'suspended' ? 'موقوف' :
+      business.effective_status === 'cancelled' ? 'ملغي' :
+      'غير معروف';
+
+    const reportLogs = Array.isArray(logs) ? logs : [];
+
+    const logsRows = reportLogs.length
+      ? reportLogs.map((log, index) => `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${log.action_title || '-'}</td>
+          <td>${log.action_description || '-'}</td>
+          <td>${log.actor_role || '-'}</td>
+          <td>${formatDateTime(log.created_at)}</td>
+        </tr>
+      `).join('')
+      : `
+        <tr>
+          <td colspan="5" style="text-align:center; color:#777;">
+            لا توجد عمليات مسجلة
+          </td>
+        </tr>
+      `;
+
+    const reportHtml = document.createElement('div');
+reportHtml.style.cssText = `
+  width: 190mm;
+  padding: 10mm;
+  background: #ffffff;
+  color: #111827;
+  direction: rtl;
+  font-family: Arial, Tahoma, sans-serif;
+  box-sizing: border-box;
+`;
+
+    reportHtml.innerHTML = `
+      <div style="
+        border-bottom: 4px solid #0E146D;
+        padding-bottom: 16px;
+        margin-bottom: 22px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      ">
+        <div>
+          <div style="font-size: 26px; font-weight: 900; color: #0E146D;">
+            EASY-Q
+          </div>
+          <div style="font-size: 13px; color: #6B7280; margin-top: 5px;">
+            تقرير اشتراك المطعم
+          </div>
+        </div>
+
+        <div style="text-align: left; font-size: 12px; color: #6B7280;">
+          <div>تاريخ التقرير</div>
+          <strong style="color:#111827;">${formatDateTime(new Date().toISOString())}</strong>
+        </div>
+      </div>
+
+      <div style="
+        background: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 14px;
+        padding: 16px;
+        margin-bottom: 18px;
+      ">
+        <h2 style="margin: 0 0 12px; font-size: 20px; color: #111827;">
+          ${business.business_name || '-'}
+        </h2>
+
+        <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+          <tr>
+            <td style="padding:7px; color:#6B7280;">الفرع</td>
+            <td style="padding:7px; font-weight:800;">${business.branch_name || '-'}</td>
+            <td style="padding:7px; color:#6B7280;">المدينة</td>
+            <td style="padding:7px; font-weight:800;">${business.city || '-'}</td>
+          </tr>
+          <tr>
+            <tr>
+  <td style="padding:7px; color:#6B7280;">الجوال</td>
+  <td style="padding:7px; font-weight:800; direction:ltr; text-align:right;">${business.phone || '-'}</td>
+  <td style="padding:7px; color:#6B7280;">رقم التقرير</td>
+  <td style="padding:7px; font-weight:800; direction:ltr; text-align:right;">EQ-${Date.now()}</td>
+</tr>
+        </table>
+      </div>
+
+      <div style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin-bottom: 18px;
+      ">
+        <div style="
+          border: 1px solid #E5E7EB;
+          border-radius: 14px;
+          padding: 14px;
+        ">
+          <h3 style="margin:0 0 12px; font-size: 16px; color:#0E146D;">
+            بيانات الاشتراك
+          </h3>
+
+          <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding:7px; color:#6B7280;">الخطة</td>
+              <td style="padding:7px; font-weight:900;">${business.plan_type || '-'}</td>
+            </tr>
+            <tr>
+              <td style="padding:7px; color:#6B7280;">الحالة</td>
+              <td style="padding:7px; font-weight:900;">${statusLabel}</td>
+            </tr>
+            <tr>
+              <td style="padding:7px; color:#6B7280;">تاريخ الانتهاء</td>
+              <td style="padding:7px; font-weight:900;">${formatDate(business.expires_at)}</td>
+            </tr>
+            <tr>
+              <td style="padding:7px; color:#6B7280;">الأيام المتبقية</td>
+              <td style="padding:7px; font-weight:900;">${business.days_remaining ?? 0} يوم</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="
+          border: 1px solid #E5E7EB;
+          border-radius: 14px;
+          padding: 14px;
+        ">
+          <h3 style="margin:0 0 12px; font-size: 16px; color:#0E146D;">
+            الاستخدام والحدود
+          </h3>
+
+          <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+            <tr>
+              <td style="padding:7px; color:#6B7280;">الطاولات</td>
+              <td style="padding:7px; font-weight:900; direction:ltr; text-align:right; unicode-bidi:embed;">
+  ${business.current_tables_count || 0} / ${business.max_tables ?? 'Unlimited'}
+</td>
+            </tr>
+            <tr>
+              <td style="padding:7px; color:#6B7280;">المستخدمين</td>
+            <td style="padding:7px; font-weight:900; direction:ltr; text-align:right; unicode-bidi:embed;">
+  ${business.current_users_count || 0} / ${business.max_users ?? 'Unlimited'}
+</td>
+            </tr>
+            <tr>
+              <td style="padding:7px; color:#6B7280;">المناطق</td>
+            <td style="padding:7px; font-weight:900; direction:ltr; text-align:right; unicode-bidi:embed;">
+  ${business.current_zones_count || 0} / ${business.max_zones ?? 'Unlimited'}
+</td>
+            </tr>
+            <tr>
+              <td style="padding:7px; color:#6B7280;">الأدوار</td>
+            <td style="padding:7px; font-weight:900; direction:ltr; text-align:right; unicode-bidi:embed;">
+  ${business.current_floors_count || 0} / ${business.max_floors ?? 'Unlimited'}
+</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <div style="
+        border: 1px solid #E5E7EB;
+        border-radius: 14px;
+        padding: 14px;
+      ">
+        <h3 style="margin:0 0 12px; font-size: 16px; color:#0E146D;">
+          سجل عمليات الاشتراك
+        </h3>
+
+        <table style="
+          width:100%;
+          border-collapse: collapse;
+          font-size: 11px;
+        ">
+          <thead>
+            <tr style="background:#0E146D; color:white;">
+              <th style="padding:8px; border:1px solid #E5E7EB;">#</th>
+              <th style="padding:8px; border:1px solid #E5E7EB;">العملية</th>
+              <th style="padding:8px; border:1px solid #E5E7EB;">الوصف</th>
+              <th style="padding:8px; border:1px solid #E5E7EB;">المنفذ</th>
+              <th style="padding:8px; border:1px solid #E5E7EB;">التاريخ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logsRows}
+          </tbody>
+        </table>
+      </div>
+
+      <div style="
+        margin-top: 18px;
+        padding-top: 12px;
+        border-top: 1px solid #E5E7EB;
+        color: #6B7280;
+        font-size: 11px;
+        text-align: center;
+      ">
+        هذا التقرير صادر من نظام EASYQ لإدارة الطوابير والطاولات باحترافيه.
+      </div>
+    `;
+
+    document.body.appendChild(reportHtml);
+
+    const fileName = `EASY-Q-${business.business_name || 'business'}-subscription-report.pdf`
+      .replace(/[\\/:*?"<>|]/g, '-');
+
+const options = {
+  margin: [8, 8, 8, 8],
+  filename: fileName,
+  image: { type: 'jpeg', quality: 0.98 },
+  html2canvas: {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: '#ffffff'
+  },
+  jsPDF: {
+    unit: 'mm',
+    format: 'a4',
+    orientation: 'portrait'
+  },
+  pagebreak: {
+    mode: ['avoid-all', 'css', 'legacy']
+  }
+};
+
+    await html2pdf().set(options).from(reportHtml).save();
+
+    reportHtml.remove();
+
+  } catch (err) {
+    console.error('فشل تصدير تقرير الاشتراك PDF:', err);
+    alert('فشل تصدير تقرير PDF');
+  }
 }
 
 async function toggleBusinessStatus(businessId) {
-  if (!confirm('هل أنت متأكد من تغيير حالة هذا المطعم؟')) return;
-  
-  // جلب الترخيص الحالي
-  const { data: license, error: fetchError } = await supabase
-    .from('licenses')
-    .select('is_active')
-    .eq('business_id', businessId)
-    .maybeSingle();
-  
-  if (fetchError) {
-    console.error('خطأ في جلب الترخيص:', fetchError);
-    alert('فشل تغيير حالة المطعم');
+  try {
+    const { data, error } = await supabase
+      .rpc('super_admin_list_subscriptions');
+
+    if (error) throw error;
+
+    const rows = Array.isArray(data) ? data : [];
+    const business = rows.find(item => item.business_id === businessId);
+
+    if (!business) {
+      alert('لم يتم العثور على بيانات هذا المطعم');
+      return;
+    }
+
+    const oldModal = document.getElementById('subscriptionManageModal');
+    if (oldModal) oldModal.remove();
+
+    const statusLabel =
+      business.effective_status === 'active' ? 'نشط' :
+      business.effective_status === 'trial' ? 'تجريبي' :
+      business.effective_status === 'grace' ? 'فترة سماح' :
+      business.effective_status === 'expired' ? 'منتهي' :
+      business.effective_status === 'suspended' ? 'موقوف' :
+      business.effective_status === 'cancelled' ? 'ملغي' :
+      'غير معروف';
+
+    const expiresAt = business.expires_at
+      ? new Date(business.expires_at).toLocaleDateString('ar-SA')
+      : '-';
+
+    const modalHtml = `
+      <div id="subscriptionManageModal" style="
+        position: fixed;
+        inset: 0;
+        z-index: 20000;
+        background: rgba(0,0,0,0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        direction: rtl;
+      ">
+        <div style="
+          width: min(560px, calc(100vw - 32px));
+          background: #ffffff;
+          border-radius: 22px;
+          box-shadow: 0 24px 70px rgba(0,0,0,0.25);
+          overflow: hidden;
+        ">
+          <div style="
+            background: linear-gradient(135deg, #070219 0%, #060427 48%, #0E146D 100%);
+            color: white;
+            padding: 18px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          ">
+            <div>
+              <div style="font-size: 18px; font-weight: 900;">
+                إدارة اشتراك المطعم
+              </div>
+              <div style="font-size: 12px; opacity: 0.75; margin-top: 5px;">
+                ${business.business_name || '-'}
+              </div>
+            </div>
+
+            <button id="closeSubscriptionManageModal" style="
+              border: none;
+              background: rgba(255,255,255,0.14);
+              color: white;
+              width: 36px;
+              height: 36px;
+              border-radius: 12px;
+              cursor: pointer;
+            ">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+
+          <div style="padding: 20px;">
+            <div style="
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 12px;
+              margin-bottom: 18px;
+            ">
+              <div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:14px; padding:12px;">
+                <div style="font-size:12px; color:#6B7280; font-weight:800;">الخطة</div>
+                <div style="font-size:16px; font-weight:900; margin-top:6px;">${business.plan_type || '-'}</div>
+              </div>
+
+              <div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:14px; padding:12px;">
+                <div style="font-size:12px; color:#6B7280; font-weight:800;">الحالة</div>
+                <div style="font-size:16px; font-weight:900; margin-top:6px;">${statusLabel}</div>
+              </div>
+
+              <div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:14px; padding:12px;">
+                <div style="font-size:12px; color:#6B7280; font-weight:800;">تاريخ الانتهاء</div>
+                <div style="font-size:16px; font-weight:900; margin-top:6px;">${expiresAt}</div>
+              </div>
+
+              <div style="background:#F9FAFB; border:1px solid #E5E7EB; border-radius:14px; padding:12px;">
+                <div style="font-size:12px; color:#6B7280; font-weight:800;">الأيام المتبقية</div>
+                <div style="font-size:16px; font-weight:900; margin-top:6px;">${business.days_remaining ?? 0} يوم</div>
+              </div>
+            </div>
+
+            <div style="
+              display: grid;
+              grid-template-columns: repeat(2, 1fr);
+              gap: 10px;
+            ">
+            <button id="extendLicenseBtn" style="
+            border: none;
+            background: #0E146D;
+            color: white;
+            padding: 12px;
+            border-radius: 13px;
+            cursor: pointer;
+            font-weight: 900;
+            ">
+           <i class="fas fa-calendar-plus"></i>
+           تمديد بالأيام
+           </button>
+
+              <button id="activateLicenseBtn" style="
+                border: none;
+                background: #10B981;
+                color: white;
+                padding: 12px;
+                border-radius: 13px;
+                cursor: pointer;
+                font-weight: 900;
+              ">
+                <i class="fas fa-check-circle"></i>
+                تفعيل الاشتراك
+              </button>
+
+              <button id="suspendLicenseBtn" style="
+                border: none;
+                background: #F59E0B;
+                color: white;
+                padding: 12px;
+                border-radius: 13px;
+                cursor: pointer;
+                font-weight: 900;
+              ">
+                <i class="fas fa-pause-circle"></i>
+                إيقاف مؤقت
+              </button>
+
+              <button id="cancelLicenseBtn" style="
+                border: none;
+                background: #DC2626;
+                color: white;
+                padding: 12px;
+                border-radius: 13px;
+                cursor: pointer;
+                font-weight: 900;
+              ">
+                <i class="fas fa-ban"></i>
+                إلغاء الاشتراك
+              </button>
+              <button id="editPlanLimitsBtn" style="
+  border: none;
+  background: #6366F1;
+  color: white;
+  padding: 12px;
+  border-radius: 13px;
+  cursor: pointer;
+  font-weight: 900;
+  grid-column: 1 / -1;
+">
+  <i class="fas fa-sliders-h"></i>
+  تعديل الخطة وحدود الباقة
+</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    const closeModal = () => {
+      const modal = document.getElementById('subscriptionManageModal');
+      if (modal) modal.remove();
+    };
+
+    document.getElementById('closeSubscriptionManageModal')?.addEventListener('click', closeModal);
+
+document.getElementById('extendLicenseBtn')?.addEventListener('click', async () => {
+  const daysInput = prompt('كم يوم تريد تمديد الاشتراك؟', '30');
+
+  if (daysInput === null) return;
+
+  const days = Number(daysInput);
+
+  if (!Number.isInteger(days) || days <= 0) {
+    alert('الرجاء إدخال عدد أيام صحيح أكبر من صفر');
     return;
   }
-  
-  if (license) {
-    const { error } = await supabase
-      .from('licenses')
-      .update({ is_active: !license.is_active })
-      .eq('business_id', businessId);
-    
-    if (error) {
-      console.error('خطأ في تحديث الترخيص:', error);
-      alert('فشل تغيير حالة المطعم');
-    } else {
-      alert('✅ تم تغيير حالة المطعم بنجاح');
-      loadSuperAdminData(); // إعادة تحميل البيانات
-    }
-  } else {
-    // إذا لم يكن هناك ترخيص، ننشئ ترخيصاً جديداً
-    const { error } = await supabase
-      .from('licenses')
-      .insert({
-        business_id: businessId,
-        license_key: 'TRIAL-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-        plan_type: 'trial',
-        max_tables: 20,
-        max_users: 5,
-        starts_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        is_active: true
-      });
-    
-    if (error) {
-      console.error('خطأ في إنشاء الترخيص:', error);
-      alert('فشل إنشاء ترخيص جديد للمطعم');
-    } else {
-      alert('✅ تم إنشاء ترخيص جديد للمطعم');
+
+  if (!confirm(`هل تريد تمديد اشتراك هذا المطعم ${days} يوم؟`)) return;
+
+  const { data: result, error: rpcError } = await supabase
+    .rpc('super_admin_extend_license', {
+      p_business_id: businessId,
+      p_days: days
+    });
+
+  if (rpcError) {
+    console.error(rpcError);
+    alert('فشل تمديد الاشتراك');
+    return;
+  }
+
+  const row = Array.isArray(result) ? result[0] : null;
+  alert(row?.message || 'تم تمديد الاشتراك');
+  closeModal();
+  loadSuperAdminData();
+});
+
+    document.getElementById('activateLicenseBtn')?.addEventListener('click', async () => {
+      if (!confirm('هل تريد تفعيل اشتراك هذا المطعم؟')) return;
+
+      const { data: result, error: rpcError } = await supabase
+        .rpc('super_admin_update_license_plan', {
+          p_business_id: businessId,
+          p_plan_type: business.plan_type || 'basic',
+          p_subscription_status: business.plan_type === 'trial' ? 'trial' : 'active'
+        });
+
+      if (rpcError) {
+        console.error(rpcError);
+        alert('فشل تفعيل الاشتراك');
+        return;
+      }
+
+      const row = Array.isArray(result) ? result[0] : null;
+      alert(row?.message || 'تم تفعيل الاشتراك');
+      closeModal();
       loadSuperAdminData();
+    });
+
+    document.getElementById('suspendLicenseBtn')?.addEventListener('click', async () => {
+      const reason = prompt('سبب الإيقاف المؤقت:', 'تم إيقاف الاشتراك من إدارة EASY-Q');
+      if (reason === null) return;
+
+      const { data: result, error: rpcError } = await supabase
+        .rpc('super_admin_suspend_license', {
+          p_business_id: businessId,
+          p_reason: reason
+        });
+
+      if (rpcError) {
+        console.error(rpcError);
+        alert('فشل إيقاف الاشتراك');
+        return;
+      }
+
+      const row = Array.isArray(result) ? result[0] : null;
+      alert(row?.message || 'تم إيقاف الاشتراك');
+      closeModal();
+      loadSuperAdminData();
+    });
+
+    document.getElementById('cancelLicenseBtn')?.addEventListener('click', async () => {
+      const reason = prompt('سبب إلغاء الاشتراك:', 'تم إلغاء الاشتراك من إدارة EASY-Q');
+      if (reason === null) return;
+
+      if (!confirm('تأكيد نهائي: هل تريد إلغاء اشتراك هذا المطعم؟')) return;
+
+      const { data: result, error: rpcError } = await supabase
+        .rpc('super_admin_cancel_license', {
+          p_business_id: businessId,
+          p_reason: reason
+        });
+
+      if (rpcError) {
+        console.error(rpcError);
+        alert('فشل إلغاء الاشتراك');
+        return;
+      }
+
+      const row = Array.isArray(result) ? result[0] : null;
+      alert(row?.message || 'تم إلغاء الاشتراك');
+      closeModal();
+      loadSuperAdminData();
+    });
+    document.getElementById('editPlanLimitsBtn')?.addEventListener('click', async () => {
+  const planInput = prompt(
+    'اكتب نوع الخطة: trial أو basic أو pro أو enterprise',
+    business.plan_type || 'basic'
+  );
+
+  if (planInput === null) return;
+
+  const planType = planInput.trim().toLowerCase();
+
+  if (!['trial', 'basic', 'pro', 'enterprise'].includes(planType)) {
+    alert('نوع الخطة غير صحيح. الخيارات: trial / basic / pro / enterprise');
+    return;
+  }
+
+  const maxTablesInput = prompt(
+    'حد الطاولات: اكتب رقم أو اتركه فارغًا ليكون بدون حد',
+    business.max_tables ?? ''
+  );
+
+  if (maxTablesInput === null) return;
+
+  const maxUsersInput = prompt(
+    'حد المستخدمين: اكتب رقم أو اتركه فارغًا ليكون بدون حد',
+    business.max_users ?? ''
+  );
+
+  if (maxUsersInput === null) return;
+
+  const maxZonesInput = prompt(
+    'حد المناطق: اكتب رقم أو اتركه فارغًا ليكون بدون حد',
+    business.max_zones ?? ''
+  );
+
+  if (maxZonesInput === null) return;
+
+  const maxFloorsInput = prompt(
+    'حد الأدوار: اكتب رقم أو اتركه فارغًا ليكون بدون حد',
+    business.max_floors ?? ''
+  );
+
+  if (maxFloorsInput === null) return;
+
+  const parseLimit = (value) => {
+    const clean = String(value).trim();
+
+    if (clean === '') return null;
+
+    const numberValue = Number(clean);
+
+    if (!Number.isInteger(numberValue) || numberValue < 0) {
+      return 'INVALID';
     }
+
+    return numberValue;
+  };
+
+  const maxTables = parseLimit(maxTablesInput);
+  const maxUsers = parseLimit(maxUsersInput);
+  const maxZones = parseLimit(maxZonesInput);
+  const maxFloors = parseLimit(maxFloorsInput);
+
+  if (
+    maxTables === 'INVALID' ||
+    maxUsers === 'INVALID' ||
+    maxZones === 'INVALID' ||
+    maxFloors === 'INVALID'
+  ) {
+    alert('الحدود يجب أن تكون أرقام صحيحة 0 أو أكثر، أو اترك الحقل فارغًا ليكون بدون حد.');
+    return;
+  }
+
+if (!confirm('هل تريد حفظ الخطة وحدود الباقة لهذا المطعم؟')) return;
+
+const nextStatus = planType === 'trial' ? 'trial' : 'active';
+
+const planChanged =
+  planType !== business.plan_type ||
+  nextStatus !== business.subscription_status;
+
+const limitsChanged =
+  maxTables !== business.max_tables ||
+  maxUsers !== business.max_users ||
+  maxZones !== business.max_zones ||
+  maxFloors !== business.max_floors;
+
+if (!planChanged && !limitsChanged) {
+  alert('لم يتم تغيير أي شيء');
+  return;
+}
+
+if (planChanged) {
+  const { data: planResult, error: planError } = await supabase
+    .rpc('super_admin_update_license_plan', {
+      p_business_id: businessId,
+      p_plan_type: planType,
+      p_subscription_status: nextStatus
+    });
+
+  if (planError) {
+    console.error(planError);
+    alert('فشل تحديث نوع الخطة');
+    return;
+  }
+
+  const planRow = Array.isArray(planResult) ? planResult[0] : null;
+
+  if (planRow && planRow.success === false) {
+    alert(planRow.message || 'فشل تحديث نوع الخطة');
+    return;
+  }
+}
+
+if (!limitsChanged) {
+  alert('✅ تم تحديث الخطة بنجاح');
+  closeModal();
+  loadSuperAdminData();
+  return;
+}
+
+const { data: limitsResult, error: limitsError } = await supabase
+    .rpc('super_admin_update_license_limits', {
+      p_business_id: businessId,
+      p_max_tables: maxTables,
+      p_max_users: maxUsers,
+      p_max_zones: maxZones,
+      p_max_floors: maxFloors
+    });
+
+  if (limitsError) {
+    console.error(limitsError);
+    alert('تم تحديث الخطة، لكن فشل تحديث حدود الباقة');
+    return;
+  }
+
+  const limitsRow = Array.isArray(limitsResult) ? limitsResult[0] : null;
+
+  if (limitsRow && limitsRow.success === false) {
+    alert(limitsRow.message || 'فشل تحديث حدود الباقة');
+    return;
+  }
+
+  alert('✅ تم تحديث الخطة وحدود الباقة بنجاح');
+  closeModal();
+  loadSuperAdminData();
+});
+  } catch (err) {
+    console.error('خطأ في فتح إدارة الاشتراك:', err);
+    alert('فشل فتح إدارة الاشتراك');
   }
 }
 

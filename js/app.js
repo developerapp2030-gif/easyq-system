@@ -364,7 +364,10 @@ async function loadWaitingList() {
 // ZONE & FLOOR MANAGEMENT
 // ============================================================
 
-function openZonesModal() {
+async function openZonesModal() {
+  // تحميل آخر إعدادات المناطق من قاعدة البيانات قبل عرض المودل
+  await loadActiveSettings();
+
   document.getElementById('zonesModal').classList.add('show');
   loadZones();
 }
@@ -398,6 +401,37 @@ async function saveZonePreferences() {
     }
   });
   
+    // ============================================================
+  // PACKAGE LIMIT CHECK - ZONES
+  // فحص حد المناطق حسب باقة الاشتراك
+  // null في max_zones يعني بدون حد
+  // ============================================================
+  const { data: usageRows, error: usageError } = await supabase
+    .rpc('get_my_license_usage');
+
+  if (usageError) {
+    console.error('License usage check error:', usageError);
+    showAlert('تعذر التحقق من حدود الباقة. حاول مرة أخرى.');
+    return;
+  }
+
+  const usage = Array.isArray(usageRows) ? usageRows[0] : null;
+
+  if (!usage) {
+    showAlert('لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.');
+    return;
+  }
+
+if (usage.max_zones !== null && activeZones.length > Number(usage.max_zones)) {
+  showAlert(`لا يمكن تفعيل أكثر من ${usage.max_zones} مناطق في باقتك الحالية. المناطق المحددة الآن: ${activeZones.length}.`);
+
+  // إرجاع أزرار المودل إلى آخر حالة محفوظة فعليًا
+  await loadActiveSettings();
+  loadZones();
+
+  return;
+}
+
   const oldZones = JSON.parse(localStorage.getItem('easyq_zones') || '["Indoor","Outdoor","VIP","Family","Smoking"]');
   const disabledZones = oldZones.filter(z => !activeZones.includes(z));
   for (const zone of disabledZones) {
@@ -409,6 +443,9 @@ async function saveZonePreferences() {
   }
   
   localStorage.setItem('easyq_zones', JSON.stringify(activeZones));
+
+// تحديث المناطق المفعلة داخل الذاكرة حتى يظهر المودل صحيح عند فتحه مرة أخرى
+globalActiveZones = activeZones;
   if (currentUser && currentUser.business_id && currentUser.id) {
     const { error } = await supabase.rpc('save_restaurant_setting', {
       p_business_id: currentUser.business_id,
@@ -436,7 +473,10 @@ async function saveZonePreferences() {
   showSuccessNotification('تم حفظ تفضيلات المناطق');
 }
 
-function openFloorsModal() {
+async function openFloorsModal() {
+  // تحميل آخر إعدادات الطوابق من قاعدة البيانات قبل عرض المودل
+  await loadActiveSettings();
+
   document.getElementById('floorsModal').classList.add('show');
   loadFloors();
 }
@@ -474,6 +514,37 @@ async function saveFloorPreferences() {
     return;
   }
   
+  // ============================================================
+  // PACKAGE LIMIT CHECK - FLOORS
+  // فحص حد الأدوار حسب باقة الاشتراك
+  // null في max_floors يعني بدون حد
+  // ============================================================
+  const { data: usageRows, error: usageError } = await supabase
+    .rpc('get_my_license_usage');
+
+  if (usageError) {
+    console.error('License usage check error:', usageError);
+    showAlert('تعذر التحقق من حدود الباقة. حاول مرة أخرى.');
+    return;
+  }
+
+  const usage = Array.isArray(usageRows) ? usageRows[0] : null;
+
+  if (!usage) {
+    showAlert('لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.');
+    return;
+  }
+
+if (usage.max_floors !== null && activeFloors.length > Number(usage.max_floors)) {
+  showAlert(`لا يمكن تفعيل أكثر من ${usage.max_floors} أدوار في باقتك الحالية. الأدوار المحددة الآن: ${activeFloors.length}.`);
+
+  // إرجاع أزرار المودل إلى آخر حالة محفوظة فعليًا
+  await loadActiveSettings();
+  loadFloors();
+
+  return;
+}
+
   const oldFloors = JSON.parse(localStorage.getItem('easyq_floors') || '["1","2","3"]');
   const disabledFloors = oldFloors.filter(f => !activeFloors.includes(f));
   for (const floor of disabledFloors) {
