@@ -4,6 +4,68 @@
 // LOGIN SYSTEM 11
 // ============================================================
 
+function addBusinessSupportSidebarButton() {
+  // لا تظهر داخل وضع السوبر أدمن
+  if (document.body.classList.contains('super-admin-mode')) return;
+
+  // منع التكرار
+  if (document.getElementById('businessSupportSidebarBtn')) return;
+
+  // نضع الزر داخل قسم إدارة الفرع / الإعدادات
+  const settingsSection = document.querySelector('[data-menu="settings"]');
+
+  if (!settingsSection) {
+    console.warn('لم يتم العثور على قسم إدارة الفرع لإضافة زر الدعم الحي');
+    return;
+  }
+
+  const targetContainer =
+    settingsSection.querySelector('.sub-menu') ||
+    settingsSection.querySelector('.submenu') ||
+    settingsSection.querySelector('.sub-menu-items') ||
+    settingsSection;
+
+  const btn = document.createElement('button');
+  btn.id = 'businessSupportSidebarBtn';
+  btn.type = 'button';
+
+  btn.innerHTML = `
+    <i class="fas fa-headset"></i>
+    <span>الدعم الحي</span>
+  `;
+
+  btn.style.cssText = `
+    width: calc(100% - 18px);
+    margin: 8px 9px;
+    border: 1px solid rgba(244, 210, 138, 0.45);
+    background: linear-gradient(135deg, #0E146D, #060427);
+    color: #ffffff;
+    padding: 11px 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 900;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 8px 18px rgba(14,20,109,0.18);
+  `;
+
+  btn.onclick = function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (typeof openBusinessSupportModal === 'function') {
+      openBusinessSupportModal();
+    } else {
+      alert('واجهة الدعم لم تكتمل بعد');
+    }
+  };
+
+  targetContainer.appendChild(btn);
+}
+
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
@@ -132,6 +194,11 @@ await loadActiveSettings();
 
 if (typeof loadTopbarBusinessIdentity === 'function') {
   await loadTopbarBusinessIdentity();
+}
+
+// إضافة زر الدعم الحي داخل السايدبار بعد جاهزية الواجهة
+if (typeof addBusinessSupportSidebarButton === 'function') {
+  setTimeout(addBusinessSupportSidebarButton, 500);
 }
 
 await loadAll();
@@ -627,10 +694,15 @@ function updateUIBasedOnPermissions() {
     reportsSection.style.display = canDo('view_reports') ? 'block' : 'none';
   }
   
-  const settingsSection = document.querySelector('[data-menu="settings"]');
-  if (settingsSection) {
-    settingsSection.style.display = canDo('manage_settings') ? 'block' : 'none';
-  }
+const settingsSection = document.querySelector('[data-menu="settings"]');
+if (settingsSection) {
+  settingsSection.style.display = canDo('manage_settings') ? 'block' : 'none';
+}
+
+// إضافة زر الدعم الحي داخل قسم إدارة الفرع بعد ضبط الصلاحيات
+if (canDo('manage_settings') && typeof addBusinessSupportSidebarButton === 'function') {
+  setTimeout(addBusinessSupportSidebarButton, 300);
+}
 }
 
 // ============================================================
@@ -1119,6 +1191,25 @@ function showSuperAdminDashboard() {
             التنبيهات
           </button>
 
+          <button class="super-admin-nav" data-super-view="support" style="
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  background: transparent;
+  color: #111827;
+  padding: 12px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 800;
+  margin-bottom: 8px;
+  text-align: right;
+">
+  <i class="fas fa-headset"></i>
+  الدعم الحي
+</button>
+
           <div style="
             margin-top: 20px;
             padding: 14px;
@@ -1272,15 +1363,630 @@ function showSuperAdminDashboard() {
               </div>
             </div>
           </section>
+          <section id="superAdminSupportView" style="display:none;">
+  <div style="
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 18px;
+  ">
+    <div>
+      <h2 style="margin: 0; font-size: 24px; color: #111827;">
+        الدعم الحي
+      </h2>
+      <p style="margin: 7px 0 0; color: #6B7280; font-size: 14px;">
+        متابعة جلسات الدعم بين إدارة EASY-Q والمطاعم.
+      </p>
+    </div>
+
+    <button onclick="loadSuperAdminSupportSessions()" style="
+      border: none;
+      background: #0E146D;
+      color: white;
+      padding: 11px 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 900;
+      box-shadow: 0 6px 14px rgba(14,20,109,0.18);
+    ">
+      <i class="fas fa-sync-alt"></i>
+      تحديث جلسات الدعم
+    </button>
+  </div>
+
+  <div style="
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 16px;
+    height: calc(100vh - 170px);
+    min-height: 520px;
+  ">
+    <div style="
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+    ">
+      <div style="
+        padding: 14px 16px;
+        border-bottom: 1px solid #E5E7EB;
+        font-weight: 900;
+        color: #111827;
+      ">
+        جلسات الدعم
+      </div>
+
+      <div id="supportSessionsList" style="
+        overflow-y: auto;
+        padding: 10px;
+        flex: 1;
+      ">
+        <div style="padding: 30px; text-align: center; color: #6B7280;">
+          اضغط تحديث جلسات الدعم
+        </div>
+      </div>
+    </div>
+
+    <div style="
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+    ">
+      <div id="supportChatHeader" style="
+        padding: 14px 16px;
+        border-bottom: 1px solid #E5E7EB;
+        font-weight: 900;
+        color: #111827;
+      ">
+        اختر جلسة دعم لعرض المحادثة
+      </div>
+
+      <div id="supportMessagesList" style="
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        background: #F9FAFB;
+      ">
+        <div style="padding: 40px; text-align: center; color: #6B7280;">
+          لا توجد جلسة محددة
+        </div>
+      </div>
+
+      <div style="
+        padding: 12px;
+        border-top: 1px solid #E5E7EB;
+        display: flex;
+        gap: 10px;
+        background: #ffffff;
+      ">
+        <input id="supportReplyInput" type="text" placeholder="اكتب ردك هنا..." style="
+          flex: 1;
+          border: 1px solid #D1D5DB;
+          border-radius: 12px;
+          padding: 12px;
+          font-size: 14px;
+          outline: none;
+        ">
+
+        <button onclick="sendSuperAdminSupportReply()" style="
+          border: none;
+          background: #0E146D;
+          color: white;
+          padding: 0 18px;
+          border-radius: 12px;
+          cursor: pointer;
+          font-weight: 900;
+        ">
+          <i class="fas fa-paper-plane"></i>
+          إرسال
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
         </main>
       </div>
     </div>
   `;
 
-  document.body.insertAdjacentHTML('beforeend', dashboardHtml);
+document.body.insertAdjacentHTML('beforeend', dashboardHtml);
 
-  // تحميل بيانات السوبر أدمن
-  loadSuperAdminData();
+setupSuperAdminNavigation();
+
+// تحميل بيانات السوبر أدمن
+loadSuperAdminData();
+}
+
+function setupSuperAdminNavigation() {
+  const navButtons = document.querySelectorAll('.super-admin-nav');
+
+  navButtons.forEach(button => {
+    button.addEventListener('click', async () => {
+      const view = button.getAttribute('data-super-view');
+
+      navButtons.forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'transparent';
+        btn.style.color = '#111827';
+      });
+
+      button.classList.add('active');
+      button.style.background = '#0E146D';
+      button.style.color = '#ffffff';
+
+      const overviewView = document.getElementById('superAdminOverview');
+      const supportView = document.getElementById('superAdminSupportView');
+
+      if (overviewView) overviewView.style.display = 'none';
+      if (supportView) supportView.style.display = 'none';
+
+      if (view === 'support') {
+        if (supportView) supportView.style.display = 'block';
+        await loadSuperAdminSupportSessions();
+        return;
+      }
+
+      if (overviewView) overviewView.style.display = 'block';
+    });
+  });
+}
+
+async function loadSuperAdminSupportSessions() {
+  try {
+    const container = document.getElementById('supportSessionsList');
+
+    if (!container) return;
+
+    container.innerHTML = `
+      <div style="padding: 30px; text-align: center; color: #6B7280;">
+        جاري تحميل جلسات الدعم...
+      </div>
+    `;
+
+    const { data, error } = await supabase
+      .rpc('super_admin_list_support_sessions');
+
+    if (error) throw error;
+
+    const sessions = Array.isArray(data) ? data : [];
+
+    if (sessions.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 30px; text-align: center; color: #6B7280;">
+          لا توجد جلسات دعم حتى الآن
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = sessions.map(session => {
+      const statusLabel =
+        session.status === 'open' ? 'مفتوحة' :
+        session.status === 'pending' ? 'بانتظار الرد' :
+        session.status === 'closed' ? 'مغلقة' :
+        'غير معروف';
+
+      const statusColor =
+        session.status === 'open' ? '#10B981' :
+        session.status === 'pending' ? '#F59E0B' :
+        session.status === 'closed' ? '#6B7280' :
+        '#6B7280';
+
+      const lastMessageTime = session.last_message_created_at
+        ? new Date(session.last_message_created_at).toLocaleString('ar-SA')
+        : '-';
+
+      const unreadBadge = Number(session.unread_for_super_admin_count || 0) > 0
+        ? `<span style="
+            background:#DC2626;
+            color:white;
+            font-size:11px;
+            font-weight:900;
+            border-radius:999px;
+            padding:3px 8px;
+          ">${session.unread_for_super_admin_count}</span>`
+        : '';
+
+      return `
+        <div onclick="openSuperAdminSupportSession('${session.session_id}')" style="
+          border: 1px solid #E5E7EB;
+          border-radius: 16px;
+          padding: 12px;
+          margin-bottom: 10px;
+          cursor: pointer;
+          background: #FFFFFF;
+          transition: 0.15s;
+        ">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+            <div>
+              <div style="font-weight:900; color:#111827;">
+                ${session.business_name || '-'}
+              </div>
+              <div style="font-size:12px; color:#6B7280; margin-top:4px;">
+                ${session.subject || 'طلب دعم'}
+              </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:6px;">
+              ${unreadBadge}
+              <span style="
+                background:${statusColor};
+                color:white;
+                font-size:11px;
+                font-weight:900;
+                border-radius:999px;
+                padding:4px 8px;
+                white-space:nowrap;
+              ">
+                ${statusLabel}
+              </span>
+            </div>
+          </div>
+
+          <div style="
+            font-size:12px;
+            color:#374151;
+            margin-top:10px;
+            line-height:1.5;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+          ">
+            ${session.last_message_body || 'لا توجد رسائل'}
+          </div>
+
+          <div style="font-size:11px; color:#9CA3AF; margin-top:8px;">
+            آخر نشاط: ${lastMessageTime}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error('خطأ في تحميل جلسات الدعم:', err);
+
+    const container = document.getElementById('supportSessionsList');
+    if (container) {
+      container.innerHTML = `
+        <div style="padding: 30px; text-align: center; color: #DC2626;">
+          فشل تحميل جلسات الدعم
+        </div>
+      `;
+    }
+  }
+}
+
+let currentSupportSessionId = null;
+
+async function openSuperAdminSupportSession(sessionId) {
+  try {
+currentSupportSessionId = sessionId;
+
+// تعليم رسائل المطعم كمقروءة للسوبر أدمن عند فتح الجلسة
+try {
+  await supabase.rpc('mark_support_session_read', {
+    p_session_id: sessionId
+  });
+} catch (readErr) {
+  console.warn('تعذر تعليم رسائل الدعم كمقروءة:', readErr);
+}
+
+const header = document.getElementById('supportChatHeader');
+const messagesContainer = document.getElementById('supportMessagesList');
+
+    if (messagesContainer) {
+      messagesContainer.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #6B7280;">
+          جاري تحميل المحادثة...
+        </div>
+      `;
+    }
+
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .rpc('super_admin_list_support_sessions');
+
+    if (sessionsError) throw sessionsError;
+
+    const sessions = Array.isArray(sessionsData) ? sessionsData : [];
+    const session = sessions.find(item => item.session_id === sessionId);
+
+if (header && session) {
+  const statusLabel =
+    session.status === 'open' ? 'مفتوحة' :
+    session.status === 'pending' ? 'بانتظار الرد' :
+    session.status === 'closed' ? 'مغلقة' :
+    session.status;
+
+  const closeButton = session.status !== 'closed'
+    ? `
+      <button onclick="closeSuperAdminSupportSession('${session.session_id}')" style="
+        border: none;
+        background: #DC2626;
+        color: white;
+        padding: 9px 13px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 900;
+        font-size: 12px;
+      ">
+        <i class="fas fa-times-circle"></i>
+        إغلاق الجلسة
+      </button>
+    `
+    : `
+      <span style="
+        background: #F3F4F6;
+        color: #6B7280;
+        padding: 7px 11px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 900;
+      ">
+        الجلسة مغلقة
+      </span>
+    `;
+
+  header.innerHTML = `
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      width:100%;
+    ">
+      <div>
+        <div style="font-weight:900; color:#111827;">
+          ${session.business_name || '-'}
+        </div>
+        <div style="font-size:12px; color:#6B7280; margin-top:4px;">
+          ${session.subject || 'طلب دعم'} · ${statusLabel}
+        </div>
+      </div>
+
+      ${closeButton}
+    </div>
+  `;
+}
+
+const replyInput = document.getElementById('supportReplyInput');
+const replyButton = document.querySelector('button[onclick="sendSuperAdminSupportReply()"]');
+
+if (session && session.status === 'closed') {
+  if (replyInput) {
+    replyInput.value = '';
+    replyInput.disabled = true;
+    replyInput.placeholder = 'لا يمكن الرد على جلسة مغلقة';
+  }
+
+  if (replyButton) {
+    replyButton.disabled = true;
+    replyButton.style.opacity = '0.5';
+    replyButton.style.cursor = 'not-allowed';
+  }
+} else {
+  if (replyInput) {
+    replyInput.disabled = false;
+    replyInput.placeholder = 'اكتب ردك هنا...';
+  }
+
+  if (replyButton) {
+    replyButton.disabled = false;
+    replyButton.style.opacity = '1';
+    replyButton.style.cursor = 'pointer';
+  }
+}
+
+    const { data: messagesData, error: messagesError } = await supabase
+      .rpc('get_support_session_messages', {
+        p_session_id: sessionId
+      });
+
+    if (messagesError) throw messagesError;
+
+    const messages = Array.isArray(messagesData) ? messagesData : [];
+
+    if (!messagesContainer) return;
+
+    if (messages.length === 0) {
+      messagesContainer.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #6B7280;">
+          لا توجد رسائل في هذه الجلسة
+        </div>
+      `;
+      return;
+    }
+
+    messagesContainer.innerHTML = messages.map(msg => {
+      const isSuperAdmin = msg.sender_role === 'super_admin';
+      const isSystem = msg.message_type === 'system';
+
+      if (isSystem) {
+        return `
+          <div style="
+            text-align: center;
+            margin: 12px 0;
+            color: #6B7280;
+            font-size: 12px;
+          ">
+            <span style="
+              background: #E5E7EB;
+              padding: 6px 10px;
+              border-radius: 999px;
+              display: inline-block;
+            ">
+              ${msg.message_body || ''}
+            </span>
+          </div>
+        `;
+      }
+
+      const timeText = msg.created_at
+        ? new Date(msg.created_at).toLocaleString('ar-SA')
+        : '-';
+
+      return `
+        <div style="
+          display: flex;
+          justify-content: ${isSuperAdmin ? 'flex-start' : 'flex-end'};
+          margin-bottom: 12px;
+        ">
+          <div style="
+            max-width: 72%;
+            background: ${isSuperAdmin ? '#0E146D' : '#FFFFFF'};
+            color: ${isSuperAdmin ? '#FFFFFF' : '#111827'};
+            border: 1px solid ${isSuperAdmin ? '#0E146D' : '#E5E7EB'};
+            border-radius: 16px;
+            padding: 10px 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+          ">
+            <div style="
+              font-size: 11px;
+              font-weight: 900;
+              margin-bottom: 6px;
+              color: ${isSuperAdmin ? 'rgba(255,255,255,0.75)' : '#6B7280'};
+            ">
+              ${msg.sender_name || msg.sender_role || '-'}
+            </div>
+
+            <div style="
+              font-size: 14px;
+              line-height: 1.7;
+              white-space: pre-wrap;
+            ">
+              ${msg.message_body || ''}
+            </div>
+
+            <div style="
+              font-size: 10px;
+              margin-top: 7px;
+              color: ${isSuperAdmin ? 'rgba(255,255,255,0.65)' : '#9CA3AF'};
+            ">
+              ${timeText}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+  } catch (err) {
+    console.error('خطأ في فتح جلسة الدعم:', err);
+
+    const messagesContainer = document.getElementById('supportMessagesList');
+    if (messagesContainer) {
+      messagesContainer.innerHTML = `
+        <div style="padding: 40px; text-align: center; color: #DC2626;">
+          فشل تحميل المحادثة
+        </div>
+      `;
+    }
+  }
+}
+
+async function sendSuperAdminSupportReply() {
+  try {
+    if (!currentSupportSessionId) {
+      alert('اختر جلسة دعم أولًا');
+      return;
+    }
+
+    const input = document.getElementById('supportReplyInput');
+
+    if (!input) {
+      alert('حقل الرد غير موجود');
+      return;
+    }
+
+    const messageBody = input.value.trim();
+
+    if (!messageBody) {
+      alert('اكتب رسالة قبل الإرسال');
+      return;
+    }
+
+    input.disabled = true;
+
+    const { data, error } = await supabase.rpc('send_support_message', {
+      p_session_id: currentSupportSessionId,
+      p_message_body: messageBody,
+      p_is_internal: false
+    });
+
+    input.disabled = false;
+
+    if (error) {
+      console.error('فشل إرسال رد الدعم:', error);
+      alert('فشل إرسال الرسالة');
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : null;
+
+    if (row && row.success === false) {
+      alert(row.message || 'فشل إرسال الرسالة');
+      return;
+    }
+
+    input.value = '';
+
+    await openSuperAdminSupportSession(currentSupportSessionId);
+    await loadSuperAdminSupportSessions();
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء إرسال رد الدعم:', err);
+    alert('فشل إرسال الرسالة');
+  } finally {
+    const input = document.getElementById('supportReplyInput');
+    if (input) input.disabled = false;
+  }
+}
+
+async function closeSuperAdminSupportSession(sessionId) {
+  try {
+    if (!sessionId) {
+      alert('لم يتم تحديد جلسة الدعم');
+      return;
+    }
+
+    const confirmed = confirm('هل تريد إغلاق جلسة الدعم؟ لن يتمكن المطعم من الرد عليها بعد الإغلاق.');
+
+    if (!confirmed) return;
+
+    const { data, error } = await supabase.rpc('super_admin_close_support_session', {
+      p_session_id: sessionId
+    });
+
+    if (error) {
+      console.error('فشل إغلاق جلسة الدعم:', error);
+      alert('فشل إغلاق جلسة الدعم');
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : null;
+
+    if (row && row.success === false) {
+      alert(row.message || 'فشل إغلاق جلسة الدعم');
+      return;
+    }
+
+    alert('تم إغلاق جلسة الدعم بنجاح');
+
+    await loadSuperAdminSupportSessions();
+    await openSuperAdminSupportSession(sessionId);
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء إغلاق جلسة الدعم:', err);
+    alert('فشل إغلاق جلسة الدعم');
+  }
 }
 
 async function loadSuperAdminData() {
