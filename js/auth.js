@@ -5,54 +5,23 @@
 // ============================================================
 
 function addBusinessSupportSidebarButton() {
-  // لا تظهر داخل وضع السوبر أدمن
+  // لا يعمل في وضع السوبر أدمن
   if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
 
-  // منع التكرار
-  if (document.getElementById('businessSupportSidebarBtn')) return;
+  // الزر يجب أن يكون موجودًا في index.html داخل قسم إدارة الفرع
+  const btn = document.getElementById('businessSupportSidebarBtn');
 
-  // نضع الزر داخل قسم إدارة الفرع / الإعدادات
-  const settingsSection = document.querySelector('[data-menu="settings"]');
-
-  if (!settingsSection) {
-    console.warn('لم يتم العثور على قسم إدارة الفرع لإضافة زر الدعم الحي');
+  if (!btn) {
+    console.warn('زر الدعم الحي غير موجود في index.html داخل قسم إدارة الفرع');
     return;
   }
 
-  const targetContainer =
-    settingsSection.querySelector('.sub-menu') ||
-    settingsSection.querySelector('.submenu') ||
-    settingsSection.querySelector('.sub-menu-items') ||
-    settingsSection;
+  // منع تكرار ربط الحدث
+  if (btn.dataset.supportBound === 'true') return;
+  btn.dataset.supportBound = 'true';
 
-  const btn = document.createElement('button');
-  btn.id = 'businessSupportSidebarBtn';
-  btn.type = 'button';
-
-  btn.innerHTML = `
-    <i class="fas fa-headset"></i>
-    <span>الدعم الحي</span>
-  `;
-
-  btn.style.cssText = `
-    width: calc(100% - 18px);
-    margin: 8px 9px;
-    border: 1px solid rgba(244, 210, 138, 0.45);
-    background: linear-gradient(135deg, #0E146D, #060427);
-    color: #ffffff;
-    padding: 11px 12px;
-    border-radius: 12px;
-    cursor: pointer;
-    font-weight: 900;
-    font-size: 13px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    box-shadow: 0 8px 18px rgba(14,20,109,0.18);
-  `;
-
-  btn.onclick = function (event) {
+  btn.addEventListener('click', function (event) {
     event.preventDefault();
     event.stopPropagation();
 
@@ -61,9 +30,192 @@ function addBusinessSupportSidebarButton() {
     } else {
       alert('واجهة الدعم لم تكتمل بعد');
     }
-  };
+  });
+}
 
-  targetContainer.appendChild(btn);
+function openBusinessSupportModal() {
+  // حماية: لا يفتح في وضع السوبر أدمن
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
+
+  const modal = document.getElementById('businessSupportModal');
+
+  if (!modal) {
+    console.warn('businessSupportModal غير موجود في index.html');
+    return;
+  }
+
+  modal.classList.add('show');
+
+  // إغلاق السايدبار عند فتح الدعم
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) {
+    sidebar.classList.remove('open');
+  }
+
+  bindBusinessSupportModalButtons();
+}
+
+function closeBusinessSupportModal() {
+  const modal = document.getElementById('businessSupportModal');
+
+  if (!modal) return;
+
+  modal.classList.remove('show');
+}
+
+function bindBusinessSupportModalButtons() {
+  const closeBtn = document.getElementById('businessSupportCloseBtn');
+
+  if (closeBtn && closeBtn.dataset.bound !== 'true') {
+    closeBtn.dataset.bound = 'true';
+
+    closeBtn.addEventListener('click', function (event) {
+      event.preventDefault();
+      closeBusinessSupportModal();
+    });
+  }
+
+  const createCodeBtn = document.getElementById('businessCreateSupportCodeBtn');
+
+  if (createCodeBtn && createCodeBtn.dataset.bound !== 'true') {
+    createCodeBtn.dataset.bound = 'true';
+
+    createCodeBtn.addEventListener('click', async function (event) {
+      event.preventDefault();
+      await createBusinessSupportVerificationCode();
+    });
+  }
+
+  const sendMessageBtn = document.getElementById('businessSendSupportMessageBtn');
+
+  if (sendMessageBtn && sendMessageBtn.dataset.bound !== 'true') {
+    sendMessageBtn.dataset.bound = 'true';
+
+    sendMessageBtn.addEventListener('click', function (event) {
+      event.preventDefault();
+      alert('إرسال رسائل المطعم سنضيفه بعد تحميل الجلسات');
+    });
+  }
+}
+
+async function createBusinessSupportVerificationCode() {
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
+
+  const codeValueEl = document.getElementById('businessSupportCodeValue');
+  const codeHintEl = document.getElementById('businessSupportCodeHint');
+  const createCodeBtn = document.getElementById('businessCreateSupportCodeBtn');
+
+  try {
+    if (createCodeBtn) {
+      createCodeBtn.disabled = true;
+      createCodeBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        جاري إنشاء الرمز...
+      `;
+    }
+
+    if (codeValueEl) {
+      codeValueEl.innerText = 'جاري إنشاء الرمز...';
+    }
+
+    if (codeHintEl) {
+      codeHintEl.innerText = 'يرجى الانتظار لحظات';
+    }
+
+    const { data, error } = await supabase.rpc('create_support_verification_code');
+
+    if (error) {
+      console.error('فشل إنشاء رمز الدعم:', error);
+
+      if (codeValueEl) {
+        codeValueEl.innerText = 'تعذر إنشاء الرمز';
+      }
+
+      if (codeHintEl) {
+        codeHintEl.innerText = error.message || 'تأكد أن حسابك يملك صلاحية طلب الدعم';
+      }
+
+      if (typeof showAlert === 'function') {
+        showAlert('فشل إنشاء رمز الدعم');
+      } else {
+        alert('فشل إنشاء رمز الدعم');
+      }
+
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+
+    const supportCode =
+      row?.code ||
+      row?.support_code ||
+      row?.verification_code ||
+      row?.created_code ||
+      null;
+
+    const expiresAt =
+      row?.expires_at ||
+      row?.code_expires_at ||
+      null;
+
+    if (!supportCode) {
+      console.warn('لم يتم إرجاع رمز واضح من create_support_verification_code:', data);
+
+      if (codeValueEl) {
+        codeValueEl.innerText = 'تم إنشاء الرمز ولكن لم يتم عرضه';
+      }
+
+      if (codeHintEl) {
+        codeHintEl.innerText = 'راجع نتيجة الدالة في Console';
+      }
+
+      return;
+    }
+
+    if (codeValueEl) {
+      codeValueEl.innerText = supportCode;
+    }
+
+    if (codeHintEl) {
+      const expiryText = expiresAt
+        ? new Date(expiresAt).toLocaleString('ar-SA')
+        : '10 دقائق من الآن';
+
+      codeHintEl.innerText = `أرسل هذا الرمز للسوبر أدمن. صالح حتى: ${expiryText}`;
+    }
+
+    if (typeof showSuccessNotification === 'function') {
+      showSuccessNotification('تم إنشاء رمز الدعم بنجاح');
+    }
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء إنشاء رمز الدعم:', err);
+
+    if (codeValueEl) {
+      codeValueEl.innerText = 'حدث خطأ غير متوقع';
+    }
+
+    if (codeHintEl) {
+      codeHintEl.innerText = err.message || 'حاول مرة أخرى';
+    }
+
+    if (typeof showAlert === 'function') {
+      showAlert('حدث خطأ أثناء إنشاء رمز الدعم');
+    } else {
+      alert('حدث خطأ أثناء إنشاء رمز الدعم');
+    }
+
+  } finally {
+    if (createCodeBtn) {
+      createCodeBtn.disabled = false;
+      createCodeBtn.innerHTML = `
+        <i class="fas fa-key"></i>
+        إنشاء رمز دعم
+      `;
+    }
+  }
 }
 
 async function doLogin() {

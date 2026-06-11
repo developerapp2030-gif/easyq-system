@@ -570,9 +570,13 @@
     <i class="fas fa-qrcode"></i> <span>📱 فتح واجهة الحجز (QR)</span>
   </div>
 
-  <div class="sub-menu-item" data-view="branch-account">
-    <i class="fas fa-credit-card"></i> <span>إدارة الحساب والاشتراكات</span>
-  </div>
+<div class="sub-menu-item" data-view="branch-account">
+  <i class="fas fa-credit-card"></i> <span>إدارة الحساب والاشتراكات</span>
+</div>
+
+<div class="sub-menu-item" id="businessSupportSidebarBtn" data-view="business-support">
+  <i class="fas fa-headset"></i> <span>الدعم الحي</span>
+</div>
 
 </div>
 </div>
@@ -2388,6 +2392,85 @@ document.addEventListener('click', function(e) {
   setTimeout(initPremiumTheme, 300);
 })();
 </script>
+
+<!-- Business Support Modal -->
+<div id="businessSupportModal" class="modal-backdrop">
+  <div class="modal business-support-modal">
+    
+    <div class="modal-title">
+      <i class="fas fa-headset"></i>
+      الدعم الحي
+    </div>
+
+    <div class="modal-sub">
+      تواصل مع إدارة EASY-Q، أو أنشئ رمز تحقق لفتح جلسة دعم مباشرة.
+    </div>
+
+    <div class="business-support-code-box" id="businessSupportCodeBox">
+      <div class="business-support-code-title">
+        رمز التحقق للدعم
+      </div>
+
+      <div class="business-support-code-value" id="businessSupportCodeValue">
+        لم يتم إنشاء رمز بعد
+      </div>
+
+      <div class="business-support-code-hint" id="businessSupportCodeHint">
+        الرمز صالح لمدة 10 دقائق فقط.
+      </div>
+
+      <button type="button" class="settings-save" id="businessCreateSupportCodeBtn">
+        <i class="fas fa-key"></i>
+        إنشاء رمز دعم
+      </button>
+    </div>
+
+    <div class="business-support-layout">
+      
+      <div class="business-support-sessions">
+        <div class="business-support-section-title">
+          جلسات الدعم
+        </div>
+
+        <div id="businessSupportSessionsList" class="business-support-sessions-list">
+          لا توجد جلسات دعم محملة بعد
+        </div>
+      </div>
+
+      <div class="business-support-chat">
+        <div id="businessSupportChatHeader" class="business-support-chat-header">
+          اختر جلسة دعم لعرض المحادثة
+        </div>
+
+        <div id="businessSupportMessagesList" class="business-support-messages-list">
+          لا توجد محادثة محددة
+        </div>
+
+        <div class="business-support-reply-box">
+          <input
+            type="text"
+            id="businessSupportMessageInput"
+            class="form-input"
+            placeholder="اكتب رسالتك هنا..."
+          >
+
+          <button type="button" class="settings-save" id="businessSendSupportMessageBtn">
+            <i class="fas fa-paper-plane"></i>
+            إرسال
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+      <button type="button" class="settings-close" id="businessSupportCloseBtn">
+        إغلاق
+      </button>
+    </div>
+
+  </div>
+</div>
 
 <!-- WhatsApp Notify Customer Modal -->
 <div id="whatsappNotifyModal" class="modal-backdrop">
