@@ -30,10 +30,104 @@ function addBusinessSupportSidebarButton() {
     } else {
       alert('واجهة الدعم لم تكتمل بعد');
     }
-  });
+    });
+    updateBusinessSupportSidebarBadge();
+    startBusinessSupportSidebarBadgeAutoRefresh();
 }
 
-function openBusinessSupportModal() {
+let businessSupportSidebarBadgeInterval = null;
+let isBusinessSupportSidebarBadgeRefreshing = false;
+
+async function updateBusinessSupportSidebarBadge() {
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
+
+  const btn = document.getElementById('businessSupportSidebarBtn');
+
+  if (!btn) return;
+
+  try {
+    const { data, error } = await supabase.rpc('get_my_support_sessions');
+
+    if (error) {
+      console.warn('تعذر تحديث شارة الدعم الحي:', error);
+      return;
+    }
+
+    const sessions = Array.isArray(data) ? data : [];
+
+    const unreadCount = sessions.reduce((sum, session) => {
+      return sum + Number(
+        session.unread_for_business_count ||
+        session.unread_count ||
+        0
+      );
+    }, 0);
+
+    let badge = document.getElementById('businessSupportUnreadBadge');
+
+    if (unreadCount <= 0) {
+      if (badge) badge.remove();
+      btn.classList.remove('has-support-unread');
+      return;
+    }
+
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.id = 'businessSupportUnreadBadge';
+
+      badge.style.cssText = `
+        margin-right: auto;
+        min-width: 19px;
+        height: 19px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #DC2626;
+        color: #FFFFFF;
+        font-size: 11px;
+        font-weight: 900;
+        line-height: 19px;
+        text-align: center;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.14);
+      `;
+
+      btn.appendChild(badge);
+    }
+
+    badge.innerText = unreadCount > 99 ? '99+' : String(unreadCount);
+    btn.classList.add('has-support-unread');
+
+  } catch (err) {
+    console.warn('خطأ غير متوقع أثناء تحديث شارة الدعم الحي:', err);
+  }
+}
+
+function startBusinessSupportSidebarBadgeAutoRefresh() {
+  stopBusinessSupportSidebarBadgeAutoRefresh();
+
+  businessSupportSidebarBadgeInterval = setInterval(async function () {
+    if (isBusinessSupportSidebarBadgeRefreshing) return;
+
+    try {
+      isBusinessSupportSidebarBadgeRefreshing = true;
+      await updateBusinessSupportSidebarBadge();
+    } finally {
+      isBusinessSupportSidebarBadgeRefreshing = false;
+    }
+  }, 15000);
+}
+
+function stopBusinessSupportSidebarBadgeAutoRefresh() {
+  if (businessSupportSidebarBadgeInterval) {
+    clearInterval(businessSupportSidebarBadgeInterval);
+    businessSupportSidebarBadgeInterval = null;
+  }
+}
+
+async function openBusinessSupportModal() {
   // حماية: لا يفتح في وضع السوبر أدمن
   if (document.body.classList.contains('super-admin-mode')) return;
   if (currentUser?.role === 'super_admin') return;
@@ -54,6 +148,417 @@ function openBusinessSupportModal() {
   }
 
   bindBusinessSupportModalButtons();
+
+  await loadBusinessSupportSessions();
+  startBusinessSupportSessionsListAutoRefresh();
+}
+
+async function loadBusinessSupportSessions() {
+  const sessionsContainer = document.getElementById('businessSupportSessionsList');
+
+  if (!sessionsContainer) {
+    console.warn('businessSupportSessionsList غير موجود داخل مودل الدعم');
+    return;
+  }
+
+  try {
+    sessionsContainer.innerHTML = `
+      <div style="padding: 18px; text-align: center; color: #6B7280;">
+        جاري تحميل جلسات الدعم...
+      </div>
+    `;
+
+    const { data, error } = await supabase.rpc('get_my_support_sessions');
+
+    if (error) {
+      console.error('فشل تحميل جلسات دعم المطعم:', error);
+
+      sessionsContainer.innerHTML = `
+        <div style="padding: 18px; text-align: center; color: #DC2626;">
+          فشل تحميل جلسات الدعم
+        </div>
+      `;
+
+      return;
+    }
+
+    const sessions = Array.isArray(data) ? data : [];
+
+    if (sessions.length === 0) {
+      sessionsContainer.innerHTML = `
+        <div style="padding: 18px; text-align: center; color: #6B7280;">
+          لا توجد جلسات دعم حتى الآن
+        </div>
+      `;
+
+      return;
+    }
+
+    sessionsContainer.innerHTML = sessions.map(session => {
+      const sessionId = session.session_id || session.id;
+
+      const statusLabel =
+        session.status === 'open' ? 'مفتوحة' :
+        session.status === 'pending' ? 'بانتظار الرد' :
+        session.status === 'closed' ? 'مغلقة' :
+        'غير معروف';
+
+      const statusColor =
+        session.status === 'open' ? '#10B981' :
+        session.status === 'pending' ? '#F59E0B' :
+        session.status === 'closed' ? '#6B7280' :
+        '#6B7280';
+
+      const lastActivity =
+        session.last_message_at ||
+        session.last_message_created_at ||
+        session.opened_at ||
+        session.created_at ||
+        null;
+
+      const lastActivityText = lastActivity
+        ? new Date(lastActivity).toLocaleString('ar-SA')
+        : '-';
+
+      const unreadCount = Number(
+        session.unread_for_business_count ||
+        session.unread_count ||
+        0
+      );
+
+      const unreadBadge = unreadCount > 0
+        ? `
+          <span style="
+            background: #DC2626;
+            color: white;
+            font-size: 11px;
+            font-weight: 900;
+            border-radius: 999px;
+            padding: 3px 8px;
+          ">
+            ${unreadCount}
+          </span>
+        `
+        : '';
+
+      return `
+        <div
+          onclick="openBusinessSupportSession('${sessionId}')"
+          data-support-session-id="${sessionId || ''}"
+          style="
+            border: 1px solid #E5E7EB;
+            border-radius: 14px;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: #FFFFFF;
+            cursor: pointer;
+          "
+        >
+          <div style="
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+          ">
+            <div>
+              <div style="font-weight: 900; color: #111827;">
+                ${session.subject || 'طلب دعم'}
+              </div>
+
+              <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">
+                آخر نشاط: ${lastActivityText}
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 6px;">
+              ${unreadBadge}
+
+              <span style="
+                background: ${statusColor};
+                color: white;
+                font-size: 11px;
+                font-weight: 900;
+                border-radius: 999px;
+                padding: 4px 8px;
+                white-space: nowrap;
+              ">
+                ${statusLabel}
+              </span>
+            </div>
+          </div>
+
+          <div style="
+            font-size: 12px;
+            color: #374151;
+            margin-top: 10px;
+            line-height: 1.5;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          ">
+            ${session.last_message_body || 'لا توجد رسائل بعد'}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء تحميل جلسات دعم المطعم:', err);
+
+    sessionsContainer.innerHTML = `
+      <div style="padding: 18px; text-align: center; color: #DC2626;">
+        حدث خطأ أثناء تحميل جلسات الدعم
+      </div>
+    `;
+  }
+}
+
+let currentBusinessSupportSessionId = null;
+
+function renderBusinessSupportMessagesHtml(messages) {
+  return messages.map(msg => {
+    const isSystem = msg.message_type === 'system';
+    const isBusiness = msg.sender_role !== 'super_admin';
+
+    if (isSystem) {
+      return `
+        <div style="
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          margin: 6px 0;
+        ">
+          <span style="
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 70%;
+            background: #E5E7EB;
+            color: #6B7280;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            line-height: 1.25;
+            text-align: center;
+          ">
+            ${msg.message_body || ''}
+          </span>
+        </div>
+      `;
+    }
+
+    const timeText = msg.created_at
+      ? new Date(msg.created_at).toLocaleTimeString('ar-SA', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : '';
+
+    return `
+      <div style="
+        width: 100%;
+        display: flex;
+        justify-content: ${isBusiness ? 'flex-start' : 'flex-end'};
+        margin-bottom: 6px;
+      ">
+        <div style="
+          display: inline-flex;
+          flex-direction: column;
+          width: fit-content;
+          min-width: 36px;
+          max-width: min(58%, 460px);
+          background: ${isBusiness ? '#0E146D' : '#FFFFFF'};
+          color: ${isBusiness ? '#FFFFFF' : '#111827'};
+          border: 1px solid ${isBusiness ? '#0E146D' : '#E5E7EB'};
+          border-radius: ${isBusiness ? '12px 12px 4px 12px' : '12px 12px 12px 4px'};
+          padding: 5px 8px 4px;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.035);
+        ">
+          <span style="
+            display: block;
+            font-size: 12.5px;
+            line-height: 1.3;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+            padding: 0;
+          ">${msg.message_body || ''}</span>
+
+          <span style="
+            display: block;
+            align-self: flex-end;
+            font-size: 8.5px;
+            line-height: 1;
+            margin-top: 2px;
+            opacity: 0.55;
+            color: ${isBusiness ? 'rgba(255,255,255,0.72)' : '#6B7280'};
+          ">${timeText}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function openBusinessSupportSession(sessionId) {
+  if (!sessionId) {
+    alert('لم يتم تحديد جلسة الدعم');
+    return;
+  }
+
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
+
+  currentBusinessSupportSessionId = sessionId;
+
+  const header = document.getElementById('businessSupportChatHeader');
+  const messagesContainer = document.getElementById('businessSupportMessagesList');
+  const input = document.getElementById('businessSupportMessageInput');
+  const sendBtn = document.getElementById('businessSendSupportMessageBtn');
+
+  if (header) {
+    header.innerHTML = 'جاري تحميل بيانات الجلسة...';
+  }
+
+  if (messagesContainer) {
+    messagesContainer.innerHTML = `
+      <div style="padding: 30px; text-align: center; color: #6B7280;">
+        جاري تحميل المحادثة...
+      </div>
+    `;
+  }
+
+  try {
+    // تعليم رسائل السوبر أدمن كمقروءة عند فتح المطعم للجلسة
+    try {
+      await supabase.rpc('mark_support_session_read', {
+        p_session_id: sessionId
+      });
+    } catch (readErr) {
+      console.warn('تعذر تعليم رسائل الدعم كمقروءة للمطعم:', readErr);
+    }
+
+    // جلب جلسات المطعم لمعرفة حالة الجلسة الحالية
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .rpc('get_my_support_sessions');
+
+    if (sessionsError) throw sessionsError;
+
+    const sessions = Array.isArray(sessionsData) ? sessionsData : [];
+    const session = sessions.find(item => {
+      const itemId = item.session_id || item.id;
+      return itemId === sessionId;
+    });
+
+    const statusLabel =
+      session?.status === 'open' ? 'مفتوحة' :
+      session?.status === 'pending' ? 'بانتظار الرد' :
+      session?.status === 'closed' ? 'مغلقة' :
+      'غير معروف';
+
+    if (header) {
+      header.innerHTML = `
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+        ">
+          <div>
+            <div style="font-weight: 900; color: #111827;">
+              ${session?.subject || 'طلب دعم'}
+            </div>
+            <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">
+              حالة الجلسة: ${statusLabel}
+            </div>
+          </div>
+
+          <button type="button" onclick="loadBusinessSupportSessions()" style="
+            border: none;
+            background: #F3F4F6;
+            color: #374151;
+            padding: 8px 11px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 800;
+            font-size: 12px;
+          ">
+            <i class="fas fa-sync-alt"></i>
+            تحديث
+          </button>
+        </div>
+      `;
+    }
+
+    if (session?.status === 'closed') {
+      if (input) {
+        input.value = '';
+        input.disabled = true;
+        input.placeholder = 'لا يمكن الرد على جلسة مغلقة';
+      }
+
+      if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.style.opacity = '0.5';
+        sendBtn.style.cursor = 'not-allowed';
+      }
+    } else {
+      if (input) {
+        input.disabled = false;
+        input.placeholder = 'اكتب رسالتك هنا...';
+      }
+
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.style.opacity = '1';
+        sendBtn.style.cursor = 'pointer';
+      }
+    }
+
+    const { data: messagesData, error: messagesError } = await supabase
+      .rpc('get_support_session_messages', {
+        p_session_id: sessionId
+      });
+
+    if (messagesError) throw messagesError;
+
+    const messages = Array.isArray(messagesData) ? messagesData : [];
+
+    if (!messagesContainer) return;
+
+    if (messages.length === 0) {
+      messagesContainer.innerHTML = `
+        <div style="padding: 30px; text-align: center; color: #6B7280;">
+          لا توجد رسائل في هذه الجلسة حتى الآن
+        </div>
+      `;
+      return;
+    }
+
+    messagesContainer.innerHTML = renderBusinessSupportMessagesHtml(messages);
+
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+await loadBusinessSupportSessions();
+await updateBusinessSupportSidebarBadge();
+
+startBusinessSupportAutoRefresh();
+
+  } catch (err) {
+    console.error('خطأ في فتح محادثة الدعم من جهة المطعم:', err);
+
+    if (messagesContainer) {
+      messagesContainer.innerHTML = `
+        <div style="padding: 30px; text-align: center; color: #DC2626;">
+          فشل تحميل المحادثة
+        </div>
+      `;
+    }
+
+    if (header) {
+      header.innerHTML = 'تعذر تحميل جلسة الدعم';
+    }
+  }
 }
 
 function closeBusinessSupportModal() {
@@ -61,7 +566,12 @@ function closeBusinessSupportModal() {
 
   if (!modal) return;
 
-  modal.classList.remove('show');
+stopBusinessSupportAutoRefresh();
+stopBusinessSupportSessionsListAutoRefresh();
+
+updateBusinessSupportSidebarBadge();
+
+modal.classList.remove('show');
 }
 
 function bindBusinessSupportModalButtons() {
@@ -92,11 +602,422 @@ function bindBusinessSupportModalButtons() {
   if (sendMessageBtn && sendMessageBtn.dataset.bound !== 'true') {
     sendMessageBtn.dataset.bound = 'true';
 
-    sendMessageBtn.addEventListener('click', function (event) {
+    sendMessageBtn.addEventListener('click', async function (event) {
       event.preventDefault();
-      alert('إرسال رسائل المطعم سنضيفه بعد تحميل الجلسات');
+      await sendBusinessSupportMessage();
     });
   }
+
+  const messageInput = document.getElementById('businessSupportMessageInput');
+
+  if (messageInput && messageInput.dataset.bound !== 'true') {
+    messageInput.dataset.bound = 'true';
+
+    messageInput.addEventListener('keydown', async function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        await sendBusinessSupportMessage();
+      }
+    });
+  }
+}
+
+async function sendBusinessSupportMessage() {
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
+
+  if (!currentBusinessSupportSessionId) {
+    alert('اختر جلسة دعم أولًا');
+    return;
+  }
+
+  const input = document.getElementById('businessSupportMessageInput');
+  const sendBtn = document.getElementById('businessSendSupportMessageBtn');
+
+  if (!input) {
+    alert('حقل الرسالة غير موجود');
+    return;
+  }
+
+  const messageBody = input.value.trim();
+
+  if (!messageBody) {
+    alert('اكتب رسالة قبل الإرسال');
+    return;
+  }
+
+  try {
+    input.disabled = true;
+
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        جاري الإرسال...
+      `;
+    }
+
+    const { data, error } = await supabase.rpc('send_support_message', {
+      p_session_id: currentBusinessSupportSessionId,
+      p_message_body: messageBody,
+      p_is_internal: false
+    });
+
+    if (error) {
+      console.error('فشل إرسال رسالة الدعم من جهة المطعم:', error);
+      alert('فشل إرسال الرسالة: ' + error.message);
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (row && row.success === false) {
+      alert(row.message || 'فشل إرسال الرسالة');
+      return;
+    }
+
+input.value = '';
+
+await refreshBusinessSupportSessionSilently(currentBusinessSupportSessionId);
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء إرسال رسالة الدعم:', err);
+    alert('حدث خطأ أثناء إرسال الرسالة');
+
+  } finally {
+    if (input) {
+      input.disabled = false;
+      input.focus();
+    }
+
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = `
+        <i class="fas fa-paper-plane"></i>
+        إرسال
+      `;
+    }
+  }
+}
+
+let businessSupportRefreshInterval = null;
+let isBusinessSupportRefreshing = false;
+
+function startBusinessSupportAutoRefresh() {
+  stopBusinessSupportAutoRefresh();
+
+  businessSupportRefreshInterval = setInterval(async function () {
+    const modal = document.getElementById('businessSupportModal');
+
+    if (!modal || !modal.classList.contains('show')) {
+      stopBusinessSupportAutoRefresh();
+      return;
+    }
+
+    if (!currentBusinessSupportSessionId) return;
+    if (isBusinessSupportRefreshing) return;
+
+    try {
+      isBusinessSupportRefreshing = true;
+      await refreshBusinessSupportSessionSilently(currentBusinessSupportSessionId);
+    } catch (err) {
+      console.warn('تعذر تحديث محادثة الدعم صامتًا:', err);
+    } finally {
+      isBusinessSupportRefreshing = false;
+    }
+  }, 7000);
+}
+
+async function refreshBusinessSupportSessionSilently(sessionId) {
+  if (!sessionId) return;
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
+
+  const messagesContainer = document.getElementById('businessSupportMessagesList');
+  const input = document.getElementById('businessSupportMessageInput');
+  const sendBtn = document.getElementById('businessSendSupportMessageBtn');
+
+  if (!messagesContainer) return;
+
+  const { data: sessionsData, error: sessionsError } = await supabase
+    .rpc('get_my_support_sessions');
+
+  if (sessionsError) {
+    console.warn('تعذر تحديث حالة جلسة الدعم صامتًا:', sessionsError);
+    return;
+  }
+
+  const sessions = Array.isArray(sessionsData) ? sessionsData : [];
+  const session = sessions.find(item => {
+    const itemId = item.session_id || item.id;
+    return itemId === sessionId;
+  });
+
+  if (session?.status === 'closed') {
+    if (input) {
+      input.value = '';
+      input.disabled = true;
+      input.placeholder = 'لا يمكن الرد على جلسة مغلقة';
+    }
+
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.style.opacity = '0.5';
+      sendBtn.style.cursor = 'not-allowed';
+    }
+  }
+
+  try {
+    await supabase.rpc('mark_support_session_read', {
+      p_session_id: sessionId
+    });
+  } catch (readErr) {
+    console.warn('تعذر تعليم رسائل الدعم كمقروءة أثناء التحديث الصامت:', readErr);
+  }
+
+  const { data: messagesData, error: messagesError } = await supabase
+    .rpc('get_support_session_messages', {
+      p_session_id: sessionId
+    });
+
+  if (messagesError) {
+    console.warn('تعذر تحديث رسائل الدعم صامتًا:', messagesError);
+    return;
+  }
+
+  const messages = Array.isArray(messagesData) ? messagesData : [];
+
+  const newSignature = JSON.stringify(
+    messages.map(msg => ({
+      id: msg.id,
+      body: msg.message_body,
+      created_at: msg.created_at,
+      sender_role: msg.sender_role,
+      message_type: msg.message_type
+    }))
+  );
+
+  if (messagesContainer.dataset.messagesSignature === newSignature) {
+    return;
+  }
+
+  messagesContainer.dataset.messagesSignature = newSignature;
+
+  if (messages.length === 0) {
+    messagesContainer.innerHTML = `
+      <div style="padding: 30px; text-align: center; color: #6B7280;">
+        لا توجد رسائل في هذه الجلسة حتى الآن
+      </div>
+    `;
+    return;
+  }
+
+  const wasNearBottom =
+    messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 80;
+
+  messagesContainer.innerHTML = renderBusinessSupportMessagesHtml(messages);
+
+  if (wasNearBottom) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+}
+
+function stopBusinessSupportAutoRefresh() {
+  if (businessSupportRefreshInterval) {
+    clearInterval(businessSupportRefreshInterval);
+    businessSupportRefreshInterval = null;
+  }
+}
+
+let businessSupportSessionsListRefreshInterval = null;
+let isBusinessSupportSessionsListRefreshing = false;
+
+function startBusinessSupportSessionsListAutoRefresh() {
+  stopBusinessSupportSessionsListAutoRefresh();
+
+  businessSupportSessionsListRefreshInterval = setInterval(async function () {
+    const modal = document.getElementById('businessSupportModal');
+
+    if (!modal || !modal.classList.contains('show')) {
+      stopBusinessSupportSessionsListAutoRefresh();
+      return;
+    }
+
+    if (isBusinessSupportSessionsListRefreshing) return;
+
+    try {
+      isBusinessSupportSessionsListRefreshing = true;
+      await refreshBusinessSupportSessionsListSilently();
+    } catch (err) {
+      console.warn('تعذر تحديث قائمة جلسات دعم المطعم صامتًا:', err);
+    } finally {
+      isBusinessSupportSessionsListRefreshing = false;
+    }
+  }, 7000);
+}
+
+function stopBusinessSupportSessionsListAutoRefresh() {
+  if (businessSupportSessionsListRefreshInterval) {
+    clearInterval(businessSupportSessionsListRefreshInterval);
+    businessSupportSessionsListRefreshInterval = null;
+  }
+}
+
+async function refreshBusinessSupportSessionsListSilently() {
+  const sessionsContainer = document.getElementById('businessSupportSessionsList');
+
+  if (!sessionsContainer) return;
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
+
+  const { data, error } = await supabase.rpc('get_my_support_sessions');
+
+  if (error) {
+    console.warn('تعذر تحديث قائمة جلسات دعم المطعم:', error);
+    return;
+  }
+
+  const sessions = Array.isArray(data) ? data : [];
+
+  const newSignature = JSON.stringify(
+    sessions.map(session => ({
+      session_id: session.session_id || session.id,
+      status: session.status,
+      subject: session.subject,
+      last_message_body: session.last_message_body,
+      last_message_at: session.last_message_at,
+      last_message_created_at: session.last_message_created_at,
+      unread_for_business_count: session.unread_for_business_count || session.unread_count || 0
+    }))
+  );
+
+  if (sessionsContainer.dataset.sessionsSignature === newSignature) {
+    return;
+  }
+
+  sessionsContainer.dataset.sessionsSignature = newSignature;
+
+  if (sessions.length === 0) {
+    sessionsContainer.innerHTML = `
+      <div style="padding: 18px; text-align: center; color: #6B7280;">
+        لا توجد جلسات دعم حتى الآن
+      </div>
+    `;
+    return;
+  }
+
+  sessionsContainer.innerHTML = sessions.map(session => {
+    const sessionId = session.session_id || session.id;
+
+    const statusLabel =
+      session.status === 'open' ? 'مفتوحة' :
+      session.status === 'pending' ? 'بانتظار الرد' :
+      session.status === 'closed' ? 'مغلقة' :
+      'غير معروف';
+
+    const statusColor =
+      session.status === 'open' ? '#10B981' :
+      session.status === 'pending' ? '#F59E0B' :
+      session.status === 'closed' ? '#6B7280' :
+      '#6B7280';
+
+    const lastActivity =
+      session.last_message_at ||
+      session.last_message_created_at ||
+      session.opened_at ||
+      session.created_at ||
+      null;
+
+    const lastActivityText = lastActivity
+      ? new Date(lastActivity).toLocaleString('ar-SA')
+      : '-';
+
+    const unreadCount = Number(
+      session.unread_for_business_count ||
+      session.unread_count ||
+      0
+    );
+
+    const unreadBadge = unreadCount > 0
+      ? `
+        <span style="
+          background: #DC2626;
+          color: white;
+          font-size: 11px;
+          font-weight: 900;
+          border-radius: 999px;
+          padding: 3px 8px;
+        ">
+          ${unreadCount}
+        </span>
+      `
+      : '';
+
+    const activeStyle = sessionId === currentBusinessSupportSessionId
+      ? 'border-color:#0E146D; box-shadow:0 0 0 3px rgba(14,20,109,0.08);'
+      : '';
+
+    return `
+      <div
+        onclick="openBusinessSupportSession('${sessionId}')"
+        data-support-session-id="${sessionId || ''}"
+        style="
+          border: 1px solid #E5E7EB;
+          ${activeStyle}
+          border-radius: 14px;
+          padding: 12px;
+          margin-bottom: 10px;
+          background: #FFFFFF;
+          cursor: pointer;
+        "
+      >
+        <div style="
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 8px;
+        ">
+          <div>
+            <div style="font-weight: 900; color: #111827;">
+              ${session.subject || 'طلب دعم'}
+            </div>
+
+            <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">
+              آخر نشاط: ${lastActivityText}
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px;">
+            ${unreadBadge}
+
+            <span style="
+              background: ${statusColor};
+              color: white;
+              font-size: 11px;
+              font-weight: 900;
+              border-radius: 999px;
+              padding: 4px 8px;
+              white-space: nowrap;
+            ">
+              ${statusLabel}
+            </span>
+          </div>
+        </div>
+
+        <div style="
+          font-size: 12px;
+          color: #374151;
+          margin-top: 10px;
+          line-height: 1.5;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        ">
+          ${session.last_message_body || 'لا توجد رسائل بعد'}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 async function createBusinessSupportVerificationCode() {
@@ -1680,15 +2601,146 @@ function setupSuperAdminNavigation() {
       if (overviewView) overviewView.style.display = 'none';
       if (supportView) supportView.style.display = 'none';
 
-      if (view === 'support') {
-        if (supportView) supportView.style.display = 'block';
-        await loadSuperAdminSupportSessions();
-        return;
-      }
+if (view === 'support') {
+  if (supportView) supportView.style.display = 'block';
+
+  if (typeof renderSuperAdminSupportCodeBox === 'function') {
+    renderSuperAdminSupportCodeBox();
+  }
+
+  await loadSuperAdminSupportSessions();
+  return;
+}
 
       if (overviewView) overviewView.style.display = 'block';
     });
   });
+}
+
+function renderSuperAdminSupportCodeBox() {
+  const supportView = document.getElementById('superAdminSupportView');
+
+  if (!supportView) return;
+
+  // منع التكرار
+  if (document.getElementById('superAdminSupportCodeBox')) return;
+
+  supportView.insertAdjacentHTML('afterbegin', `
+    <div id="superAdminSupportCodeBox" style="
+      background: #ffffff;
+      border: 1px solid #E5E7EB;
+      border-radius: 18px;
+      padding: 14px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    ">
+      <div style="flex: 1; min-width: 220px;">
+        <div style="font-weight: 900; color: #111827; margin-bottom: 4px;">
+          فتح جلسة دعم برمز المطعم
+        </div>
+        <div style="font-size: 12px; color: #6B7280;">
+          أدخل رمز الدعم الذي أنشأه المطعم مثل EQ-123456
+        </div>
+      </div>
+
+      <input
+        type="text"
+        id="superAdminSupportCodeInput"
+        placeholder="EQ-123456"
+        style="
+          width: 170px;
+          border: 1px solid #D1D5DB;
+          border-radius: 12px;
+          padding: 11px 12px;
+          font-size: 14px;
+          font-weight: 900;
+          direction: ltr;
+          text-align: center;
+          outline: none;
+        "
+      >
+
+      <input
+        type="text"
+        id="superAdminSupportSubjectInput"
+        placeholder="عنوان الجلسة"
+        value="طلب دعم"
+        style="
+          width: 190px;
+          border: 1px solid #D1D5DB;
+          border-radius: 12px;
+          padding: 11px 12px;
+          font-size: 14px;
+          outline: none;
+        "
+      >
+
+      <button type="button" onclick="verifySuperAdminSupportCodeFromUI()" style="
+        border: none;
+        background: #0E146D;
+        color: white;
+        padding: 11px 16px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 900;
+      ">
+        <i class="fas fa-unlock-alt"></i>
+        فتح الجلسة
+      </button>
+    </div>
+  `);
+}
+
+async function verifySuperAdminSupportCodeFromUI() {
+  try {
+    if (currentUser?.role !== 'super_admin') {
+      alert('هذه العملية متاحة للسوبر أدمن فقط');
+      return;
+    }
+
+    const codeInput = document.getElementById('superAdminSupportCodeInput');
+    const subjectInput = document.getElementById('superAdminSupportSubjectInput');
+
+    const code = codeInput?.value.trim();
+    const subject = subjectInput?.value.trim() || 'طلب دعم';
+
+    if (!code) {
+      alert('أدخل رمز الدعم أولًا');
+      return;
+    }
+
+    const { data, error } = await supabase.rpc('super_admin_verify_support_code', {
+      p_code: code,
+      p_subject: subject
+    });
+
+    if (error) {
+      console.error('فشل التحقق من رمز الدعم:', error);
+      alert('فشل فتح جلسة الدعم: ' + error.message);
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (row && row.success === false) {
+      alert(row.message || 'لم يتم فتح جلسة الدعم');
+      return;
+    }
+
+    if (codeInput) codeInput.value = '';
+
+    alert('تم فتح جلسة الدعم بنجاح');
+
+    await loadSuperAdminSupportSessions();
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء فتح جلسة الدعم:', err);
+    alert('حدث خطأ أثناء فتح جلسة الدعم');
+  }
 }
 
 async function loadSuperAdminSupportSessions() {
@@ -1817,6 +2869,90 @@ async function loadSuperAdminSupportSessions() {
 }
 
 let currentSupportSessionId = null;
+
+function renderSuperAdminSupportMessagesHtml(messages) {
+  return messages.map(msg => {
+    const isSuperAdmin = msg.sender_role === 'super_admin';
+    const isSystem = msg.message_type === 'system';
+
+    if (isSystem) {
+      return `
+        <div style="
+          width: 100%;
+          display: flex;
+          justify-content: center;
+          margin: 6px 0;
+        ">
+          <span style="
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            max-width: 70%;
+            background: #E5E7EB;
+            color: #6B7280;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            line-height: 1.25;
+            text-align: center;
+          ">
+            ${msg.message_body || ''}
+          </span>
+        </div>
+      `;
+    }
+
+    const timeText = msg.created_at
+      ? new Date(msg.created_at).toLocaleTimeString('ar-SA', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      : '';
+
+    return `
+      <div style="
+        width: 100%;
+        display: flex;
+        justify-content: ${isSuperAdmin ? 'flex-start' : 'flex-end'};
+        margin-bottom: 7px;
+      ">
+        <div style="
+          display: inline-flex;
+          flex-direction: column;
+          width: max-content;
+          min-width: 0;
+          max-width: min(58%, 460px);
+          background: ${isSuperAdmin ? '#0E146D' : '#FFFFFF'};
+          color: ${isSuperAdmin ? '#FFFFFF' : '#111827'};
+          border: 1px solid ${isSuperAdmin ? '#0E146D' : '#E5E7EB'};
+          border-radius: ${isSuperAdmin ? '12px 12px 4px 12px' : '12px 12px 12px 4px'};
+          padding: 5px 8px;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.035);
+        ">
+          <span style="
+            display: block;
+            font-size: 12.5px;
+            line-height: 1.35;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+            padding: 0;
+          ">${msg.message_body || ''}</span>
+
+          <span style="
+            display: block;
+            align-self: flex-end;
+            font-size: 8.5px;
+            line-height: 1;
+            margin-top: 3px;
+            opacity: 0.55;
+            color: ${isSuperAdmin ? 'rgba(255,255,255,0.72)' : '#6B7280'};
+          ">${timeText}</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
 async function openSuperAdminSupportSession(sessionId) {
   try {
@@ -1956,79 +3092,10 @@ if (session && session.status === 'closed') {
       return;
     }
 
-    messagesContainer.innerHTML = messages.map(msg => {
-      const isSuperAdmin = msg.sender_role === 'super_admin';
-      const isSystem = msg.message_type === 'system';
-
-      if (isSystem) {
-        return `
-          <div style="
-            text-align: center;
-            margin: 12px 0;
-            color: #6B7280;
-            font-size: 12px;
-          ">
-            <span style="
-              background: #E5E7EB;
-              padding: 6px 10px;
-              border-radius: 999px;
-              display: inline-block;
-            ">
-              ${msg.message_body || ''}
-            </span>
-          </div>
-        `;
-      }
-
-      const timeText = msg.created_at
-        ? new Date(msg.created_at).toLocaleString('ar-SA')
-        : '-';
-
-      return `
-        <div style="
-          display: flex;
-          justify-content: ${isSuperAdmin ? 'flex-start' : 'flex-end'};
-          margin-bottom: 12px;
-        ">
-          <div style="
-            max-width: 72%;
-            background: ${isSuperAdmin ? '#0E146D' : '#FFFFFF'};
-            color: ${isSuperAdmin ? '#FFFFFF' : '#111827'};
-            border: 1px solid ${isSuperAdmin ? '#0E146D' : '#E5E7EB'};
-            border-radius: 16px;
-            padding: 10px 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-          ">
-            <div style="
-              font-size: 11px;
-              font-weight: 900;
-              margin-bottom: 6px;
-              color: ${isSuperAdmin ? 'rgba(255,255,255,0.75)' : '#6B7280'};
-            ">
-              ${msg.sender_name || msg.sender_role || '-'}
-            </div>
-
-            <div style="
-              font-size: 14px;
-              line-height: 1.7;
-              white-space: pre-wrap;
-            ">
-              ${msg.message_body || ''}
-            </div>
-
-            <div style="
-              font-size: 10px;
-              margin-top: 7px;
-              color: ${isSuperAdmin ? 'rgba(255,255,255,0.65)' : '#9CA3AF'};
-            ">
-              ${timeText}
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+messagesContainer.innerHTML = renderSuperAdminSupportMessagesHtml(messages);
 
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    startSuperAdminSupportAutoRefresh();
 
   } catch (err) {
     console.error('خطأ في فتح جلسة الدعم:', err);
@@ -2042,6 +3109,343 @@ if (session && session.status === 'closed') {
       `;
     }
   }
+}
+
+let superAdminSupportRefreshInterval = null;
+let isSuperAdminSupportRefreshing = false;
+
+function startSuperAdminSupportAutoRefresh() {
+  stopSuperAdminSupportAutoRefresh();
+
+  superAdminSupportRefreshInterval = setInterval(async function () {
+    const supportView = document.getElementById('superAdminSupportView');
+
+    if (!supportView || supportView.style.display === 'none') {
+      stopSuperAdminSupportAutoRefresh();
+      return;
+    }
+
+    if (!currentSupportSessionId) return;
+    if (isSuperAdminSupportRefreshing) return;
+
+    try {
+      isSuperAdminSupportRefreshing = true;
+      await refreshSuperAdminSupportSessionSilently(currentSupportSessionId);
+    } catch (err) {
+      console.warn('تعذر تحديث محادثة السوبر أدمن صامتًا:', err);
+    } finally {
+      isSuperAdminSupportRefreshing = false;
+    }
+  }, 7000);
+}
+
+function stopSuperAdminSupportAutoRefresh() {
+  if (superAdminSupportRefreshInterval) {
+    clearInterval(superAdminSupportRefreshInterval);
+    superAdminSupportRefreshInterval = null;
+  }
+}
+
+async function refreshSuperAdminSupportSessionSilently(sessionId) {
+  if (!sessionId) return;
+  if (currentUser?.role !== 'super_admin') return;
+
+  const header = document.getElementById('supportChatHeader');
+  const messagesContainer = document.getElementById('supportMessagesList');
+  const replyInput = document.getElementById('supportReplyInput');
+  const replyButton = document.querySelector('button[onclick="sendSuperAdminSupportReply()"]');
+
+  if (!messagesContainer) return;
+
+  const { data: sessionsData, error: sessionsError } = await supabase
+    .rpc('super_admin_list_support_sessions');
+
+  if (sessionsError) {
+    console.warn('تعذر تحديث حالة جلسة الدعم للسوبر أدمن صامتًا:', sessionsError);
+    return;
+  }
+
+  const sessions = Array.isArray(sessionsData) ? sessionsData : [];
+  const session = sessions.find(item => item.session_id === sessionId);
+
+  if (!session) return;
+
+  const statusLabel =
+    session.status === 'open' ? 'مفتوحة' :
+    session.status === 'pending' ? 'بانتظار الرد' :
+    session.status === 'closed' ? 'مغلقة' :
+    session.status;
+
+  const closeButton = session.status !== 'closed'
+    ? `
+      <button onclick="closeSuperAdminSupportSession('${session.session_id}')" style="
+        border: none;
+        background: #DC2626;
+        color: white;
+        padding: 9px 13px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-weight: 900;
+        font-size: 12px;
+      ">
+        <i class="fas fa-times-circle"></i>
+        إغلاق الجلسة
+      </button>
+    `
+    : `
+      <span style="
+        background: #F3F4F6;
+        color: #6B7280;
+        padding: 7px 11px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 900;
+      ">
+        الجلسة مغلقة
+      </span>
+    `;
+
+  const newHeaderSignature = JSON.stringify({
+    session_id: session.session_id,
+    status: session.status,
+    subject: session.subject,
+    business_name: session.business_name
+  });
+
+  if (header && header.dataset.headerSignature !== newHeaderSignature) {
+    header.dataset.headerSignature = newHeaderSignature;
+
+    header.innerHTML = `
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:12px;
+        width:100%;
+      ">
+        <div>
+          <div style="font-weight:900; color:#111827;">
+            ${session.business_name || '-'}
+          </div>
+          <div style="font-size:12px; color:#6B7280; margin-top:4px;">
+            ${session.subject || 'طلب دعم'} · ${statusLabel}
+          </div>
+        </div>
+
+        ${closeButton}
+      </div>
+    `;
+  }
+
+  if (session.status === 'closed') {
+    if (replyInput) {
+      replyInput.value = '';
+      replyInput.disabled = true;
+      replyInput.placeholder = 'لا يمكن الرد على جلسة مغلقة';
+    }
+
+    if (replyButton) {
+      replyButton.disabled = true;
+      replyButton.style.opacity = '0.5';
+      replyButton.style.cursor = 'not-allowed';
+    }
+  } else {
+    if (replyInput) {
+      replyInput.disabled = false;
+      replyInput.placeholder = 'اكتب ردك هنا...';
+    }
+
+    if (replyButton) {
+      replyButton.disabled = false;
+      replyButton.style.opacity = '1';
+      replyButton.style.cursor = 'pointer';
+    }
+  }
+
+  try {
+    await supabase.rpc('mark_support_session_read', {
+      p_session_id: sessionId
+    });
+  } catch (readErr) {
+    console.warn('تعذر تعليم رسائل المطعم كمقروءة أثناء تحديث السوبر أدمن:', readErr);
+  }
+
+  const { data: messagesData, error: messagesError } = await supabase
+    .rpc('get_support_session_messages', {
+      p_session_id: sessionId
+    });
+
+  if (messagesError) {
+    console.warn('تعذر تحديث رسائل السوبر أدمن صامتًا:', messagesError);
+    return;
+  }
+
+  const messages = Array.isArray(messagesData) ? messagesData : [];
+
+  const newSignature = JSON.stringify(
+    messages.map(msg => ({
+      id: msg.id,
+      body: msg.message_body,
+      created_at: msg.created_at,
+      sender_role: msg.sender_role,
+      message_type: msg.message_type
+    }))
+  );
+
+  if (messagesContainer.dataset.messagesSignature === newSignature) {
+    return;
+  }
+
+  messagesContainer.dataset.messagesSignature = newSignature;
+
+  if (messages.length === 0) {
+    messagesContainer.innerHTML = `
+      <div style="padding: 40px; text-align: center; color: #6B7280;">
+        لا توجد رسائل في هذه الجلسة
+      </div>
+    `;
+    return;
+  }
+
+  const wasNearBottom =
+    messagesContainer.scrollHeight - messagesContainer.scrollTop - messagesContainer.clientHeight < 80;
+
+  messagesContainer.innerHTML = renderSuperAdminSupportMessagesHtml(messages);
+
+  if (wasNearBottom) {
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  await refreshSuperAdminSupportSessionsListSilently();
+}
+
+async function refreshSuperAdminSupportSessionsListSilently() {
+  const container = document.getElementById('supportSessionsList');
+
+  if (!container) return;
+
+  const { data, error } = await supabase
+    .rpc('super_admin_list_support_sessions');
+
+  if (error) {
+    console.warn('تعذر تحديث قائمة جلسات السوبر أدمن صامتًا:', error);
+    return;
+  }
+
+  const sessions = Array.isArray(data) ? data : [];
+
+  const newSignature = JSON.stringify(
+    sessions.map(session => ({
+      session_id: session.session_id,
+      status: session.status,
+      last_message_body: session.last_message_body,
+      last_message_created_at: session.last_message_created_at,
+      unread_for_super_admin_count: session.unread_for_super_admin_count
+    }))
+  );
+
+  if (container.dataset.sessionsSignature === newSignature) {
+    return;
+  }
+
+  container.dataset.sessionsSignature = newSignature;
+
+  if (sessions.length === 0) {
+    container.innerHTML = `
+      <div style="padding: 30px; text-align: center; color: #6B7280;">
+        لا توجد جلسات دعم حتى الآن
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = sessions.map(session => {
+    const statusLabel =
+      session.status === 'open' ? 'مفتوحة' :
+      session.status === 'pending' ? 'بانتظار الرد' :
+      session.status === 'closed' ? 'مغلقة' :
+      'غير معروف';
+
+    const statusColor =
+      session.status === 'open' ? '#10B981' :
+      session.status === 'pending' ? '#F59E0B' :
+      session.status === 'closed' ? '#6B7280' :
+      '#6B7280';
+
+    const lastMessageTime = session.last_message_created_at
+      ? new Date(session.last_message_created_at).toLocaleString('ar-SA')
+      : '-';
+
+    const unreadBadge = Number(session.unread_for_super_admin_count || 0) > 0
+      ? `<span style="
+          background:#DC2626;
+          color:white;
+          font-size:11px;
+          font-weight:900;
+          border-radius:999px;
+          padding:3px 8px;
+        ">${session.unread_for_super_admin_count}</span>`
+      : '';
+
+    const activeStyle = session.session_id === currentSupportSessionId
+      ? 'border-color:#0E146D; box-shadow:0 0 0 3px rgba(14,20,109,0.08);'
+      : '';
+
+    return `
+      <div onclick="openSuperAdminSupportSession('${session.session_id}')" style="
+        border: 1px solid #E5E7EB;
+        ${activeStyle}
+        border-radius: 16px;
+        padding: 12px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        background: #FFFFFF;
+        transition: 0.15s;
+      ">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+          <div>
+            <div style="font-weight:900; color:#111827;">
+              ${session.business_name || '-'}
+            </div>
+            <div style="font-size:12px; color:#6B7280; margin-top:4px;">
+              ${session.subject || 'طلب دعم'}
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${unreadBadge}
+            <span style="
+              background:${statusColor};
+              color:white;
+              font-size:11px;
+              font-weight:900;
+              border-radius:999px;
+              padding:4px 8px;
+              white-space:nowrap;
+            ">
+              ${statusLabel}
+            </span>
+          </div>
+        </div>
+
+        <div style="
+          font-size:12px;
+          color:#374151;
+          margin-top:10px;
+          line-height:1.5;
+          white-space:nowrap;
+          overflow:hidden;
+          text-overflow:ellipsis;
+        ">
+          ${session.last_message_body || 'لا توجد رسائل'}
+        </div>
+
+        <div style="font-size:11px; color:#9CA3AF; margin-top:8px;">
+          آخر نشاط: ${lastMessageTime}
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 async function sendSuperAdminSupportReply() {
@@ -2088,10 +3492,9 @@ async function sendSuperAdminSupportReply() {
       return;
     }
 
-    input.value = '';
+input.value = '';
 
-    await openSuperAdminSupportSession(currentSupportSessionId);
-    await loadSuperAdminSupportSessions();
+await refreshSuperAdminSupportSessionSilently(currentSupportSessionId);
 
   } catch (err) {
     console.error('خطأ غير متوقع أثناء إرسال رد الدعم:', err);
