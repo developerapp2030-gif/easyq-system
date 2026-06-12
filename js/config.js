@@ -108,16 +108,38 @@ var currentLang = window.currentLang;
 // ============================================================
 
 const PERMISSION_KEYS = [
+    // الطاولات
     { key: 'manage_tables', ar: 'إدارة الطاولات', en: 'Manage Tables' },
-    { key: 'manage_users', ar: 'إدارة المستخدمين', en: 'Manage Users' },
+    { key: 'add_tables', ar: 'إضافة طاولات', en: 'Add Tables' },
+    { key: 'edit_tables', ar: 'تعديل الطاولات', en: 'Edit Tables' },
+    { key: 'delete_tables', ar: 'حذف الطاولات', en: 'Delete Tables' },
+    { key: 'move_tables', ar: 'تحريك الطاولات', en: 'Move Tables' },
+
+    // الطابور والعملاء
+    { key: 'manage_queue', ar: 'إدارة الطابور', en: 'Manage Queue' },
+    { key: 'add_walkin', ar: 'إضافة عميل داخلي', en: 'Add Walk-in Customer' },
+    { key: 'edit_requests', ar: 'تعديل طلبات العملاء', en: 'Edit Customer Requests' },
+    { key: 'assign_tables', ar: 'تعيين العملاء على الطاولات', en: 'Assign Tables' },
+
+    // الإدارة
+    { key: 'manage_users', ar: 'إدارة الموظفين', en: 'Manage Staff' },
     { key: 'manage_zones', ar: 'إدارة المناطق', en: 'Manage Zones' },
     { key: 'manage_floors', ar: 'إدارة الطوابق', en: 'Manage Floors' },
-    { key: 'view_reports', ar: 'عرض التقارير', en: 'View Reports' },
-    { key: 'manage_settings', ar: 'تغيير الإعدادات', en: 'Manage Settings' },
-    { key: 'delete_tables', ar: 'حذف طاولات', en: 'Delete Tables' },
-    { key: 'move_tables', ar: 'تحريك طاولات', en: 'Move Tables' },
-    { key: 'add_tables', ar: 'إضافة طاولات', en: 'Add Tables' },
-    { key: 'edit_tables', ar: 'تعديل طاولات', en: 'Edit Tables' }
+    { key: 'manage_settings', ar: 'إدارة الإعدادات العامة', en: 'Manage Settings' },
+    { key: 'manage_timers', ar: 'إدارة المؤقتات', en: 'Manage Timers' },
+    { key: 'manage_alerts', ar: 'إدارة التنبيهات', en: 'Manage Alerts' },
+
+    // بيانات الفرع وواجهة الحجز
+    { key: 'manage_business_profile', ar: 'إعداد بيانات المطعم / الفرع', en: 'Manage Business Profile' },
+    { key: 'manage_booking_page', ar: 'إعدادات واجهة الحجز', en: 'Manage Booking Page' },
+    { key: 'open_booking_qr', ar: 'فتح واجهة الحجز QR', en: 'Open Booking QR Page' },
+
+    // الاشتراك والدعم
+    { key: 'manage_subscription', ar: 'إدارة الحساب والاشتراكات', en: 'Manage Subscription' },
+    { key: 'use_live_support', ar: 'استخدام الدعم الحي', en: 'Use Live Support' },
+
+    // التقارير
+    { key: 'view_reports', ar: 'عرض التقارير', en: 'View Reports' }
 ];
 
 const DEFAULT_ZONES = [

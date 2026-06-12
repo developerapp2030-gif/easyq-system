@@ -454,6 +454,11 @@ async function closeExpiredRequest(reqId) {
 // ============================================================
 
 async function saveWalkIn() {
+  if (!canDo('add_walkin')) {
+    showAlert('ليس لديك صلاحية لحفظ عميل داخلي');
+    return;
+  }
+
   let name = document.getElementById("walkInName").value.trim();
   if (name.length > 20) {
     name = name.substring(0, 20);
@@ -563,8 +568,13 @@ function openEditRequestModal(requestId) {
   const request = waitingData.find(w => w.request_id === requestId);
   if (!request) return;
   
-  if (request.request_source !== "walk_in") {
-    showAlert("لا يمكن تعديل هذا الطلب. يمكن للعميل تعديله عبر الواتساب");
+  if (!canDo('edit_requests')) {
+    showAlert('ليس لديك صلاحية لتعديل طلبات العملاء');
+    return;
+  }
+
+  if (!['waiting', 'restored'].includes(request.status)) {
+    showAlert('يمكن تعديل الطلب فقط أثناء وجوده في قائمة الانتظار');
     return;
   }
   
@@ -575,9 +585,24 @@ function openEditRequestModal(requestId) {
   
   let phoneValue = "";
   if (request.phone) {
-    let phoneStr = String(request.phone);
-    if (phoneStr.startsWith("05")) {
+    let phoneStr = String(request.phone).trim();
+
+    // تحويل أي صيغة رقم إلى صيغة 8 أرقام فقط بعد 05
+    // أمثلة:
+    // +966553473330 => 53473330
+    // 966553473330  => 53473330
+    // 0553473330    => 53473330
+    // 553473330     => 53473330
+    phoneStr = phoneStr.replace(/\D/g, "");
+
+    if (phoneStr.startsWith("9665") && phoneStr.length >= 12) {
+      phoneValue = phoneStr.substring(4);
+    } else if (phoneStr.startsWith("05") && phoneStr.length >= 10) {
       phoneValue = phoneStr.substring(2);
+    } else if (phoneStr.startsWith("5") && phoneStr.length === 9) {
+      phoneValue = phoneStr.substring(1);
+    } else if (phoneStr.length === 8) {
+      phoneValue = phoneStr;
     } else {
       phoneValue = phoneStr;
     }

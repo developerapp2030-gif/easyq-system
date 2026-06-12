@@ -132,6 +132,12 @@ async function openBusinessSupportModal() {
   if (document.body.classList.contains('super-admin-mode')) return;
   if (currentUser?.role === 'super_admin') return;
 
+  // حماية صلاحية الدعم الحي
+  if (!canDo('use_live_support')) {
+    showAlert('ليس لديك صلاحية لاستخدام الدعم الحي');
+    return;
+  }
+
   const modal = document.getElementById('businessSupportModal');
 
   if (!modal) {
@@ -1747,28 +1753,59 @@ function updateUIBasedOnPermissions() {
     }
   }
   
-  const usersSection = document.querySelector('[data-menu="users"]');
-  if (usersSection) {
-    usersSection.style.display = canDo('manage_users') ? 'block' : 'none';
+  // قسم الموظفين يظهر فقط لمالك الحساب admin
+  const staffMenuSection = document
+    .querySelector('.main-menu-item[data-menu="staff"]')
+    ?.closest('.sidebar-nav-section');
+
+  if (staffMenuSection) {
+    staffMenuSection.style.display = currentUser?.role === 'admin' ? 'block' : 'none';
   }
 
-  const permissionsItem = document.querySelector('[onclick="openPermissionsModal()"]');
+  // زر الصلاحيات يظهر فقط للأدمن داخل قسم الموظفين
+  const permissionsItems = document.querySelectorAll('[onclick="openPermissionsModal()"]');
 
-if (permissionsItem) {
-  permissionsItem.style.display = currentUser?.role === 'admin' ? 'flex' : 'none';
+  permissionsItems.forEach(item => {
+    item.style.display = currentUser?.role === 'admin' ? 'flex' : 'none';
+  });
+  
+// عناصر قسم إدارة الفرع
+const businessProfileItem = document.querySelector('[onclick="openBusinessProfileModal()"]');
+if (businessProfileItem) {
+  businessProfileItem.style.display = canDo('manage_business_profile') ? 'flex' : 'none';
 }
-  
-  const zonesItem = document.querySelector('[data-view="zones-list"]');
-  if (zonesItem) {
-    zonesItem.style.display = canDo('manage_zones') ? 'flex' : 'none';
-  }
-  
-  const floorsItem = document.querySelector('[data-view="floors-list"]');
-  if (floorsItem) {
-    floorsItem.style.display = canDo('manage_floors') ? 'flex' : 'none';
-  }
-  
-  const reportsSection = document.querySelector('[data-menu="reports"]');
+
+const bookingSettingsItem = document.querySelector('[onclick="openBookingSettingsModal()"]');
+if (bookingSettingsItem) {
+  bookingSettingsItem.style.display = canDo('manage_booking_page') ? 'flex' : 'none';
+}
+
+const zonesItem = document.querySelector('[onclick="openZonesModal()"]');
+if (zonesItem) {
+  zonesItem.style.display = canDo('manage_zones') ? 'flex' : 'none';
+}
+
+const floorsItem = document.querySelector('[onclick="openFloorsModal()"]');
+if (floorsItem) {
+  floorsItem.style.display = canDo('manage_floors') ? 'flex' : 'none';
+}
+
+const bookingQrItem = document.querySelector('[onclick="openBookingPage()"]');
+if (bookingQrItem) {
+  bookingQrItem.style.display = canDo('open_booking_qr') ? 'flex' : 'none';
+}
+
+const subscriptionItem = document.querySelector('[data-view="branch-account"]');
+if (subscriptionItem) {
+  subscriptionItem.style.display = canDo('manage_subscription') ? 'flex' : 'none';
+}
+
+const supportItem = document.getElementById('businessSupportSidebarBtn');
+if (supportItem) {
+  supportItem.style.display = canDo('use_live_support') ? 'flex' : 'none';
+}
+
+const reportsSection = document.querySelector('[data-menu="reports"]');
   if (reportsSection) {
     reportsSection.style.display = canDo('view_reports') ? 'block' : 'none';
   }
@@ -1843,46 +1880,64 @@ async function loadUsers() {
 }
 
 async function saveUser() {
-  const email = document.getElementById('newUsername').value.trim();
-  const displayName = document.getElementById('newDisplayName').value.trim();
-  const password = document.getElementById('newPassword').value;
-  const role = document.getElementById('newRole').value;
-  
+  if (!currentUser || currentUser.role !== 'admin') {
+    showAlert('ليس لديك صلاحية لإضافة موظفين');
+    return;
+  }
+
+  const email = document.getElementById('newUsername')?.value.trim();
+  const displayName = document.getElementById('newDisplayName')?.value.trim();
+  const password = document.getElementById('newPassword')?.value;
+  const role = document.getElementById('newRole')?.value;
+
+  const saveBtn = document.getElementById('saveUserBtn');
+  const originalBtnHtml = saveBtn ? saveBtn.innerHTML : '';
+
   if (!email || !displayName || !password) {
     showAlert('جميع الحقول مطلوبة');
     return;
   }
-  
-try {
-  // ============================================================
-  // PACKAGE LIMIT CHECK - USERS
-  // فحص حد المستخدمين حسب باقة الاشتراك
-  // null في max_users يعني بدون حد
-  // ============================================================
-  const { data: usageRows, error: usageError } = await supabase
-    .rpc('get_my_license_usage');
 
-  if (usageError) {
-    console.error('License usage check error:', usageError);
-    showAlert('تعذر التحقق من حدود الباقة. حاول مرة أخرى.');
-    return;
-  }
+  try {
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.style.opacity = '0.75';
+      saveBtn.style.cursor = 'not-allowed';
+      saveBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        جاري إضافة الموظف...
+      `;
+    }
 
-  const usage = Array.isArray(usageRows) ? usageRows[0] : null;
+    // ============================================================
+    // PACKAGE LIMIT CHECK - USERS
+    // فحص حد المستخدمين حسب باقة الاشتراك
+    // null في max_users يعني بدون حد
+    // ============================================================
+    const { data: usageRows, error: usageError } = await supabase
+      .rpc('get_my_license_usage');
 
-  if (!usage) {
-    showAlert('لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.');
-    return;
-  }
+    if (usageError) {
+      console.error('License usage check error:', usageError);
+      showAlert('تعذر التحقق من حدود الباقة. حاول مرة أخرى.');
+      return;
+    }
 
-  if (usage.max_users !== null && usage.user_limit_reached === true) {
-    showAlert(`وصلت للحد الأقصى للمستخدمين في باقتك الحالية (${usage.current_users_count} من ${usage.max_users}).`);
-    return;
-  }
+    const usage = Array.isArray(usageRows) ? usageRows[0] : null;
 
-  const session = await supabase.auth.getSession();
+    if (!usage) {
+      showAlert('لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.');
+      return;
+    }
+
+    if (usage.max_users !== null && usage.user_limit_reached === true) {
+      showAlert(`وصلت للحد الأقصى للمستخدمين في باقتك الحالية (${usage.current_users_count} من ${usage.max_users}).`);
+      return;
+    }
+
+    const session = await supabase.auth.getSession();
     const accessToken = session.data.session?.access_token;
-    
+
     const { data, error } = await supabase.functions.invoke('create-user', {
       body: {
         email: email,
@@ -1893,89 +1948,165 @@ try {
       },
       headers: { Authorization: `Bearer ${accessToken}` }
     });
-    
-if (error) {
-  console.error('Create user edge function error:', error);
 
-  let edgeMessage = error.message || 'فشل استدعاء دالة إنشاء المستخدم';
+    if (error) {
+      console.error('Create user edge function error:', error);
 
-  try {
-    if (error.context && typeof error.context.json === 'function') {
-      const errorBody = await error.context.json();
-      console.error('Create user edge function error body:', errorBody);
+      let edgeMessage = error.message || 'فشل استدعاء دالة إنشاء المستخدم';
 
-      edgeMessage =
-        errorBody?.message ||
-        errorBody?.error ||
-        JSON.stringify(errorBody);
+      try {
+        if (error.context && typeof error.context.json === 'function') {
+          const errorBody = await error.context.json();
+          console.error('Create user edge function error body:', errorBody);
+
+          edgeMessage =
+            errorBody?.message ||
+            errorBody?.error ||
+            JSON.stringify(errorBody);
+        }
+      } catch (parseErr) {
+        console.warn('Could not parse create-user error body:', parseErr);
+      }
+
+      let friendlyMessage = edgeMessage;
+
+      if (
+        edgeMessage.includes('Unable to validate email address') ||
+        edgeMessage.includes('invalid format')
+      ) {
+        friendlyMessage = 'البريد الإلكتروني غير صحيح. الرجاء إدخال بريد كامل مثل: name@example.com';
+      }
+
+      if (
+        edgeMessage.includes('already registered') ||
+        edgeMessage.includes('already exists') ||
+        edgeMessage.includes('User already registered')
+      ) {
+        friendlyMessage = 'هذا البريد الإلكتروني مستخدم مسبقًا. الرجاء استخدام بريد آخر.';
+      }
+
+      if (
+        edgeMessage.includes('Password') ||
+        edgeMessage.includes('password')
+      ) {
+        friendlyMessage = 'كلمة المرور غير مقبولة. اجعلها 6 أحرف أو أكثر.';
+      }
+
+      throw new Error(friendlyMessage);
     }
-  } catch (parseErr) {
-    console.warn('Could not parse create-user error body:', parseErr);
-  }
 
-let friendlyMessage = edgeMessage;
+    if (!data?.success) {
+      throw new Error(data?.message || 'فشل إنشاء المستخدم');
+    }
 
-if (
-  edgeMessage.includes('Unable to validate email address') ||
-  edgeMessage.includes('invalid format')
-) {
-  friendlyMessage = 'البريد الإلكتروني غير صحيح. الرجاء إدخال بريد كامل مثل: name@example.com';
-}
-
-if (
-  edgeMessage.includes('already registered') ||
-  edgeMessage.includes('already exists') ||
-  edgeMessage.includes('User already registered')
-) {
-  friendlyMessage = 'هذا البريد الإلكتروني مستخدم مسبقًا. الرجاء استخدام بريد آخر.';
-}
-
-if (
-  edgeMessage.includes('Password') ||
-  edgeMessage.includes('password')
-) {
-  friendlyMessage = 'كلمة المرور غير مقبولة. اجعلها 6 أحرف أو أكثر.';
-}
-
-throw new Error(friendlyMessage);
-}
-
-if (!data || data.success !== true) {
-  console.error('Create user edge function response:', data);
-  throw new Error(data?.message || data?.error || 'فشل إنشاء المستخدم من دالة create-user');
-}
-    
-    showSuccessNotification('تم إضافة المستخدم بنجاح');
+    showSuccessNotification('تم إضافة الموظف بنجاح');
     cancelAddUser();
-    loadUsers();
+
+    // لا نغلق المودل، فقط نحدث القائمة
+    await loadUsers();
+
   } catch (err) {
     console.error(err);
-    showAlert('فشل إضافة المستخدم: ' + err.message);
+    showAlert('فشل إضافة الموظف: ' + err.message);
+
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = '1';
+      saveBtn.style.cursor = 'pointer';
+      saveBtn.innerHTML = originalBtnHtml || 'حفظ';
+    }
   }
 }
 
-async function deleteUser(userId, username) {
-  if (username === 'admin' || username === 'super_admin') {
-    showAlert('لا يمكن حذف المدير الرئيسي');
+async function deleteUser(userId) {
+  if (!currentUser || currentUser.role !== 'admin') {
+    showAlert('ليس لديك صلاحية لحذف الموظفين');
     return;
   }
-  
-  if (!confirm('هل أنت متأكد من حذف المستخدم ' + username + '؟')) return;
-  
-  const { error } = await supabase
-    .from('app_users')
-    .delete()
-    .eq('id', userId);
-  
-  if (error) {
-    showAlert('فشل حذف المستخدم');
-    return;
-  }
-  
-  showSuccessNotification('تم حذف المستخدم');
-  loadUsers();
-}
 
+  if (!userId) {
+    showAlert('معرف الموظف غير موجود');
+    return;
+  }
+
+  if (userId === currentUser.id) {
+    showAlert('لا يمكنك حذف حسابك الحالي');
+    return;
+  }
+
+  const confirmed = confirm('هل أنت متأكد من حذف هذا الموظف بالكامل؟');
+  if (!confirmed) return;
+
+  const deleteBtn = Array.from(document.querySelectorAll('[onclick^="deleteUser"]'))
+    .find(btn => btn.getAttribute('onclick')?.includes(userId));
+
+  const originalBtnHtml = deleteBtn ? deleteBtn.innerHTML : '';
+
+  try {
+    if (deleteBtn) {
+      deleteBtn.disabled = true;
+      deleteBtn.style.opacity = '0.75';
+      deleteBtn.style.cursor = 'not-allowed';
+      deleteBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        جاري الحذف...
+      `;
+    }
+
+    const session = await supabase.auth.getSession();
+    const accessToken = session.data.session?.access_token;
+
+    const { data, error } = await supabase.functions.invoke('delete-user', {
+      body: {
+        user_id: userId
+      },
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (error) {
+      console.error('Delete user edge function error:', error);
+
+      let edgeMessage = error.message || 'فشل استدعاء دالة حذف المستخدم';
+
+      try {
+        if (error.context && typeof error.context.json === 'function') {
+          const errorBody = await error.context.json();
+          console.error('Delete user edge function error body:', errorBody);
+
+          edgeMessage =
+            errorBody?.message ||
+            errorBody?.error ||
+            JSON.stringify(errorBody);
+        }
+      } catch (parseErr) {
+        console.warn('Could not parse delete-user error body:', parseErr);
+      }
+
+      throw new Error(edgeMessage);
+    }
+
+    if (!data?.success) {
+      throw new Error(data?.message || 'فشل حذف الموظف بالكامل');
+    }
+
+    showSuccessNotification('تم حذف الموظف بالكامل بنجاح');
+    await loadUsers();
+
+  } catch (err) {
+    console.error('❌ فشل حذف الموظف بالكامل:', err);
+    showAlert('فشل حذف الموظف بالكامل: ' + err.message);
+
+    if (deleteBtn) {
+      deleteBtn.disabled = false;
+      deleteBtn.style.opacity = '1';
+      deleteBtn.style.cursor = 'pointer';
+      deleteBtn.innerHTML = originalBtnHtml || 'حذف';
+    }
+  }
+}
 // ============================================================
 // PERMISSIONS MODAL
 // مودل صلاحيات الموظفين بتبويبات المناصب
@@ -2000,6 +2131,8 @@ const EASYQ_PERMISSION_ROLES = [
     desc: 'صلاحيات التشغيل اليومية التي يمنحها مالك الحساب'
   }
 ];
+
+
 
 function openPermissionsModal() {
   // مودل الصلاحيات خاص بمالك الحساب فقط
@@ -2247,90 +2380,62 @@ function toggleAllPermissionsForRole(roleKey) {
 }
 
 async function savePermissions() {
-  const total = EASYQ_PERMISSION_ROLES.length * PERMISSION_KEYS.length;
-  let completed = 0;
+  if (!currentUser || currentUser.role !== 'admin') {
+    showAlert('ليس لديك صلاحية لحفظ الصلاحيات');
+    return;
+  }
 
-  const progressBar = document.createElement('div');
-  progressBar.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: var(--card-bg, #FFFFFF);
-    padding: 20px 30px;
-    border-radius: 16px;
-    box-shadow: var(--shadow-lg, 0 20px 40px rgba(0,0,0,0.18));
-    z-index: 10000;
-    text-align: center;
-    min-width: 250px;
-  `;
+  const saveBtn = document.querySelector('#permissionsModal .settings-save');
 
-  progressBar.innerHTML = `
-    <div style="font-weight: 800; margin-bottom: 12px; color: var(--text-primary, #111827);">
-      <i class="fas fa-spinner fa-pulse" style="color: #0E146D; margin-left: 8px;"></i>
-      جاري حفظ الصلاحيات...
-    </div>
-
-    <div style="background: var(--gray-200, #E5E7EB); border-radius: 10px; height: 8px; overflow: hidden;">
-      <div id="progressFill" style="
-        background: #0E146D;
-        height: 100%;
-        width: 0%;
-        border-radius: 10px;
-        transition: width 0.2s;
-      "></div>
-    </div>
-
-    <div id="progressText" style="margin-top: 6px; font-size: 12px; color: var(--gray-500, #6B7280);">
-      0%
-    </div>
-  `;
-
-  document.body.appendChild(progressBar);
-
-  const fill = document.getElementById('progressFill');
-  const text = document.getElementById('progressText');
+  const originalBtnHtml = saveBtn ? saveBtn.innerHTML : '';
 
   try {
-    for (const role of EASYQ_PERMISSION_ROLES) {
-      for (const permissionItem of PERMISSION_KEYS) {
-        const isEnabled = permissionsDraft?.[role.key]?.[permissionItem.key] === true;
-
-        const { error } = await supabase
-          .from('role_permissions')
-          .upsert(
-            {
-              role: role.key,
-              permission_key: permissionItem.key,
-              is_enabled: isEnabled
-            },
-            {
-              onConflict: 'role,permission_key'
-            }
-          );
-
-        if (error) throw error;
-
-        completed++;
-        const percent = Math.round((completed / total) * 100);
-
-        if (fill) fill.style.width = percent + '%';
-        if (text) text.innerText = percent + '%';
-      }
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.style.opacity = '0.75';
+      saveBtn.style.cursor = 'not-allowed';
+      saveBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        جاري حفظ الصلاحيات...
+      `;
     }
 
-    progressBar.remove();
-    closePermissionsModal();
+    const rowsToSave = [];
+
+    EASYQ_PERMISSION_ROLES.forEach(role => {
+      PERMISSION_KEYS.forEach(permission => {
+        rowsToSave.push({
+          role: role.key,
+          permission_key: permission.key,
+          is_enabled: permissionsDraft?.[role.key]?.[permission.key] === true
+        });
+      });
+    });
+
+    const { error } = await supabase
+      .from('role_permissions')
+      .upsert(rowsToSave, {
+        onConflict: 'role,permission_key'
+      });
+
+    if (error) throw error;
 
     await loadUserPermissions();
 
-    showSuccessNotification('✅ تم حفظ الصلاحيات بنجاح');
+    showSuccessNotification('تم حفظ الصلاحيات بنجاح');
+    closePermissionsModal();
 
-  } catch (err) {
-    console.error('Permissions save error:', err);
+  } catch (error) {
+    console.error('❌ فشل حفظ الصلاحيات:', error);
+    showAlert('فشل حفظ الصلاحيات: ' + error.message);
 
-    progressBar.remove();
-    showAlert('فشل حفظ الصلاحيات: ' + err.message);
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = '1';
+      saveBtn.style.cursor = 'pointer';
+      saveBtn.innerHTML = originalBtnHtml || '💾 حفظ الصلاحيات';
+    }
   }
 }
 

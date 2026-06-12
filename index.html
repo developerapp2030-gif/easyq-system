@@ -372,14 +372,7 @@
         <div class="menu-item" id="savePositionsBtn" onclick="saveTablePositions()" style="display: none; margin: 4px 0;">
           <i class="fas fa-save"></i> <span>حفظ المواقع</span>
         </div>
-        <div style="height: 1px; background: var(--border-color); margin: 8px 0;"></div>
-        
-        <div class="sub-menu-item" onclick="openTimerSettingsModal()">
-          <i class="fas fa-hourglass-half"></i> <span>إعداد المؤقتات</span>
-        </div>
-        <div class="sub-menu-item" onclick="openSettingsModal()">
-          <i class="fas fa-bell"></i> <span>إعداد التنبيهات</span>
-        </div>
+
       </div>
     </div>
 
@@ -466,28 +459,7 @@
 
     <div class="sidebar-divider"></div>
 
-    <!-- ==================== Users / المستخدمين (Admin) ==================== -->
-    <div class="sidebar-nav-section">
-      <div class="main-menu-item" data-menu="users">
-        <div class="menu-title">
-          <i class="fas fa-user-shield"></i>
-          <span>المستخدمين</span>
-          <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
-        </div>
-        <i class="fas fa-chevron-right toggle-icon"></i>
-      </div>
-      <div class="sub-menu" data-submenu="users">
-        <div class="sub-menu-item" onclick="openUsersModal()">
-          <i class="fas fa-users"></i> <span>قائمة الموظفين</span>
-        </div>
-        <div class="sub-menu-item" onclick="openPermissionsModal()">
-          <i class="fas fa-lock"></i> <span>الصلاحيات</span>
-        </div>
-        <div class="sub-menu-item" data-view="users-log">
-          <i class="fas fa-history"></i> <span>سجل النشاط</span>
-        </div>
-      </div>
-    </div>
+
 
     <!-- ==================== Settings / الإعدادات (Admin) ==================== -->
     <div class="sidebar-nav-section">
@@ -501,7 +473,7 @@
       </div>
       <div class="sub-menu" data-submenu="settings">
         <div class="sub-menu-item" onclick="openSettingsModal()">
-          <i class="fas fa-building"></i> <span>الإعدادات العامة</span>
+          <i class="fas fa-bell"></i> <span>إعدادات التنبيهات والمؤقتات</span>
         </div>
         <div class="sub-menu-item" data-view="settings-queue">
           <i class="fas fa-clock"></i> <span>قواعد الطابور</span>
@@ -843,7 +815,7 @@
         <option value="admin">مدير النظام</option>
       </select>
       <div style="display: flex; gap: 8px;">
-        <button class="settings-save" onclick="saveUser()">حفظ</button>
+        <button id="saveUserBtn" class="settings-save" onclick="saveUser()">حفظ</button>
         <button class="settings-close" onclick="cancelAddUser()">إلغاء</button>
       </div>
     </div>

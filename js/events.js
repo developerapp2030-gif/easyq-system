@@ -188,6 +188,11 @@ function selectWaiting(id, size) {
 }
 
 function openWalkInModal() {
+  if (!canDo('add_walkin')) {
+    showAlert('ليس لديك صلاحية لإضافة عميل داخلي');
+    return;
+  }
+
   document.getElementById("walkInName").value = "";
   currentPartySize = 2;
   const walkInPartyValue = document.getElementById("walkInPartyValue");
@@ -1718,6 +1723,10 @@ ${bookingSettingsColorInput(settings, "button_text_color", "لون نص الأز
 }
 
 async function openBookingSettingsModal() {
+    if (!canDo('manage_booking_page')) {
+    showAlert('ليس لديك صلاحية لإعدادات واجهة الحجز');
+    return;
+  }
   openFullPagePanel(
     "إعدادات واجهة الحجز",
     "تخصيص نصوص وألوان وخيارات صفحة الحجز الخاصة بالعملاء",
@@ -1752,6 +1761,10 @@ window.downloadBookingPageQr = downloadBookingPageQr;
 window.printBookingPageQr = printBookingPageQr;
 
 function openBusinessProfileModal() {
+    if (!canDo('manage_business_profile')) {
+    showAlert('ليس لديك صلاحية لإعداد بيانات المطعم / الفرع');
+    return;
+  }
   const canViewSupportRef = ['super_admin', 'owner', 'admin'].includes(currentUser?.role);
 
   const contentHtml = `

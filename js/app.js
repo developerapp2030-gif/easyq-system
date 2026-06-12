@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', function () {
 // ============================================================
 
 function openSettingsModal() {
+  if (!canDo('manage_alerts') && !canDo('manage_timers')) {
+    showAlert('ليس لديك صلاحية لإعدادات التنبيهات والمؤقتات');
+    return;
+  }
+
   settingsDraft = { ...settings };
   renderSettingsModal();
   document.getElementById("settingsModal").classList.add("show");
@@ -42,15 +47,119 @@ function changeNumberSetting(key, delta, min, max) {
 
 function renderSettingsModal() {
   const panelTitle = document.getElementById("settingsPanelTitle");
-  if (panelTitle) panelTitle.innerHTML = currentLang === "ar" ? "الإعدادات" : "Settings";
-  
+  if (panelTitle) {
+    panelTitle.innerHTML = currentLang === "ar"
+      ? "إعدادات التنبيهات والمؤقتات"
+      : "Alerts & Timers Settings";
+  }
+
   const readyModeLabel = document.getElementById("readyModeLabel");
-  if (readyModeLabel) readyModeLabel.innerHTML = currentLang === "ar" ? "وضع الجاهزية" : "Ready Mode";
-  
+  if (readyModeLabel) {
+    readyModeLabel.innerHTML = currentLang === "ar"
+      ? "سياسة التعيين التلقائي"
+      : "Auto Assignment Policy";
+  }
+
   const modeAnyBtn = document.getElementById("modeAnyBtn");
   const modeQueueBtn = document.getElementById("modeQueueBtn");
-  if (modeAnyBtn) modeAnyBtn.innerHTML = "Any";
-  if (modeQueueBtn) modeQueueBtn.innerHTML = "Queue";
+
+  if (modeAnyBtn) {
+    modeAnyBtn.innerHTML = currentLang === "ar"
+      ? "الأول المناسب"
+      : "First Match";
+  }
+
+  if (modeQueueBtn) {
+    modeQueueBtn.innerHTML = currentLang === "ar"
+      ? "حسب أولوية الطابور"
+      : "Queue Priority";
+  }
+  const settingsLabelTranslations = [
+    {
+      icon: 'fa-bell',
+      ar: 'صوت تنبيه جاهزية الطاولة',
+      en: 'Ready Alert Sound'
+    },
+    {
+      icon: 'fa-mobile-alt',
+      ar: 'اهتزاز تنبيه الجاهزية',
+      en: 'Ready Alert Vibration'
+    },
+    {
+      icon: 'fa-hourglass-end',
+      ar: 'صوت انتهاء الحجز',
+      en: 'Expired Alert Sound'
+    },
+    {
+      icon: 'fa-mobile-alt',
+      ar: 'اهتزاز انتهاء الحجز',
+      en: 'Expired Alert Vibration'
+    },
+    {
+      icon: 'fa-list',
+      ar: 'إظهار قائمة المنتهية',
+      en: 'Show Expired Panel'
+    },
+    {
+      icon: 'fa-list-ol',
+      ar: 'عدد الحجوزات المنتهية المعروضة',
+      en: 'Expired List Limit'
+    },
+    {
+      icon: 'fa-clock',
+      ar: 'مدة انتظار العميل بعد تعيين الطاولة',
+      en: 'Reservation Hold Minutes'
+    },
+    {
+      icon: 'fa-hourglass-start',
+      ar: 'مدة تعليق طاولة',
+      en: 'Pending Hold Minutes'
+    },
+    {
+      icon: 'fa-broom',
+      ar: 'مدة تنظيف الطاولة',
+      en: 'Cleaning Hold Minutes'
+    }
+  ];
+
+  document
+    .querySelectorAll('#settingsModal .settings-section .settings-row .settings-label')
+    .forEach((label, index) => {
+      if (label.id === 'readyModeLabel') return;
+
+      const item = settingsLabelTranslations[index - 1];
+      if (!item) return;
+
+      label.innerHTML = `
+        <i class="fas ${item.icon}"></i>
+        ${currentLang === "ar" ? item.ar : item.en}
+      `;
+    });
+
+  document
+    .querySelectorAll('#settingsModal .toggle-group .toggle-btn')
+    .forEach(btn => {
+      const text = btn.innerText.trim().toUpperCase();
+
+      if (text === 'ON' || text === 'تشغيل') {
+        btn.innerHTML = currentLang === "ar" ? "تشغيل" : "ON";
+      }
+
+      if (text === 'OFF' || text === 'إيقاف') {
+        btn.innerHTML = currentLang === "ar" ? "إيقاف" : "OFF";
+      }
+    });
+
+  const saveSettingsBtn = document.querySelector('#settingsModal .settings-save');
+  if (saveSettingsBtn) {
+    saveSettingsBtn.innerHTML = currentLang === "ar" ? "حفظ" : "Save";
+  }
+
+  const closeSettingsBtn = document.querySelector('#settingsModal .settings-close');
+  if (closeSettingsBtn) {
+    closeSettingsBtn.innerHTML = currentLang === "ar" ? "إلغاء" : "Cancel";
+  }
+
   if (modeAnyBtn) modeAnyBtn.classList.toggle("active", settingsDraft.ready_mode === "any_match");
   if (modeQueueBtn) modeQueueBtn.classList.toggle("active", settingsDraft.ready_mode === "queue_priority");
   
@@ -93,6 +202,11 @@ function renderSettingsModal() {
 }
 
 async function saveSettings() {
+  if (!canDo('manage_alerts') && !canDo('manage_timers')) {
+    showAlert('ليس لديك صلاحية لحفظ إعدادات التنبيهات والمؤقتات');
+    return;
+  }
+
   const businessId = currentUser?.business_id;
 
   if (!businessId || !settings?.id) {
@@ -134,6 +248,11 @@ async function saveSettings() {
 // ============================================================
 
 function openTimerSettingsModal() {
+  if (!canDo('manage_timers')) {
+    showAlert('ليس لديك صلاحية لإعدادات المؤقتات');
+    return;
+  }
+
   const reservationDisplay = document.getElementById('reservation_hold_minutes_display');
   const cleaningDisplay = document.getElementById('cleaning_hold_minutes_display');
   if (reservationDisplay) reservationDisplay.innerText = settings.reservation_hold_minutes || 10;
@@ -154,6 +273,11 @@ function changeTimerSetting(key, delta, min, max) {
 }
 
 async function saveTimerSettings() {
+  if (!canDo('manage_timers')) {
+    showAlert('ليس لديك صلاحية لحفظ إعدادات المؤقتات');
+    return;
+  }
+
   const newReservationHold = parseInt(document.getElementById('reservation_hold_minutes_display').innerText);
   const newCleaningHold = parseInt(document.getElementById('cleaning_hold_minutes_display').innerText);
 
@@ -365,6 +489,11 @@ async function loadWaitingList() {
 // ============================================================
 
 async function openZonesModal() {
+  if (!canDo('manage_zones')) {
+    showAlert('ليس لديك صلاحية لإدارة المناطق');
+    return;
+  }
+
   // تحميل آخر إعدادات المناطق من قاعدة البيانات قبل عرض المودل
   await loadActiveSettings();
 
@@ -474,6 +603,10 @@ globalActiveZones = activeZones;
 }
 
 async function openFloorsModal() {
+    if (!canDo('manage_floors')) {
+    showAlert('ليس لديك صلاحية لإدارة الطوابق');
+    return;
+  }
   // تحميل آخر إعدادات الطوابق من قاعدة البيانات قبل عرض المودل
   await loadActiveSettings();
 
