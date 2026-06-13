@@ -424,171 +424,33 @@ function closeTableModal() {
 // MOVE MODE
 // ============================================================
 
-function toggleMoveMode() {
-  if (!moveModeActive && !canDo('move_tables')) {
-    showAlert('ليس لديك صلاحية لتحريك الطاولات');
-    return;
-  }
-  if (tableEditMode || tableDeleteMode) {
-    alert(currentLang === 'ar' ? 'الرجاء الخروج من وضع التعديل/الحذف أولاً' : 'Please exit edit/delete mode first');
-    return;
-  }
-  
-  moveModeActive = !moveModeActive;
-  const moveBtn = document.getElementById('moveTableBtn');
-  const saveBtn = document.getElementById('savePositionsBtn');
-  
-  if (moveModeActive) {
-    if (autoRefreshInterval) {
-      clearInterval(autoRefreshInterval);
-      autoRefreshInterval = null;
-    }
-    
-    document.body.classList.add('edit-mode-active');
-    if (moveBtn) {
-      moveBtn.classList.add('active');
-      const span = moveBtn.querySelector('span');
-      if (span) span.innerHTML = currentLang === 'ar' ? '🔴 خروج من وضع التحريك' : '🔴 Exit Move Mode';
-      moveBtn.style.background = 'var(--danger)';
-      moveBtn.style.color = 'white';
-    }
-    if (saveBtn) saveBtn.style.display = 'flex';
-    
-    disableCustomerDragDrop(true);
-    
-    pendingPositionUpdates = {};
-    
-    const floorCanvas = document.getElementById('floorCanvas');
-    if (floorCanvas) floorCanvas.classList.add('show-grid');
-    renderMoveModeTables();
-  } else {
-    const floorCanvas = document.getElementById('floorCanvas');
-    if (floorCanvas) floorCanvas.classList.remove('show-grid');
-    
-    if (!autoRefreshInterval) {
-      autoRefreshInterval = setInterval(() => {
-        if (!moveModeActive) {
-          loadAll();
-        }
-      }, 15000);
-    }
-    
-    document.body.classList.remove('edit-mode-active');
-    if (moveBtn) {
-      moveBtn.classList.remove('active');
-      const span = moveBtn.querySelector('span');
-      if (span) span.innerHTML = currentLang === 'ar' ? 'تحريك' : 'Move';
-      moveBtn.style.background = '';
-      moveBtn.style.color = '';
-    }
-    if (saveBtn) saveBtn.style.display = 'none';
-    
-    disableCustomerDragDrop(false);
-    selectedTableForMove = null;
-    
-    renderFloorPlan();
-  }
-}
-
-async function saveTablePositions() {
-    if (!canDo('move_tables')) {
-    showAlert('ليس لديك صلاحية لحفظ مواقع الطاولات');
-    return;
-  }
-  if (!moveModeActive) {
-    alert(currentLang === 'ar' ? 'الرجاء تفعيل وضع التحريك أولاً' : 'Please enable move mode first');
-    return;
-  }
-  
-  if (Object.keys(pendingPositionUpdates).length === 0) {
-    alert(currentLang === 'ar' ? 'لا توجد تغييرات لحفظها' : 'No changes to save');
-    return;
-  }
-  
-  const saveBtn = document.getElementById('savePositionsBtn');
-  if (saveBtn) {
-    saveBtn.disabled = true;
-    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> حفظ...';
-  }
-  
-  let successCount = 0;
-  let errorCount = 0;
-  
-for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
-  const canvas = document.getElementById('floorCanvas');
-  const canvasWidth = canvas ? canvas.clientWidth : 1000;
-  const canvasHeight = canvas ? canvas.clientHeight : 800;
-
-  const TABLE_W = 88;
-  const TABLE_H = 80;
-
-  const finalPosition = {
-    x: Math.max(10, Math.min(Math.round(position.pos_x), canvasWidth - TABLE_W)),
-    y: Math.max(10, Math.min(Math.round(position.pos_y), canvasHeight - TABLE_H))
-  };
-
-  const { error } = await supabase
-    .from('dining_tables')
-    .update({
-      pos_x: finalPosition.x,
-      pos_y: finalPosition.y
-    })
-    .eq('id', tableId);    
-    if (error) {
-      console.error('Error saving table position:', error);
-      errorCount++;
-    } else {
-      successCount++;
-    }
-  }
-  
-  if (saveBtn) {
-    saveBtn.disabled = false;
-    saveBtn.innerHTML = '<i class="fas fa-save"></i>';
-  }
-  
-  if (successCount > 0) {
-    showSuccessNotification(currentLang === 'ar'
-      ? `✅ تم حفظ مواقع ${successCount} طاولة${errorCount > 0 ? `، فشل ${errorCount}` : ''}`
-      : `✅ Saved ${successCount} table positions${errorCount > 0 ? `, ${errorCount} failed` : ''}`);
-    
-for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
-  const table = floorData.find(t => t.id == tableId);
-  if (table) {
-    table.pos_x = Math.round(position.pos_x);
-    table.pos_y = Math.round(position.pos_y);
-  }
-}
-    
-    pendingPositionUpdates = {};
-    
-    const originalReadyMode = settings.ready_mode;
-    settings.ready_mode = "disabled";
-    
-    await loadFloorPlan();
-    
-    settings.ready_mode = originalReadyMode;
-  } else if (errorCount > 0) {
-    alert(currentLang === 'ar' ? 'فشل حفظ المواقع' : 'Failed to save positions');
-  }
-  
+function exitMoveModeWithoutSave() {
+  pendingPositionUpdates = {};
+  selectedTableForMove = null;
   moveModeActive = false;
+
   const floorCanvas = document.getElementById('floorCanvas');
   if (floorCanvas) floorCanvas.classList.remove('show-grid');
-  
+
   const moveBtn = document.getElementById('moveTableBtn');
-  const saveBtn2 = document.getElementById('savePositionsBtn');
-  
+  const saveBtn = document.getElementById('savePositionsBtn');
+
   if (moveBtn) {
     moveBtn.classList.remove('active');
     const span = moveBtn.querySelector('span');
     if (span) span.innerHTML = currentLang === 'ar' ? 'تحريك' : 'Move';
+    moveBtn.style.background = '';
+    moveBtn.style.color = '';
   }
-  if (saveBtn2) saveBtn2.style.display = 'none';
-  
+
+  if (saveBtn) {
+    saveBtn.style.display = 'none';
+  }
+
+  document.body.classList.remove('edit-mode-active');
+
   disableCustomerDragDrop(false);
-  selectedTableForMove = null;
-  
+
   if (!autoRefreshInterval) {
     autoRefreshInterval = setInterval(() => {
       if (!moveModeActive) {
@@ -596,8 +458,176 @@ for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
       }
     }, 15000);
   }
-  
+
   renderFloorPlan();
+}
+
+async function saveMoveModeAndExit() {
+  if (Object.keys(pendingPositionUpdates).length === 0) {
+    exitMoveModeWithoutSave();
+    return;
+  }
+
+  await saveTablePositions();
+}
+
+function toggleMoveMode() {
+  if (!moveModeActive && !canDo('move_tables')) {
+    showAlert('ليس لديك صلاحية لتحريك الطاولات');
+    return;
+  }
+
+  if (tableEditMode || tableDeleteMode) {
+    alert(currentLang === 'ar' ? 'الرجاء الخروج من وضع التعديل/الحذف أولاً' : 'Please exit edit/delete mode first');
+    return;
+  }
+
+  // إذا كان وضع التحريك نشطًا وضغط المستخدم زر التحريك مرة أخرى
+  // نخرج بدون حفظ
+  if (moveModeActive) {
+    exitMoveModeWithoutSave();
+    return;
+  }
+
+  moveModeActive = true;
+
+  const moveBtn = document.getElementById('moveTableBtn');
+  const saveBtn = document.getElementById('savePositionsBtn');
+
+  // إخفاء السايدبار عند الدخول لوضع التحريك
+  const sidebar = document.querySelector('.sidebar');
+  if (sidebar) sidebar.classList.remove('open');
+
+  // إيقاف التحديث التلقائي أثناء التحريك
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+    autoRefreshInterval = null;
+  }
+
+  document.body.classList.add('edit-mode-active');
+
+  // تفعيل شكل زر التحريك بدون تحويله إلى زر خروج
+  if (moveBtn) {
+    moveBtn.classList.add('active');
+
+    const span = moveBtn.querySelector('span');
+    if (span) {
+      span.innerHTML = currentLang === 'ar' ? 'وضع التحريك نشط' : 'Move Mode Active';
+    }
+
+    moveBtn.style.background = 'var(--danger)';
+    moveBtn.style.color = 'white';
+  }
+
+  // إخفاء زر الحفظ القديم لأن الحفظ سيكون من الشريط العلوي الجديد
+  if (saveBtn) {
+    saveBtn.style.display = 'none';
+  }
+
+  disableCustomerDragDrop(true);
+
+  pendingPositionUpdates = {};
+  selectedTableForMove = null;
+
+  const floorCanvas = document.getElementById('floorCanvas');
+  if (floorCanvas) floorCanvas.classList.add('show-grid');
+
+  renderMoveModeTables();
+}
+
+async function saveTablePositions() {
+  if (!canDo('move_tables')) {
+    showAlert('ليس لديك صلاحية لحفظ مواقع الطاولات');
+    return;
+  }
+
+  if (!moveModeActive) {
+    alert(currentLang === 'ar' ? 'الرجاء تفعيل وضع التحريك أولاً' : 'Please enable move mode first');
+    return;
+  }
+
+  if (Object.keys(pendingPositionUpdates).length === 0) {
+    alert(currentLang === 'ar' ? 'لا توجد تغييرات لحفظها' : 'No changes to save');
+    return;
+  }
+
+  const saveBtn = document.getElementById('savePositionsBtn');
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  }
+
+  const canvas = document.getElementById('floorCanvas');
+  const canvasWidth = canvas ? canvas.clientWidth : 1000;
+  const canvasHeight = canvas ? canvas.clientHeight : 800;
+
+  const TABLE_W = 88;
+  const TABLE_H = 80;
+
+  let successCount = 0;
+  let errorCount = 0;
+
+  for (const [tableId, position] of Object.entries(pendingPositionUpdates)) {
+    const finalPosition = {
+      x: Math.max(10, Math.min(Math.round(position.pos_x), canvasWidth - TABLE_W)),
+      y: Math.max(10, Math.min(Math.round(position.pos_y), canvasHeight - TABLE_H))
+    };
+
+    const posXPercent = canvasWidth > TABLE_W
+      ? (finalPosition.x / (canvasWidth - TABLE_W)) * 100
+      : 0;
+
+    const posYPercent = canvasHeight > TABLE_H
+      ? (finalPosition.y / (canvasHeight - TABLE_H)) * 100
+      : 0;
+
+    const { error } = await supabase
+      .from('dining_tables')
+      .update({
+        pos_x: finalPosition.x,
+        pos_y: finalPosition.y,
+        pos_x_percent: posXPercent,
+        pos_y_percent: posYPercent
+      })
+      .eq('id', tableId)
+      .eq('business_id', currentUser?.business_id);
+
+    if (error) {
+      console.error('Error saving table position:', error);
+      errorCount++;
+      continue;
+    }
+
+    successCount++;
+
+    const table = floorData.find(t => t.id == tableId);
+    if (table) {
+      table.pos_x = finalPosition.x;
+      table.pos_y = finalPosition.y;
+      table.pos_x_percent = posXPercent;
+      table.pos_y_percent = posYPercent;
+    }
+  }
+
+  if (saveBtn) {
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<i class="fas fa-save"></i>';
+    saveBtn.style.display = 'none';
+  }
+
+  if (successCount > 0) {
+    showSuccessNotification(currentLang === 'ar'
+      ? `✅ تم حفظ مواقع ${successCount} طاولة${errorCount > 0 ? `، فشل ${errorCount}` : ''}`
+      : `✅ Saved ${successCount} table positions${errorCount > 0 ? `, ${errorCount} failed` : ''}`);
+
+    pendingPositionUpdates = {};
+
+    exitMoveModeWithoutSave();
+
+  } else if (errorCount > 0) {
+    alert(currentLang === 'ar' ? 'فشل حفظ المواقع' : 'Failed to save positions');
+  }
 }
 // ============================================================
 // SIDEBAR TOGGLE - VERSION FIXED (تعمل 100%)

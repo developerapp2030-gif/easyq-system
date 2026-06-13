@@ -3096,3 +3096,116 @@ body.logged-in .topbar {
   border-radius: 14px;
   font-size: 15px;
 }
+
+/* ============================================================
+   MOVE MODE TOOLBAR
+   ============================================================ */
+
+.move-mode-toolbar {
+position: absolute;
+top: -40px;
+left: 50%;
+transform: translateX(-50%);
+z-index: 80;
+width: fit-content;
+max-width: calc(100% - 24px);
+margin: 0;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(14, 20, 109, 0.14);
+  box-shadow: 0 12px 28px rgba(6, 4, 39, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  direction: rtl;
+  backdrop-filter: blur(8px);
+}
+
+.move-mode-toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #0E146D;
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.move-mode-toolbar-title i {
+  font-size: 13px;
+  color: #0E146D;
+}
+
+.move-mode-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.move-mode-cancel-btn,
+.move-mode-save-btn {
+  border: none;
+  outline: none;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.move-mode-cancel-btn {
+  background: #F3F4F6;
+  color: #111827;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.move-mode-save-btn {
+  background: linear-gradient(135deg, #0E146D, #060427);
+  color: #FFFFFF;
+  box-shadow: 0 8px 18px rgba(14, 20, 109, 0.22);
+}
+
+.move-mode-cancel-btn:hover,
+.move-mode-save-btn:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 700px) {
+  .move-mode-toolbar {
+    width: calc(100% - 16px);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .move-mode-toolbar-actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* رفع شريط وضع التحريك فوق شريط الفلاتر */
+body.edit-mode-active .tables-grid {
+  position: relative;
+  z-index: 4000 !important;
+  overflow: visible !important;
+}
+
+body.edit-mode-active .move-mode-toolbar {
+  z-index: 4100 !important;
+}
+
+body.theme-premium.edit-mode-active .tables-grid {
+  position: relative;
+  z-index: 4000 !important;
+  overflow: visible !important;
+}
+
+body.theme-premium.edit-mode-active .move-mode-toolbar {
+  z-index: 4100 !important;
+}

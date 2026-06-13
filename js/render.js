@@ -126,11 +126,22 @@ card.style.zIndex = "2";
     card.setAttribute('data-id', table.id);
     card.setAttribute('data-table-id', table.id);
     
-    const left = table.pos_x || 50;
-    const top = table.pos_y || 50;
-    
-    card.style.left = left + 'px';
-    card.style.top = top + 'px';
+const TABLE_W = 88;
+const TABLE_H = 80;
+
+let left = table.pos_x || 50;
+let top = table.pos_y || 50;
+
+if (table.pos_x_percent !== null && table.pos_x_percent !== undefined) {
+  left = ((container.clientWidth - TABLE_W) * Number(table.pos_x_percent)) / 100;
+}
+
+if (table.pos_y_percent !== null && table.pos_y_percent !== undefined) {
+  top = ((container.clientHeight - TABLE_H) * Number(table.pos_y_percent)) / 100;
+}
+
+card.style.left = left + 'px';
+card.style.top = top + 'px';
     
     const activeParty = getActivePartySize();
     if (activeParty && !editModeActive) {
@@ -269,7 +280,7 @@ container.style.cssText = `
   background-size: auto !important;
   background-position: 0 0 !important;
   background-repeat: no-repeat !important;
-  overflow: hidden;
+  overflow: visible;
   isolation: isolate;
 `;
 const GRID_W = 104;
@@ -305,6 +316,27 @@ gridLayer.style.cssText = `
 `;
 
 container.appendChild(gridLayer);
+const moveToolbar = document.createElement('div');
+moveToolbar.className = 'move-mode-toolbar';
+
+moveToolbar.innerHTML = `
+  <div class="move-mode-toolbar-title">
+    
+    <span>${currentLang === 'ar' ? 'وضع التحريك نشط' : 'Move mode active'}</span>
+  </div>
+
+  <div class="move-mode-toolbar-actions">
+    <button type="button" class="move-mode-cancel-btn" onclick="exitMoveModeWithoutSave()">
+      ${currentLang === 'ar' ? 'إلغاء' : 'Cancel'}
+    </button>
+
+    <button type="button" class="move-mode-save-btn" onclick="saveMoveModeAndExit()">
+      ${currentLang === 'ar' ? 'حفظ المواقع والخروج' : 'Save & Exit'}
+    </button>
+  </div>
+`;
+
+container.appendChild(moveToolbar);
   const tables = filteredFloorData();
   
   tables.forEach(table => {
@@ -313,12 +345,26 @@ container.appendChild(gridLayer);
     card.className = `table-card${isSelected ? ' table-selected-for-move' : ''}`;
     card.setAttribute('data-id', table.id);
     
-    const pendingPos = pendingPositionUpdates[table.id];
-    const left = pendingPos ? pendingPos.pos_x : (table.pos_x || 50);
-    const top = pendingPos ? pendingPos.pos_y : (table.pos_y || 50);
-    
-    card.style.left = left + 'px';
-    card.style.top = top + 'px';
+const TABLE_W = 88;
+const TABLE_H = 80;
+
+const pendingPos = pendingPositionUpdates[table.id];
+
+let left = pendingPos ? pendingPos.pos_x : (table.pos_x || 50);
+let top = pendingPos ? pendingPos.pos_y : (table.pos_y || 50);
+
+if (!pendingPos) {
+  if (table.pos_x_percent !== null && table.pos_x_percent !== undefined) {
+    left = ((container.clientWidth - TABLE_W) * Number(table.pos_x_percent)) / 100;
+  }
+
+  if (table.pos_y_percent !== null && table.pos_y_percent !== undefined) {
+    top = ((container.clientHeight - TABLE_H) * Number(table.pos_y_percent)) / 100;
+  }
+}
+
+card.style.left = left + 'px';
+card.style.top = top + 'px';
     card.style.width = '88px';
     card.style.height = '80px';
     card.style.transition = 'all 0.2s ease';
