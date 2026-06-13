@@ -763,7 +763,10 @@ async function loadZoneDropdown() {
       return `
         <div class="zone-item-menu" onclick="selectZone('${zone}', '${name.icon} ${displayName}')">
           <span>${name.icon} ${displayName}</span>
-          <span style="color: #000000; font-weight: 600; font-size: 13px;">🟢 ${availableCount}</span>
+          <span class="dropdown-available-count">
+  <span class="dropdown-green-dot"></span>
+  ${availableCount}
+</span>
         </div>
       `;
     }).join('');
@@ -806,7 +809,10 @@ async function loadFloorDropdown() {
       return `
         <div class="zone-item-menu" onclick="selectFloor('${floor}', '${name.icon} ${displayName}')">
           <span>${name.icon} ${displayName}</span>
-          <span style="color: #000000; font-weight: 600; font-size: 13px;">🟢 ${availableCount}</span>
+          <span class="dropdown-available-count">
+  <span class="dropdown-green-dot"></span>
+  ${availableCount}
+</span>
         </div>
       `;
     }).join('');

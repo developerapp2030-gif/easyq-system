@@ -375,6 +375,10 @@ function showUpdateBanner() {
 // ============================================================
 
 async function performFinalSync() {
+    // ✅ لا تشغل مزامنة واجهة المطعم داخل لوحة السوبر أدمن
+  if (window.currentUser && window.currentUser.role === 'super_admin') {
+    return;
+  }
   if (isCurrentlySyncing) return;
   if (moveModeActive || tableEditMode || tableDeleteMode) return;
   

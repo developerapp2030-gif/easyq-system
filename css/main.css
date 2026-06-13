@@ -3209,3 +3209,30 @@ body.theme-premium.edit-mode-active .tables-grid {
 body.theme-premium.edit-mode-active .move-mode-toolbar {
   z-index: 4100 !important;
 }
+
+/* ============================================================
+   DROPDOWN AVAILABLE COUNT DOT
+   ============================================================ */
+
+.dropdown-available-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #000000;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.dropdown-green-dot {
+  width: 7px;
+  height: 7px;
+  min-width: 6px;
+  min-height: 6px;
+  border-radius: 50%;
+  background: #0da472;
+  display: inline-block;
+}
+
+body.theme-premium .waiting-card.ready {
+  animation: none !important;
+}

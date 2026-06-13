@@ -294,6 +294,11 @@ async function assignNextCustomer() {
 // ============================================================
 
 async function checkReservationTimers() {
+  // ✅ لا تشغل فحص حجوزات المطاعم داخل لوحة السوبر أدمن
+  if (window.currentUser && window.currentUser.role === 'super_admin') {
+    return;
+  }
+
   const holdMinutes = Number(settings.reservation_hold_minutes || 10);
   
   console.log('🔍 بدء فحص المؤقتات (checkReservationTimers)...');

@@ -1145,15 +1145,299 @@ async function createBusinessSupportVerificationCode() {
   }
 }
 
+function openMyAccountModal() {
+  if (!currentUser) {
+    showAlert('لم يتم تحميل بيانات المستخدم');
+    return;
+  }
+
+  // لا نفتح حسابي داخل وضع السوبر أدمن من لوحة المطعم
+  if (currentUser.role === 'super_admin' || document.body.classList.contains('super-admin-mode')) {
+    return;
+  }
+
+  const modal = document.getElementById('myAccountModal');
+  const displayNameInput = document.getElementById('myAccountDisplayName');
+  const emailInput = document.getElementById('myAccountEmail');
+  const newPasswordInput = document.getElementById('myAccountNewPassword');
+  const confirmPasswordInput = document.getElementById('myAccountConfirmPassword');
+
+  if (!modal) {
+    console.warn('myAccountModal غير موجود في index.html');
+    return;
+  }
+
+  if (displayNameInput) {
+    displayNameInput.value = currentUser.display_name || '';
+  }
+
+  if (emailInput) {
+    emailInput.value = currentUser.username || currentUser.email || '';
+  }
+
+  if (newPasswordInput) {
+    newPasswordInput.value = '';
+  }
+
+  if (confirmPasswordInput) {
+    confirmPasswordInput.value = '';
+  }
+
+  modal.classList.add('show');
+}
+
+function closeMyAccountModal() {
+  const modal = document.getElementById('myAccountModal');
+  if (modal) modal.classList.remove('show');
+}
+
+async function saveMyAccount() {
+  if (!currentUser) {
+    showAlert('لم يتم تحميل بيانات المستخدم');
+    return;
+  }
+
+  if (currentUser.role === 'super_admin' || document.body.classList.contains('super-admin-mode')) {
+    return;
+  }
+
+  const displayNameInput = document.getElementById('myAccountDisplayName');
+  const newPasswordInput = document.getElementById('myAccountNewPassword');
+  const confirmPasswordInput = document.getElementById('myAccountConfirmPassword');
+
+  const newDisplayName = displayNameInput ? displayNameInput.value.trim() : '';
+  const newPassword = newPasswordInput ? newPasswordInput.value.trim() : '';
+  const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value.trim() : '';
+
+  if (!newDisplayName) {
+    showAlert('الاسم الظاهر مطلوب');
+    return;
+  }
+
+  if (newPassword || confirmPassword) {
+    if (newPassword.length < 8) {
+      showAlert('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showAlert('كلمة المرور وتأكيدها غير متطابقين');
+      return;
+    }
+  }
+
+  try {
+    // تحديث الاسم الظاهر في app_users فقط للمستخدم الحالي
+    const { data: updatedUser, error: updateUserError } = await supabase
+      .from('app_users')
+      .update({
+        display_name: newDisplayName
+      })
+      .eq('id', currentUser.id)
+      .select('*')
+      .single();
+
+    if (updateUserError) {
+      console.error('فشل تحديث الاسم الظاهر:', updateUserError);
+      showAlert('فشل تحديث الاسم الظاهر');
+      return;
+    }
+
+    // تغيير كلمة المرور في Supabase Auth للمستخدم نفسه فقط
+    if (newPassword) {
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (passwordError) {
+        console.error('فشل تغيير كلمة المرور:', passwordError);
+        showAlert('تم تحديث الاسم، لكن فشل تغيير كلمة المرور');
+        return;
+      }
+    }
+
+    currentUser = updatedUser;
+    localStorage.setItem('easyq_user', JSON.stringify(updatedUser));
+
+updateTopbarUserIdentity(updatedUser);
+
+    closeMyAccountModal();
+
+    if (typeof showSuccessNotification === 'function') {
+      showSuccessNotification(newPassword ? 'تم تحديث الحساب وكلمة المرور بنجاح' : 'تم تحديث بيانات الحساب بنجاح');
+    } else {
+      alert('تم تحديث بيانات الحساب بنجاح');
+    }
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء حفظ الحساب:', err);
+    showAlert('حدث خطأ أثناء حفظ بيانات الحساب');
+  }
+}
+
+function setLoginLoading(isLoading) {
+  const loginBtn = document.getElementById('premiumLoginBtn');
+  const loginBtnText = document.getElementById('premiumLoginBtnText');
+  const loginBtnSpinner = document.getElementById('premiumLoginBtnSpinner');
+
+  if (!loginBtn || !loginBtnText || !loginBtnSpinner) return;
+
+  if (isLoading) {
+    loginBtn.disabled = true;
+    loginBtn.style.opacity = '0.75';
+    loginBtn.style.cursor = 'not-allowed';
+    loginBtnText.innerText = 'جاري تسجيل الدخول';
+    loginBtnSpinner.style.display = 'inline-block';
+  } else {
+    loginBtn.disabled = false;
+    loginBtn.style.opacity = '1';
+    loginBtn.style.cursor = 'pointer';
+    loginBtnText.innerText = 'تسجيل الدخول';
+    loginBtnSpinner.style.display = 'none';
+  }
+}
+
+function getCurrentUserRoleLabel(role) {
+  const labels = {
+    admin: 'مدير النظام',
+    manager: 'مدير',
+    staff: 'موظف',
+    super_admin: 'سوبر أدمن'
+  };
+
+  return labels[role] || role || 'غير محدد';
+}
+
+function updateTopbarUserIdentity(user) {
+  const currentUserNameSpan = document.getElementById('currentUserName');
+
+  if (!currentUserNameSpan || !user) return;
+
+  const displayName = user.display_name || 'مستخدم';
+  const roleLabel = getCurrentUserRoleLabel(user.role);
+
+  currentUserNameSpan.innerHTML = `
+    <span>${displayName}</span>
+    <span style="
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      margin-right:6px;
+      padding:3px 8px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.14);
+      color:#F4D28A;
+      font-size:10px;
+      font-weight:900;
+      line-height:1;
+      white-space:nowrap;
+      vertical-align:middle;
+    ">
+      ${roleLabel}
+    </span>
+  `;
+}
+
+let currentUserProfileRefreshInterval = null;
+let isRefreshingCurrentUserProfile = false;
+
+async function refreshCurrentUserProfile() {
+  if (!currentUser || currentUser.role === 'super_admin') return;
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (isRefreshingCurrentUserProfile) return;
+
+  try {
+    isRefreshingCurrentUserProfile = true;
+
+    const { data: freshUser, error } = await supabase
+      .from('app_users')
+      .select('*')
+      .eq('id', currentUser.id)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !freshUser) {
+      console.warn('تعذر تحديث بيانات المستخدم الحالي:', error);
+
+      // إذا تم إيقاف الحساب من الأدمن لاحقًا، نسجل خروج
+      if (error?.code === 'PGRST116') {
+        showAlert('تم إيقاف هذا الحساب أو لم يعد متاحًا. سيتم تسجيل الخروج.');
+        setTimeout(() => logoutAndClean(), 1200);
+      }
+
+      return;
+    }
+
+    const oldRole = currentUser.role;
+    const oldDisplayName = currentUser.display_name;
+
+    currentUser = freshUser;
+    localStorage.setItem('easyq_user', JSON.stringify(freshUser));
+
+    if (
+      freshUser.role !== oldRole ||
+      freshUser.display_name !== oldDisplayName
+    ) {
+      updateTopbarUserIdentity(freshUser);
+
+      if (typeof loadUserPermissions === 'function') {
+        await loadUserPermissions();
+      }
+
+      if (typeof showSuccessNotification === 'function') {
+        showSuccessNotification('تم تحديث بيانات حسابك وصلاحياتك');
+      }
+    }
+
+  } catch (err) {
+    console.warn('خطأ غير متوقع أثناء تحديث بيانات المستخدم الحالي:', err);
+
+  } finally {
+    isRefreshingCurrentUserProfile = false;
+  }
+}
+
+function startCurrentUserProfileAutoRefresh() {
+  stopCurrentUserProfileAutoRefresh();
+
+  currentUserProfileRefreshInterval = setInterval(() => {
+    refreshCurrentUserProfile();
+  }, 30000);
+}
+
+function stopCurrentUserProfileAutoRefresh() {
+  if (currentUserProfileRefreshInterval) {
+    clearInterval(currentUserProfileRefreshInterval);
+    currentUserProfileRefreshInterval = null;
+  }
+}
+
+// عند رجوع المستخدم للتبويب يحدث بياناته فورًا
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) {
+    refreshCurrentUserProfile();
+  }
+});
+
+window.addEventListener('focus', function () {
+  refreshCurrentUserProfile();
+});
+
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
   const errorEl = document.getElementById('loginError');
+if (errorEl) {
+  errorEl.classList.remove('show');
+  errorEl.innerText = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+}
+  setLoginLoading(true);
   
-  if (!username || !password) {
-    if (errorEl) errorEl.classList.add('show');
-    return;
-  }
+if (!username || !password) {
+  if (errorEl) errorEl.classList.add('show');
+  setLoginLoading(false);
+  return;
+}
   
   try {
     const email = username;
@@ -1162,25 +1446,43 @@ async function doLogin() {
       password: password
     });
     
-    if (authError) {
-      console.error("Auth error:", authError);
-      if (errorEl) errorEl.classList.add('show');
-      return;
-    }
+if (authError) {
+  console.error("Auth error:", authError);
+  if (errorEl) errorEl.classList.add('show');
+  setLoginLoading(false);
+  return;
+}
     
     // جلب بيانات المستخدم
-    const { data: user, error: userError } = await supabase
-      .from('app_users')
-      .select('*')
-      .eq('auth_id', authData.user.id)
-      .eq('is_active', true)
-      .single();
-    
-    if (userError || !user) {
-      console.error("User data error:", userError);
-      if (errorEl) errorEl.classList.add('show');
-      return;
-    }
+const { data: user, error: userError } = await supabase
+  .from('app_users')
+  .select('*')
+  .eq('auth_id', authData.user.id)
+  .single();
+
+if (userError || !user) {
+  console.error("User data error:", userError);
+
+  if (errorEl) {
+    errorEl.innerText = 'لم يتم العثور على حساب مرتبط بهذا البريد. يرجى التواصل مع إدارة EASY-Q.';
+    errorEl.classList.add('show');
+  }
+
+  await supabase.auth.signOut();
+  setLoginLoading(false);
+  return;
+}
+
+if (user.is_active === false) {
+  if (errorEl) {
+    errorEl.innerText = 'تم إيقاف هذا الحساب من قبل المدير . يرجى التواصل مع الإدارة .';
+    errorEl.classList.add('show');
+  }
+
+  await supabase.auth.signOut();
+  setLoginLoading(false);
+  return;
+}
     
     // 🔥 الشرط هنا بعد جلب user (المكان الصحيح)
     if (user.role === 'super_admin') {
@@ -1216,6 +1518,7 @@ if (licenseError) {
     errorEl.classList.add('show');
   }
 
+  setLoginLoading(false);
   return;
 }
 
@@ -1230,6 +1533,7 @@ if (!licenseStatus) {
     errorEl.classList.add('show');
   }
 
+  setLoginLoading(false);
   return;
 }
 
@@ -1252,6 +1556,7 @@ if (licenseStatus.access_allowed === false) {
     errorEl.classList.add('show');
   }
 
+  setLoginLoading(false);
   return;
 }
 
@@ -1266,7 +1571,7 @@ if (loginOverlay) loginOverlay.style.display = 'none';
 document.body.classList.add('logged-in');
 
 await loadUserPermissions();
-
+startCurrentUserProfileAutoRefresh();
 /* تحميل بيانات المطعم الحالي بعد تسجيل الدخول */
 await loadSettings();
 await loadActiveSettings();
@@ -1282,8 +1587,7 @@ if (typeof addBusinessSupportSidebarButton === 'function') {
 
 await loadAll();
 
-const currentUserNameSpan = document.getElementById('currentUserName');
-if (currentUserNameSpan) currentUserNameSpan.innerText = user.display_name;
+updateTopbarUserIdentity(user);
 
 // عرض تنبيه الاشتراك داخل الواجهة إن وجد
 showSubscriptionNotice(licenseStatus);
@@ -1305,10 +1609,11 @@ if (licenseStatus.should_show_expiry_warning) {
   showSuccessNotification(`مرحباً ${user.display_name}`);
 }
     
-  } catch (err) {
-    console.error("Login error:", err);
-    if (errorEl) errorEl.classList.add('show');
-  }
+} catch (err) {
+  console.error("Login error:", err);
+  if (errorEl) errorEl.classList.add('show');
+  setLoginLoading(false);
+}
 }
 
 // ============================================================
@@ -1518,9 +1823,9 @@ if (validUser) {
   document.body.classList.add('logged-in');
 
   await loadUserPermissions();
+  startCurrentUserProfileAutoRefresh();
 
-const currentUserNameSpan = document.getElementById('currentUserName');
-if (currentUserNameSpan) currentUserNameSpan.innerText = validUser.display_name;
+updateTopbarUserIdentity(validUser);
 
 // عرض تنبيه الاشتراك بعد تحديث الصفحة أو استعادة الجلسة
 showSubscriptionNotice(licenseStatus);
@@ -1873,36 +2178,473 @@ function cancelAddUser() {
 }
 
 async function loadUsers() {
+  if (!canDo('manage_users')) {
+    showAlert('ليس لديك صلاحية لعرض الموظفين');
+    return;
+  }
+
   const businessId = currentUser?.business_id;
   
   if (!businessId) {
     console.warn('لا يمكن تحديد المطعم للمستخدم الحالي');
+    showAlert('لا يمكن تحديد المطعم الحالي');
     return;
   }
+
+  const container = document.getElementById('usersList');
+  if (!container) return;
+
+  container.innerHTML = `
+    <div style="padding:18px;text-align:center;color:#6B7280;">
+      <i class="fas fa-spinner fa-spin"></i>
+      جاري تحميل الموظفين...
+    </div>
+  `;
   
   const { data: users, error } = await supabase
     .from('app_users')
-    .select('*')
+    .select('id, username, display_name, role, is_active, business_id, created_at')
     .eq('business_id', businessId)
     .order('created_at', { ascending: false });
   
-  if (error) return;
-  
-  const container = document.getElementById('usersList');
-  if (!container) return;
-  
-  container.innerHTML = users.map(u => `
-    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid var(--border-color);">
-      <div>
-        <strong>${u.display_name}</strong>
-        <span style="color: var(--gray-500); font-size: 12px; margin-right: 8px;">@${u.username}</span>
-        <span style="background: var(--gray-200); padding: 2px 8px; border-radius: 10px; font-size: 11px;">${u.role}</span>
+  if (error) {
+    console.error('فشل تحميل الموظفين:', error);
+
+    container.innerHTML = `
+      <div style="padding:18px;text-align:center;color:#DC2626;">
+        فشل تحميل قائمة الموظفين
       </div>
-      <button class="modal-btn" style="background: var(--danger); padding: 6px 12px; min-height: auto; font-size: 12px;" onclick="deleteUser('${u.id}', '${u.username}')">
-        <i class="fas fa-trash"></i>
-      </button>
-    </div>
-  `).join('');
+    `;
+
+    return;
+  }
+
+  const list = Array.isArray(users) ? users : [];
+  window.currentBusinessUsersList = list;
+
+  if (list.length === 0) {
+    container.innerHTML = `
+      <div style="padding:18px;text-align:center;color:#6B7280;">
+        لا يوجد موظفون حتى الآن
+      </div>
+    `;
+    return;
+  }
+
+  const roleLabels = {
+    admin: 'مدير النظام',
+    manager: 'مدير',
+    staff: 'موظف',
+    employee: 'موظف',
+    host: 'استقبال'
+  };
+
+  const roleColors = {
+    admin: '#0E146D',
+    manager: '#7C3AED',
+    staff: '#059669',
+    employee: '#059669',
+    host: '#D97706'
+  };
+
+  container.innerHTML = list.map(u => {
+    const isSelf = String(u.id) === String(currentUser.id);
+    const isActive = u.is_active !== false;
+
+    const roleLabel = roleLabels[u.role] || u.role || 'غير محدد';
+    const roleColor = roleColors[u.role] || '#64748B';
+
+    return `
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:12px;
+        padding:12px;
+        border:1px solid #E5E7EB;
+        border-radius:14px;
+        margin-bottom:10px;
+        background:#FFFFFF;
+      ">
+        <div style="min-width:0;">
+          <div style="
+            display:flex;
+            align-items:center;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-bottom:5px;
+          ">
+            <strong style="color:#111827;font-size:14px;">
+              ${u.display_name || 'مستخدم بدون اسم'}
+            </strong>
+
+            ${
+              isSelf
+                ? `<span style="
+                    background:#EEF2FF;
+                    color:#0E146D;
+                    padding:3px 8px;
+                    border-radius:999px;
+                    font-size:10px;
+                    font-weight:900;
+                  ">أنت</span>`
+                : ''
+            }
+
+            <span style="
+              background:${roleColor}15;
+              color:${roleColor};
+              padding:3px 8px;
+              border-radius:999px;
+              font-size:10px;
+              font-weight:900;
+            ">
+              ${roleLabel}
+            </span>
+
+            <span style="
+              background:${isActive ? '#ECFDF5' : '#FEF2F2'};
+              color:${isActive ? '#059669' : '#DC2626'};
+              padding:3px 8px;
+              border-radius:999px;
+              font-size:10px;
+              font-weight:900;
+            ">
+              ${isActive ? 'نشط' : 'موقوف'}
+            </span>
+          </div>
+
+          <div style="
+            color:#6B7280;
+            font-size:12px;
+            direction:ltr;
+            text-align:right;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow:ellipsis;
+            max-width:260px;
+          ">
+            ${u.username || '—'}
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+         <button
+  class="modal-btn"
+  style="background:#0E146D;padding:7px 10px;min-height:auto;font-size:12px;"
+  title="تعديل الموظف"
+  onclick="openEditUserModal('${u.id}')"
+>
+  <i class="fas fa-edit"></i>
+</button>
+
+<button
+  class="modal-btn"
+  style="background:${isActive ? '#F59E0B' : '#059669'};padding:7px 10px;min-height:auto;font-size:12px;"
+  title="${isActive ? 'إيقاف الموظف' : 'تفعيل الموظف'}"
+  onclick="setBusinessUserActive('${u.id}', ${isActive ? 'false' : 'true'})"
+>
+  <i class="fas ${isActive ? 'fa-user-slash' : 'fa-user-check'}"></i>
+</button>
+
+          ${
+            !isSelf
+              ? `<button
+                  class="modal-btn"
+                  style="background:#DC2626;padding:7px 10px;min-height:auto;font-size:12px;"
+                  onclick="deleteUser('${u.id}')"
+                  title="حذف الموظف"
+                >
+                  <i class="fas fa-trash"></i>
+                </button>`
+              : ''
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+let currentEditingBusinessUserId = null;
+
+function openEditUserModal(userId) {
+  if (!canDo('manage_users')) {
+    showAlert('ليس لديك صلاحية لتعديل الموظفين');
+    return;
+  }
+
+  if (!userId) {
+    showAlert('معرف الموظف غير موجود');
+    return;
+  }
+
+  const users = Array.isArray(window.currentBusinessUsersList)
+    ? window.currentBusinessUsersList
+    : [];
+
+  const user = users.find(item => String(item.id) === String(userId));
+
+  if (!user) {
+    showAlert('لم يتم العثور على بيانات الموظف. حدّث القائمة وحاول مرة أخرى.');
+    return;
+  }
+
+  currentEditingBusinessUserId = user.id;
+
+  const modal = document.getElementById('editUserModal');
+  const idInput = document.getElementById('editUserId');
+  const displayNameInput = document.getElementById('editUserDisplayName');
+  const roleSelect = document.getElementById('editUserRole');
+  const warning = document.getElementById('editUserSelfWarning');
+  const sub = document.getElementById('editUserModalSub');
+
+  if (!modal || !idInput || !displayNameInput || !roleSelect) {
+    console.warn('editUserModal elements are missing in index.html');
+    showAlert('واجهة تعديل الموظف غير مكتملة');
+    return;
+  }
+
+  const isSelf = String(user.id) === String(currentUser?.id);
+
+  idInput.value = user.id;
+  displayNameInput.value = user.display_name || '';
+  roleSelect.value = user.role || 'staff';
+
+  // لا نسمح بتغيير دور الحساب الحالي من هذه النافذة
+  roleSelect.disabled = isSelf;
+
+  if (warning) {
+    warning.style.display = isSelf ? 'block' : 'none';
+  }
+
+  if (sub) {
+    sub.innerText = user.username || 'تعديل بيانات الموظف';
+  }
+
+  modal.classList.add('show');
+}
+
+function closeEditUserModal() {
+  const modal = document.getElementById('editUserModal');
+  if (modal) modal.classList.remove('show');
+
+  currentEditingBusinessUserId = null;
+}
+
+async function saveEditedUser() {
+  if (!canDo('manage_users')) {
+    showAlert('ليس لديك صلاحية لتعديل الموظفين');
+    return;
+  }
+
+  const userId = document.getElementById('editUserId')?.value;
+  const displayName = document.getElementById('editUserDisplayName')?.value.trim();
+  const roleSelect = document.getElementById('editUserRole');
+  const newRole = roleSelect?.value;
+
+  if (!userId) {
+    showAlert('معرف الموظف غير موجود');
+    return;
+  }
+
+  if (!displayName) {
+    showAlert('الاسم الظاهر مطلوب');
+    return;
+  }
+
+  const users = Array.isArray(window.currentBusinessUsersList)
+    ? window.currentBusinessUsersList
+    : [];
+
+  const oldUser = users.find(item => String(item.id) === String(userId));
+
+  if (!oldUser) {
+    showAlert('لم يتم العثور على بيانات الموظف');
+    return;
+  }
+
+  const isSelf = String(userId) === String(currentUser?.id);
+  const finalRole = isSelf ? oldUser.role : newRole;
+
+  if (!finalRole) {
+    showAlert('الدور غير محدد');
+    return;
+  }
+
+  // حماية: لا تسمح بإزالة آخر أدمن في المطعم
+  if (oldUser.role === 'admin' && finalRole !== 'admin') {
+    const { data: admins, error: adminsError } = await supabase
+      .from('app_users')
+      .select('id')
+      .eq('business_id', currentUser.business_id)
+      .eq('role', 'admin')
+      .eq('is_active', true);
+
+    if (adminsError) {
+      console.error('فشل التحقق من عدد المدراء:', adminsError);
+      showAlert('تعذر التحقق من عدد المدراء');
+      return;
+    }
+
+    const activeAdmins = Array.isArray(admins) ? admins : [];
+    const otherActiveAdmins = activeAdmins.filter(admin => String(admin.id) !== String(userId));
+
+    if (otherActiveAdmins.length === 0) {
+      showAlert('لا يمكن تغيير دور آخر مدير نظام في المطعم');
+      return;
+    }
+  }
+
+  const saveBtn = event?.target;
+  const originalBtnHtml = saveBtn ? saveBtn.innerHTML : '';
+
+  try {
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.style.opacity = '0.75';
+      saveBtn.style.cursor = 'not-allowed';
+      saveBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        جاري الحفظ...
+      `;
+    }
+
+const { data: updatedRows, error } = await supabase.rpc('admin_update_business_user', {
+  p_user_id: userId,
+  p_display_name: displayName,
+  p_role: finalRole
+});
+
+if (error) {
+  console.error('فشل تعديل الموظف عبر RPC:', error);
+  showAlert('فشل تعديل الموظف: ' + error.message);
+  return;
+}
+
+const updatedUser = Array.isArray(updatedRows) ? updatedRows[0] : null;
+
+if (!updatedUser) {
+  showAlert('لم يتم إرجاع بيانات الموظف بعد التعديل');
+  return;
+}
+
+// إذا كان المستخدم يعدل اسمه هو، حدّث الاسم في الواجهة والتخزين
+if (isSelf) {
+  currentUser = updatedUser;
+  localStorage.setItem('easyq_user', JSON.stringify(updatedUser));
+
+updateTopbarUserIdentity(updatedUser);
+}
+
+    closeEditUserModal();
+
+    if (typeof showSuccessNotification === 'function') {
+      showSuccessNotification('تم تعديل بيانات الموظف بنجاح');
+    } else {
+      alert('تم تعديل بيانات الموظف بنجاح');
+    }
+
+    await loadUsers();
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء تعديل الموظف:', err);
+    showAlert('حدث خطأ أثناء تعديل الموظف');
+
+  } finally {
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.style.opacity = '1';
+      saveBtn.style.cursor = 'pointer';
+      saveBtn.innerHTML = originalBtnHtml || 'حفظ التعديل';
+    }
+  }
+}
+
+async function setBusinessUserActive(userId, nextActive) {
+  if (!canDo('manage_users')) {
+    showAlert('ليس لديك صلاحية لإدارة الموظفين');
+    return;
+  }
+
+  if (!userId) {
+    showAlert('معرف الموظف غير موجود');
+    return;
+  }
+
+  if (String(userId) === String(currentUser?.id)) {
+    showAlert('لا يمكنك إيقاف حسابك الحالي');
+    return;
+  }
+
+  const users = Array.isArray(window.currentBusinessUsersList)
+    ? window.currentBusinessUsersList
+    : [];
+
+  const targetUser = users.find(item => String(item.id) === String(userId));
+
+  if (!targetUser) {
+    showAlert('لم يتم العثور على بيانات الموظف');
+    return;
+  }
+
+  const actionText = nextActive ? 'تفعيل' : 'إيقاف';
+
+  const confirmed = confirm(`هل أنت متأكد من ${actionText} حساب الموظف: ${targetUser.display_name || targetUser.username}؟`);
+  if (!confirmed) return;
+
+  const actionBtn = Array.from(document.querySelectorAll('[onclick^="setBusinessUserActive"]'))
+    .find(btn => btn.getAttribute('onclick')?.includes(userId));
+
+  const originalBtnHtml = actionBtn ? actionBtn.innerHTML : '';
+
+  try {
+    if (actionBtn) {
+      actionBtn.disabled = true;
+      actionBtn.style.opacity = '0.75';
+      actionBtn.style.cursor = 'not-allowed';
+      actionBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+      `;
+    }
+
+    const { data, error } = await supabase.rpc('admin_set_business_user_active', {
+      p_user_id: userId,
+      p_is_active: nextActive
+    });
+
+    if (error) {
+      console.error(`فشل ${actionText} الموظف:`, error);
+      showAlert(`فشل ${actionText} الموظف: ${error.message}`);
+      return;
+    }
+
+    const updatedUser = Array.isArray(data) ? data[0] : null;
+
+    if (!updatedUser) {
+      showAlert('لم يتم إرجاع بيانات الموظف بعد العملية');
+      return;
+    }
+
+    if (typeof showSuccessNotification === 'function') {
+      showSuccessNotification(`تم ${actionText} الموظف بنجاح`);
+    } else {
+      alert(`تم ${actionText} الموظف بنجاح`);
+    }
+
+    await loadUsers();
+
+  } catch (err) {
+    console.error(`خطأ غير متوقع أثناء ${actionText} الموظف:`, err);
+    showAlert(`حدث خطأ أثناء ${actionText} الموظف`);
+
+  } finally {
+    if (actionBtn) {
+      actionBtn.disabled = false;
+      actionBtn.style.opacity = '1';
+      actionBtn.style.cursor = 'pointer';
+      actionBtn.innerHTML = originalBtnHtml || `<i class="fas ${nextActive ? 'fa-user-check' : 'fa-user-slash'}"></i>`;
+    }
+  }
 }
 
 async function saveUser() {
@@ -5204,6 +5946,7 @@ if (window.subscriptionRefreshInterval) {
 }
 
 currentUser = null;
+stopCurrentUserProfileAutoRefresh();
 localStorage.removeItem('easyq_user');
 localStorage.removeItem('easyq_license_status');
 

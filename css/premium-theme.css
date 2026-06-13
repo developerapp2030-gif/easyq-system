@@ -289,10 +289,8 @@ body.theme-premium .expired-card:hover {
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.075) !important;
 }
 
-body.theme-premium .waiting-card.ready {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.13), #FFFFFF 58%) !important;
-  border-color: rgba(59, 130, 246, 0.55) !important;
-}
+body.theme-premium .waiting-card.ready { background: linear-gradient(135deg, rgba(59, 130, 246, 0.13), #FFFFFF 58%) !important; border-color: rgba(59, 130, 246, 0.55) !important; }
+
 body.theme-premium .waiting-card.selected {
   background: linear-gradient(135deg, rgba(248, 250, 252, 0.16), #FFFFFF 60%) !important;
   border-color: var(--premium-gold) !important;
@@ -1637,8 +1635,8 @@ body.theme-premium .stats-row .stat-dot[style*="rgb(139, 0, 0)"],
 body.theme-premium .stats-row .stat-dot[style*="139, 0, 0"] {
   background: #DC2626 !important;
   background-color: #DC2626 !important;
-  width: 12px !important;
-  height: 12px !important;
+  width: 8px !important;
+  height: 8px !important;
   box-shadow: none !important;
 }
 

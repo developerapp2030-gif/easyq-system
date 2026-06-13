@@ -233,12 +233,14 @@
         <button type="button" id="forgotPasswordBtn" class="premium-forgot-btn" onclick="resetPassword()">نسيت كلمة المرور؟</button>
         </div>
 
-        <button
-          class="premium-login-btn"
-          onclick="doLogin()"
-        >
-          تسجيل الدخول
-        </button>
+<button
+  class="premium-login-btn"
+  id="premiumLoginBtn"
+  onclick="doLogin()"
+>
+  <span id="premiumLoginBtnText">تسجيل الدخول</span>
+  <i id="premiumLoginBtnSpinner" class="fas fa-spinner fa-spin" style="display:none; margin-right:8px;"></i>
+</button>
 
 
 
@@ -558,6 +560,10 @@
 
   <div class="sidebar-footer">
     <div class="sidebar-divider"></div>
+<div class="menu-item" id="myAccountBtn" onclick="openMyAccountModal()" style="margin: 4px 8px;">
+  <i class="fas fa-user-cog"></i> <span>حسابي</span>
+</div>
+
     <div class="menu-item" id="logoutBtn" onclick="logoutAndClean()" style="margin: 4px 8px;">
       <i class="fas fa-sign-out-alt"></i> <span>تسجيل الخروج</span>
     </div>
@@ -828,6 +834,70 @@
   </div>
 </div>
 
+<!-- =========================================================
+     EDIT USER MODAL - تعديل موظف
+========================================================= -->
+<div class="modal-backdrop" id="editUserModal">
+  <div class="modal" style="max-width: 430px;">
+    <div class="modal-title">
+      <i class="fas fa-user-edit"></i> تعديل الموظف
+    </div>
+
+    <div class="modal-sub" id="editUserModalSub">
+      تعديل بيانات الموظف داخل نفس المطعم
+    </div>
+
+    <div class="walkin-form">
+
+      <input type="hidden" id="editUserId">
+
+      <div>
+        <label class="guest-label">الاسم الظاهر</label>
+        <input
+          id="editUserDisplayName"
+          type="text"
+          class="walkin-input"
+          placeholder="الاسم الظاهر"
+          maxlength="40"
+        >
+      </div>
+
+      <div>
+        <label class="guest-label">الدور / المنصب</label>
+        <select id="editUserRole" class="walkin-input">
+          <option value="staff">موظف</option>
+          <option value="manager">مدير</option>
+          <option value="admin">مدير النظام</option>
+        </select>
+      </div>
+
+      <div id="editUserSelfWarning" style="
+        display:none;
+        background:#FFFBEB;
+        border:1px solid #FDE68A;
+        color:#92400E;
+        border-radius:12px;
+        padding:10px 12px;
+        font-size:12px;
+        line-height:1.7;
+      ">
+        لا يمكنك تغيير دور حسابك الحالي من هنا. يمكنك تعديل الاسم فقط.
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button class="settings-save" onclick="saveEditedUser()" style="flex:1;">
+          حفظ التعديل
+        </button>
+
+        <button class="settings-close" onclick="closeEditUserModal()" style="flex:1;">
+          إلغاء
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="zonesModal">
   <div class="modal" style="max-width: 400px;">
     <div class="modal-title">إدارة المناطق</div>
@@ -905,7 +975,91 @@
 </div>
 
 
+<!-- =========================================================
+     MY ACCOUNT MODAL - حسابي
+========================================================= -->
+<div class="modal-backdrop" id="myAccountModal">
+  <div class="modal" style="max-width: 460px;">
+    <div class="modal-title">
+      <i class="fas fa-user-cog"></i> حسابي
+    </div>
 
+    <div class="modal-sub">
+      تعديل بيانات حسابك الشخصي
+    </div>
+
+    <div class="walkin-form">
+
+      <div>
+        <label class="guest-label">الاسم الظاهر</label>
+        <input
+          id="myAccountDisplayName"
+          type="text"
+          class="walkin-input"
+          placeholder="الاسم الظاهر"
+          maxlength="40"
+        >
+      </div>
+
+      <div>
+        <label class="guest-label">البريد الإلكتروني</label>
+        <input
+          id="myAccountEmail"
+          type="email"
+          class="walkin-input"
+          placeholder="البريد الإلكتروني"
+          disabled
+          style="direction:ltr;text-align:left;background:#F3F4F6;color:#6B7280;"
+        >
+      </div>
+
+      <div>
+        <label class="guest-label">كلمة المرور الجديدة</label>
+        <input
+          id="myAccountNewPassword"
+          type="password"
+          class="walkin-input"
+          placeholder="اتركها فارغة إذا لا تريد تغييرها"
+          autocomplete="new-password"
+        >
+      </div>
+
+      <div>
+        <label class="guest-label">تأكيد كلمة المرور الجديدة</label>
+        <input
+          id="myAccountConfirmPassword"
+          type="password"
+          class="walkin-input"
+          placeholder="تأكيد كلمة المرور"
+          autocomplete="new-password"
+        >
+      </div>
+
+      <div style="
+        background:#F8FAFC;
+        border:1px solid #E5E7EB;
+        color:#6B7280;
+        border-radius:12px;
+        padding:10px 12px;
+        font-size:12px;
+        line-height:1.7;
+      ">
+        لا يمكن تغيير المنصب أو الصلاحيات من هنا. هذه الصفحة مخصصة لبيانات حسابك الشخصي فقط.
+      </div>
+
+      <div style="display:flex; gap:12px; margin-top:8px;">
+        <button class="settings-save" onclick="saveMyAccount()" style="flex:1;">
+          حفظ
+        </button>
+
+        <button class="settings-close" onclick="closeMyAccountModal()" style="flex:1;">
+          إلغاء
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <div id="offlineToastContainer"></div>
 
@@ -2228,6 +2382,12 @@ function showSuccessCenter(icon, message) {
     if (typeof checkExistingSession === 'function') {
         await checkExistingSession();
         console.log("Session check completed");
+    }
+
+    // ✅ لا تشغّل نظام المطعم إذا كان المستخدم سوبر أدمن
+    if (window.currentUser && window.currentUser.role === 'super_admin') {
+        console.log("Super admin detected — skipping restaurant startup");
+        return;
     }
     
     if (typeof startApp === 'function') {

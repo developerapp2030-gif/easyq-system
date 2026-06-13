@@ -26,6 +26,11 @@
     currentView: 'overview',
     businesses: [],
     supportSessions: [],
+    supportBusinessFilter: '',
+    supportBusinessFilterLabel: '',
+    errorLogs: [],
+    errorsSearch: '',
+    errorsStatusFilter: 'unresolved',
     currentSupportSessionId: null,
     supportMessagesSignature: '',
     supportSessionsSignature: '',
@@ -181,7 +186,22 @@
   align-items: center;
   justify-content: center;
 }
-      body.super-admin-mode { overflow: hidden !important; background: var(--eqsa-bg) !important; }
+      body.super-admin-mode {
+  overflow: hidden !important;
+  background: var(--eqsa-bg) !important;
+}
+
+body.super-admin-mode .app-container,
+body.super-admin-mode .topbar,
+body.super-admin-mode #sidebar,
+body.super-admin-mode .sidebar,
+body.super-admin-mode .unified-bar,
+body.super-admin-mode .waiting-sidebar,
+body.super-admin-mode .main-content {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
       .eqsa-root { position: fixed; inset: 0; z-index: 20000; direction: rtl; font-family: inherit; color: var(--eqsa-text); background:
         radial-gradient(circle at top right, rgba(14,20,109,0.18), transparent 28%),
         radial-gradient(circle at bottom left, rgba(244,210,138,0.22), transparent 26%),
@@ -341,6 +361,7 @@
           ${navButton('restaurants', 'fa-store', 'المطاعم', '0')}
           ${navButton('subscriptions', 'fa-credit-card', 'الاشتراكات', '0')}
           ${navButton('alerts', 'fa-bell', 'التنبيهات', '0')}
+          ${navButton('errors', 'fa-triangle-exclamation', 'سجل الأخطاء', '0')}
           ${navButton('support', 'fa-headset', 'الدعم الحي', '0')}
           ${navButton('settings', 'fa-cog', 'الإعدادات', '')}
         </aside>
@@ -349,6 +370,7 @@
           <section id="eqsaViewRestaurants" class="eqsa-view"></section>
           <section id="eqsaViewSubscriptions" class="eqsa-view"></section>
           <section id="eqsaViewAlerts" class="eqsa-view"></section>
+          <section id="eqsaViewErrors" class="eqsa-view"></section>
           <section id="eqsaViewSupport" class="eqsa-view"></section>
           <section id="eqsaViewSettings" class="eqsa-view"></section>
         </main>
@@ -388,6 +410,7 @@
     if (view === 'restaurants') renderRestaurants();
     if (view === 'subscriptions') renderSubscriptions();
     if (view === 'alerts') renderAlerts();
+    if (view === 'errors') renderErrors();
     if (view === 'support') renderSupport();
     if (view === 'settings') renderSettings();
   }
@@ -435,6 +458,7 @@
         city: b.city,
         address: b.address,
         phone: b.phone,
+        support_ref: b.support_ref,
         created_at: b.created_at,
         plan_type: license?.plan_type || license?.plan || null,
         starts_at: license?.starts_at || license?.start_date || null,
@@ -461,18 +485,33 @@
     }
   }
 
+  async function loadErrorLogs() {
+    try {
+      const data = await rpc('super_admin_list_error_logs', {
+        p_limit: 250,
+        p_only_unresolved: false
+      });
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('[EASY-Q SA] error logs failed:', err);
+      return [];
+    }
+  }
+
   async function loadData(force = false) {
     if (SA.loading) return;
     if (SA.loaded && !force) return;
     SA.loading = true;
     setLoadingState(true);
     try {
-      const [businesses, supportSessions] = await Promise.all([
+      const [businesses, supportSessions, errorLogs] = await Promise.all([
         loadBusinesses(),
-        loadSupportSessions()
+        loadSupportSessions(),
+        loadErrorLogs()
       ]);
       SA.businesses = businesses;
       SA.supportSessions = supportSessions;
+      SA.errorLogs = errorLogs;
       SA.loaded = true;
       SA.lastLoadedAt = new Date();
       updateCounters();
@@ -488,19 +527,18 @@
     });
   }
 
-  function updateCounters() {
-    const active = SA.businesses.filter((b) => statusInfo(b).key === 'active').length;
-    const expiring = SA.businesses.filter((b) => {
-      const d = Number(b.days_remaining);
-      return Number.isFinite(d) && d >= 0 && d <= 7;
-    }).length;
-    const unread = SA.supportSessions.reduce((sum, s) => sum + n(s.unread_for_super_admin_count || s.unread_count), 0);
-    setCounter('overview', SA.businesses.length);
-    setCounter('restaurants', SA.businesses.length);
-    setCounter('subscriptions', active);
-    setCounter('alerts', expiring + unread + SA.businesses.filter((b) => ['expired', 'suspended'].includes(statusInfo(b).key)).length);
-    setCounter('support', unread || SA.supportSessions.filter((s) => s.status === 'open').length);
-  }
+function updateCounters() {
+  const active = SA.businesses.filter((b) => statusInfo(b).key === 'active').length;
+  const unread = SA.supportSessions.reduce((sum, s) => sum + n(s.unread_for_super_admin_count || s.unread_count), 0);
+  const unresolvedErrors = SA.errorLogs.filter((e) => e.is_resolved !== true).length;
+
+  setCounter('overview', SA.businesses.length);
+  setCounter('restaurants', SA.businesses.length);
+  setCounter('subscriptions', active);
+  setCounter('alerts', countSmartAlerts());
+  setCounter('errors', unresolvedErrors);
+  setCounter('support', unread || SA.supportSessions.filter((s) => s.status === 'open' || s.status === 'pending').length);
+}
 
   function setCounter(view, value) {
     const el = $('eqsaCount_' + view);
@@ -523,6 +561,7 @@
     const tables = SA.businesses.reduce((sum, b) => sum + n(b.current_tables_count), 0);
     const openSupport = SA.supportSessions.filter((s) => s.status === 'open' || s.status === 'pending').length;
     const unread = SA.supportSessions.reduce((sum, s) => sum + n(s.unread_for_super_admin_count || s.unread_count), 0);
+    const unresolvedErrors = SA.errorLogs.filter((e) => e.is_resolved !== true).length;
 
     el.innerHTML = `
       ${pageHead('الرئيسية', 'نظرة تنفيذية على حالة النظام والمطاعم والدعم الحي.', true)}
@@ -537,6 +576,7 @@
         ${stat('الطاولات', tables, 'fa-chair', '#7C3AED')}
         ${stat('جلسات الدعم', openSupport, 'fa-headset', '#0E146D')}
         ${stat('غير مقروء', unread, 'fa-envelope', '#DC2626')}
+        ${stat('أخطاء غير محلولة', unresolvedErrors, 'fa-bug', '#DC2626')}
       </div>
       <div class="eqsa-two">
         <div class="eqsa-card eqsa-panel">
@@ -579,6 +619,112 @@
       return ['expired', 'suspended', 'grace'].includes(s) || (Number.isFinite(d) && d >= 0 && d <= 7);
     });
   }
+
+  function hasReachedAnyLimit(b) {
+  return (
+    b.table_limit_reached === true ||
+    b.user_limit_reached === true ||
+    b.zone_limit_reached === true ||
+    b.floor_limit_reached === true ||
+    (
+      b.max_tables !== null &&
+      b.max_tables !== undefined &&
+      n(b.max_tables) > 0 &&
+      n(b.current_tables_count) >= n(b.max_tables)
+    ) ||
+    (
+      b.max_users !== null &&
+      b.max_users !== undefined &&
+      n(b.max_users) > 0 &&
+      n(b.current_users_count) >= n(b.max_users)
+    ) ||
+    (
+      b.max_zones !== null &&
+      b.max_zones !== undefined &&
+      n(b.max_zones) > 0 &&
+      n(b.current_zones_count) >= n(b.max_zones)
+    ) ||
+    (
+      b.max_floors !== null &&
+      b.max_floors !== undefined &&
+      n(b.max_floors) > 0 &&
+      n(b.current_floors_count) >= n(b.max_floors)
+    )
+  );
+}
+
+function limitReachedText(b) {
+  const parts = [];
+
+  if (
+    b.table_limit_reached === true ||
+    (
+      b.max_tables !== null &&
+      b.max_tables !== undefined &&
+      n(b.max_tables) > 0 &&
+      n(b.current_tables_count) >= n(b.max_tables)
+    )
+  ) {
+    parts.push(`الطاولات ${n(b.current_tables_count)}/${b.max_tables}`);
+  }
+
+  if (
+    b.user_limit_reached === true ||
+    (
+      b.max_users !== null &&
+      b.max_users !== undefined &&
+      n(b.max_users) > 0 &&
+      n(b.current_users_count) >= n(b.max_users)
+    )
+  ) {
+    parts.push(`المستخدمون ${n(b.current_users_count)}/${b.max_users}`);
+  }
+
+  if (
+    b.zone_limit_reached === true ||
+    (
+      b.max_zones !== null &&
+      b.max_zones !== undefined &&
+      n(b.max_zones) > 0 &&
+      n(b.current_zones_count) >= n(b.max_zones)
+    )
+  ) {
+    parts.push(`المناطق ${n(b.current_zones_count)}/${b.max_zones}`);
+  }
+
+  if (
+    b.floor_limit_reached === true ||
+    (
+      b.max_floors !== null &&
+      b.max_floors !== undefined &&
+      n(b.max_floors) > 0 &&
+      n(b.current_floors_count) >= n(b.max_floors)
+    )
+  ) {
+    parts.push(`الطوابق ${n(b.current_floors_count)}/${b.max_floors}`);
+  }
+
+  return parts.length ? parts.join(' · ') : 'تم الوصول إلى حد من حدود الباقة';
+}
+
+function countSmartAlerts() {
+  const expired = SA.businesses.filter((b) => statusInfo(b).key === 'expired').length;
+  const suspended = SA.businesses.filter((b) => statusInfo(b).key === 'suspended').length;
+  const cancelled = SA.businesses.filter((b) => statusInfo(b).key === 'cancelled').length;
+  const grace = SA.businesses.filter((b) => statusInfo(b).key === 'grace').length;
+
+  const expiring = SA.businesses.filter((b) => {
+    const d = Number(b.days_remaining);
+    return Number.isFinite(d) && d >= 0 && d <= 7;
+  }).length;
+
+  const noPlan = SA.businesses.filter((b) => !b.plan_type && !b.plan).length;
+  const limitsReached = SA.businesses.filter((b) => hasReachedAnyLimit(b)).length;
+  const unread = SA.supportSessions.reduce((sum, s) => sum + n(s.unread_for_super_admin_count || s.unread_count), 0);
+  const unresolvedErrors = SA.errorLogs.filter((e) => e.is_resolved !== true).length;
+
+  return expired + suspended + cancelled + grace + expiring + noPlan + limitsReached + unread + unresolvedErrors;
+}
 
   function miniAlertList(rows) {
     if (!rows.length) return `<div class="eqsa-empty">لا توجد تنبيهات حرجة حاليًا.</div>`;
@@ -675,7 +821,6 @@
 </td>
 
 <td>${esc(b.city || '—')}</td>
-      <td>${esc(b.city || '—')}</td>
       <td style="direction:ltr;text-align:right;">${esc(b.phone || '—')}</td>
       <td>${badge(p.label, p.color, p.bg)}</td>
       <td>${esc(fmtDate(b.expires_at || b.end_date))}</td>
@@ -733,43 +878,687 @@
       </div>`;
   }
 
-  function renderAlerts() {
-    const el = $('eqsaViewAlerts');
-    if (!el) return;
-    const expired = SA.businesses.filter((b) => statusInfo(b).key === 'expired');
-    const suspended = SA.businesses.filter((b) => statusInfo(b).key === 'suspended');
-    const expiring = SA.businesses.filter((b) => {
-      const d = Number(b.days_remaining);
-      return Number.isFinite(d) && d >= 0 && d <= 7;
-    });
-    const noPlan = SA.businesses.filter((b) => !b.plan_type && !b.plan);
-    const unread = SA.supportSessions.filter((s) => n(s.unread_for_super_admin_count || s.unread_count) > 0);
+function renderAlerts() {
+  const el = $('eqsaViewAlerts');
+  if (!el) return;
 
-    el.innerHTML = `
-      ${pageHead('التنبيهات', 'كل ما يحتاج انتباهك قبل أن يتحول إلى مشكلة تشغيلية.', true)}
-      <div class="eqsa-grid" style="grid-template-columns:repeat(auto-fit,minmax(310px,1fr));">
-        ${alertPanel('تنتهي خلال 7 أيام', expiring, '#F97316', 'fa-clock')}
-        ${alertPanel('منتهية', expired, '#DC2626', 'fa-times-circle')}
-        ${alertPanel('موقوفة', suspended, '#991B1B', 'fa-ban')}
-        ${alertPanel('بدون خطة واضحة', noPlan, '#64748B', 'fa-file-circle-question')}
-        ${supportPanel(unread)}
-      </div>`;
-  }
+  const expired = SA.businesses.filter((b) => statusInfo(b).key === 'expired');
+
+  const suspended = SA.businesses.filter((b) => statusInfo(b).key === 'suspended');
+
+  const cancelled = SA.businesses.filter((b) => statusInfo(b).key === 'cancelled');
+
+  const grace = SA.businesses.filter((b) => statusInfo(b).key === 'grace');
+
+  const expiring = SA.businesses.filter((b) => {
+    const d = Number(b.days_remaining);
+    return Number.isFinite(d) && d >= 0 && d <= 7;
+  });
+
+  const noPlan = SA.businesses.filter((b) => !b.plan_type && !b.plan);
+
+  const limitsReached = SA.businesses.filter((b) => hasReachedAnyLimit(b));
+
+  const unread = SA.supportSessions.filter((s) => {
+    return n(s.unread_for_super_admin_count || s.unread_count) > 0;
+  });
+
+  const unresolvedErrors = SA.errorLogs.filter((e) => e.is_resolved !== true);
+
+  el.innerHTML = `
+    ${pageHead('التنبيهات', 'كل ما يحتاج انتباهك قبل أن يتحول إلى مشكلة تشغيلية.', true)}
+
+    <div class="eqsa-grid eqsa-stats" style="margin-bottom:18px;">
+      ${stat('إجمالي التنبيهات', countSmartAlerts(), 'fa-bell', '#0E146D')}
+      ${stat('تنتهي قريبًا', expiring.length, 'fa-clock', '#F97316')}
+      ${stat('تجاوز حدود', limitsReached.length, 'fa-gauge-high', '#7C3AED')}
+      ${stat('أخطاء غير محلولة', unresolvedErrors.length, 'fa-bug', '#DC2626')}
+    </div>
+
+    <div class="eqsa-grid" style="grid-template-columns:repeat(auto-fit,minmax(310px,1fr));">
+      ${alertPanel('تنتهي خلال 7 أيام', expiring, '#F97316', 'fa-clock')}
+      ${alertPanel('في فترة السماح', grace, '#D97706', 'fa-hourglass-half')}
+      ${alertPanel('منتهية', expired, '#DC2626', 'fa-times-circle')}
+      ${alertPanel('موقوفة', suspended, '#991B1B', 'fa-ban')}
+      ${alertPanel('ملغية', cancelled, '#64748B', 'fa-circle-xmark')}
+      ${limitPanel(limitsReached)}
+      ${alertPanel('بدون خطة واضحة', noPlan, '#64748B', 'fa-file-circle-question')}
+      ${supportPanel(unread)}
+      ${errorPanel(unresolvedErrors)}
+    </div>
+  `;
+}
 
   function alertPanel(title, rows, color, icon) {
     return `<div class="eqsa-card eqsa-panel"><div class="eqsa-panel-title"><h3><i class="fas ${esc(icon)}" style="color:${esc(color)};margin-left:8px"></i>${esc(title)}</h3>${badge(rows.length, color, color + '12')}</div>${miniAlertList(rows.slice(0, 8))}</div>`;
   }
 
+  function limitPanel(rows) {
+  return `
+    <div class="eqsa-card eqsa-panel">
+      <div class="eqsa-panel-title">
+        <h3>
+          <i class="fas fa-gauge-high" style="color:#7C3AED;margin-left:8px"></i>
+          تجاوز حدود الباقة
+        </h3>
+        ${badge(rows.length, '#7C3AED', '#F5F3FF')}
+      </div>
+
+      ${
+        rows.length
+          ? `<div class="eqsa-alert-list">
+              ${rows.slice(0, 8).map((b) => {
+                const bid = esc(b.business_id || b.id || '');
+
+                return `
+                  <div class="eqsa-alert-item">
+                    <div>
+                      <div class="eqsa-name">${esc(b.business_name || b.name || 'مطعم')}</div>
+                      <div class="eqsa-sub">${esc(limitReachedText(b))}</div>
+                    </div>
+
+                    <div class="eqsa-mini-actions">
+                      <button class="eqsa-icon-btn" style="background:#0E146D;" onclick="EasyQSuperAdmin.viewBusiness('${bid}')" title="تفاصيل المطعم">
+                        <i class="fas fa-eye"></i>
+                      </button>
+
+                      <button class="eqsa-icon-btn" style="background:#7C3AED;" onclick="EasyQSuperAdmin.manageBusinessStatus('${bid}')" title="إدارة الاشتراك">
+                        <i class="fas fa-sliders-h"></i>
+                      </button>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>`
+          : `<div class="eqsa-empty">لا توجد مطاعم تجاوزت حدود الباقة.</div>`
+      }
+    </div>
+  `;
+}
+
   function supportPanel(rows) {
     return `<div class="eqsa-card eqsa-panel"><div class="eqsa-panel-title"><h3><i class="fas fa-headset" style="color:#0E146D;margin-left:8px"></i>دعم غير مقروء</h3>${badge(rows.length, '#DC2626', '#FEF2F2')}</div>${miniSupportList(rows.slice(0, 8))}</div>`;
   }
 
+
+  function errorPanel(rows) {
+    return `<div class="eqsa-card eqsa-panel"><div class="eqsa-panel-title"><h3><i class="fas fa-bug" style="color:#DC2626;margin-left:8px"></i>أخطاء غير محلولة</h3>${badge(rows.length, '#DC2626', '#FEF2F2')}</div>${miniErrorList(rows.slice(0, 8))}</div>`;
+  }
+
+  function miniErrorList(rows) {
+    if (!rows.length) return `<div class="eqsa-empty">لا توجد أخطاء غير محلولة.</div>`;
+    return `<div class="eqsa-alert-list">${rows.map((e) => {
+      return `<div class="eqsa-alert-item"><div><div class="eqsa-name">${esc(e.business_name || 'مطعم غير محدد')}</div><div class="eqsa-sub">${esc(e.error_code || 'ERROR')} · ${esc(e.endpoint || '—')} · ${esc(fmtDateTime(e.created_at))}</div><div class="eqsa-sub" style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(e.error_message || '')}</div></div><button class="eqsa-btn" onclick="EasyQSuperAdmin.showView('errors')"><i class="fas fa-list"></i> عرض</button></div>`;
+    }).join('')}</div>`;
+  }
+
+  function filteredErrors() {
+    const q = (SA.errorsSearch || '').trim().toLowerCase();
+    return SA.errorLogs.filter((e) => {
+      const resolved = e.is_resolved === true;
+      if (SA.errorsStatusFilter === 'unresolved' && resolved) return false;
+      if (SA.errorsStatusFilter === 'resolved' && !resolved) return false;
+      if (!q) return true;
+      const text = [
+        e.business_name,
+        e.support_ref,
+        e.error_code,
+        e.error_message,
+        e.endpoint,
+        e.method,
+        e.user_email,
+        e.ip_address
+      ].join(' ').toLowerCase();
+      return text.includes(q);
+    });
+  }
+
+  function renderErrors() {
+  const el = $('eqsaViewErrors');
+  if (!el) return;
+
+  const rows = filteredErrors();
+
+  const totalErrors = SA.errorLogs.length;
+  const unresolved = SA.errorLogs.filter((e) => e.is_resolved !== true).length;
+  const resolved = SA.errorLogs.filter((e) => e.is_resolved === true).length;
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayErrors = SA.errorLogs.filter((e) => {
+    if (!e.created_at) return false;
+    return new Date(e.created_at).toISOString().slice(0, 10) === todayKey;
+  }).length;
+
+  el.innerHTML = `
+    ${pageHead('سجل أخطاء المطاعم', 'متابعة أخطاء النظام حسب المطعم والمصدر ومعالجتها من لوحة السوبر أدمن.', true)}
+
+    <div class="eqsa-grid eqsa-stats" style="margin-bottom:18px;">
+      ${stat('إجمالي الأخطاء', totalErrors, 'fa-bug', '#0E146D')}
+      ${stat('غير محلولة', unresolved, 'fa-triangle-exclamation', '#DC2626')}
+      ${stat('محلولة', resolved, 'fa-check-circle', '#059669')}
+      ${stat('أخطاء اليوم', todayErrors, 'fa-calendar-day', '#D97706')}
+    </div>
+
+    <div class="eqsa-card eqsa-panel">
+      <div class="eqsa-toolbar">
+        <input
+          id="eqsaErrorSearch"
+          class="eqsa-input"
+          value="${esc(SA.errorsSearch)}"
+          oninput="EasyQSuperAdmin.setErrorSearch(this.value)"
+          placeholder="بحث باسم المطعم، رقم الدعم، كود الخطأ، الرسالة، endpoint..."
+        >
+
+        <select
+          id="eqsaErrorStatus"
+          class="eqsa-select"
+          onchange="EasyQSuperAdmin.setErrorStatus(this.value)"
+        >
+          ${option('unresolved','غير محلولة',SA.errorsStatusFilter)}
+          ${option('all','كل الأخطاء',SA.errorsStatusFilter)}
+          ${option('resolved','محلولة',SA.errorsStatusFilter)}
+        </select>
+
+        ${
+          SA.errorsSearch
+            ? `<button class="eqsa-btn" onclick="EasyQSuperAdmin.clearErrorSearch()">
+                <i class="fas fa-times"></i> مسح البحث
+              </button>`
+            : ''
+        }
+
+        <span class="eqsa-badge" style="color:#DC2626;background:#FEF2F2;border-color:#FECACA;">
+          النتائج: ${rows.length}
+        </span>
+      </div>
+
+      ${errorsTable(rows)}
+    </div>
+  `;
+}
+
+  function errorsTable(rows) {
+    if (!rows.length) return `<div class="eqsa-empty">لا توجد أخطاء مطابقة.</div>`;
+    return `
+      <div class="eqsa-table-wrap">
+        <table class="eqsa-table" style="min-width:1180px;">
+          <thead><tr><th>#</th><th>المطعم</th><th>رقم الدعم</th><th>كود الخطأ</th><th>الرسالة</th><th>المصدر</th><th>المستخدم</th><th>التاريخ</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+          <tbody>${rows.map((e, i) => errorRow(e, i)).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function errorRow(e, i) {
+  const resolved = e.is_resolved === true;
+  const id = esc(e.id);
+  const businessId = getErrorBusinessId(e);
+
+  return `<tr>
+    <td>${i + 1}</td>
+
+    <td>
+      <div class="eqsa-name">${esc(e.business_name || '—')}</div>
+      <div class="eqsa-sub">${esc(e.city || '')}</div>
+    </td>
+
+    <td style="direction:ltr;text-align:right;">
+      <span class="eqsa-support-ref">${esc(e.support_ref || '—')}</span>
+    </td>
+
+    <td>
+      <span class="eqsa-badge" style="color:#DC2626;background:#FEF2F2;border-color:#FECACA;">
+        ${esc(e.error_code || 'ERROR')}
+      </span>
+    </td>
+
+    <td>
+      <div class="eqsa-sub" style="max-width:310px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        ${esc(e.error_message || '—')}
+      </div>
+    </td>
+
+    <td>
+      <div style="direction:ltr;text-align:right;">
+        ${esc(e.method || '')} ${esc(e.endpoint || '—')}
+      </div>
+    </td>
+
+    <td>
+      <div class="eqsa-sub">${esc(e.user_email || '—')}</div>
+    </td>
+
+    <td>${esc(fmtDateTime(e.created_at))}</td>
+
+    <td>
+      ${resolved ? badge('محلول', '#059669', '#ECFDF5') : badge('غير محلول', '#DC2626', '#FEF2F2')}
+    </td>
+
+    <td>
+      <div class="eqsa-mini-actions">
+        ${iconBtn('#0E146D','fa-eye',`EasyQSuperAdmin.viewError('${id}')`,'عرض تفاصيل الخطأ')}
+
+        ${
+          businessId
+            ? iconBtn('#2563EB','fa-store',`EasyQSuperAdmin.openErrorBusiness('${id}')`,'فتح تفاصيل المطعم')
+            : ''
+        }
+
+        ${
+          businessId || e.support_ref || e.business_name
+            ? iconBtn('#7C3AED','fa-filter',`EasyQSuperAdmin.filterErrorsByErrorBusiness('${id}')`,'أخطاء نفس المطعم')
+            : ''
+        }
+
+        ${!resolved ? iconBtn('#059669','fa-check',`EasyQSuperAdmin.markErrorResolved('${id}')`,'تعليم كمحلول') : ''}
+      </div>
+    </td>
+  </tr>`;
+}
+
+  function viewError(errorId) {
+  if (!isSuperAdmin()) return;
+
+  const e = SA.errorLogs.find((x) => String(x.id) === String(errorId));
+
+  if (!e) {
+    notify('لم يتم العثور على الخطأ', 'error');
+    return;
+  }
+
+  const businessId = getErrorBusinessId(e);
+  const resolved = e.is_resolved === true;
+
+  openModal(`
+    <div class="eqsa-modal-head">
+      <div>
+        <div class="eqsa-name" style="font-size:18px;">
+          تفاصيل الخطأ
+        </div>
+        <div class="eqsa-sub">
+          ${esc(e.error_code || 'ERROR')} · ${esc(fmtDateTime(e.created_at))}
+        </div>
+      </div>
+
+      <button class="eqsa-btn" onclick="EasyQSuperAdmin.closeModal()">
+        <i class="fas fa-times"></i> إغلاق
+      </button>
+    </div>
+
+    <div class="eqsa-modal-body">
+      <div class="eqsa-detail-grid">
+        ${detail('حالة الخطأ', resolved ? 'محلول' : 'غير محلول')}
+        ${detail('معرف الخطأ', e.id)}
+        ${detail('المطعم', e.business_name || '—')}
+        ${detail('رقم الدعم', e.support_ref || '—')}
+        ${detail('معرف المطعم', businessId || '—')}
+        ${detail('المدينة', e.city || '—')}
+        ${detail('كود الخطأ', e.error_code || 'ERROR')}
+        ${detail('وقت الحدوث', fmtDateTime(e.created_at))}
+        ${detail('المستخدم', e.user_email || '—')}
+        ${detail('User ID', e.user_id || '—')}
+        ${detail('Method', e.method || '—')}
+        ${detail('Endpoint', e.endpoint || '—')}
+        ${detail('IP', e.ip_address || '—')}
+        ${detail('تم الحل في', fmtDateTime(e.resolved_at))}
+      </div>
+
+      <div class="eqsa-card eqsa-panel" style="box-shadow:none;margin-top:14px;background:#F8FAFC;">
+        <div class="eqsa-panel-title">
+          <h3>
+            <i class="fas fa-message" style="color:#DC2626;margin-left:8px;"></i>
+            رسالة الخطأ
+          </h3>
+
+          <button class="eqsa-btn" onclick="EasyQSuperAdmin.copyErrorField('${esc(e.id)}','error_message','تم نسخ رسالة الخطأ')">
+            <i class="fas fa-copy"></i> نسخ
+          </button>
+        </div>
+
+        <div style="
+          direction:ltr;
+          text-align:left;
+          background:#FFFFFF;
+          border:1px solid #E5E7EB;
+          border-radius:16px;
+          padding:14px;
+          color:#991B1B;
+          font-weight:800;
+          white-space:pre-wrap;
+          word-break:break-word;
+          line-height:1.6;
+        ">${esc(e.error_message || 'لا توجد رسالة خطأ')}</div>
+      </div>
+
+      <div class="eqsa-card eqsa-panel" style="box-shadow:none;margin-top:14px;background:#F8FAFC;">
+        <div class="eqsa-panel-title">
+          <h3>
+            <i class="fas fa-route" style="color:#0E146D;margin-left:8px;"></i>
+            مصدر الطلب
+          </h3>
+
+          <button class="eqsa-btn" onclick="EasyQSuperAdmin.copyErrorField('${esc(e.id)}','endpoint','تم نسخ Endpoint')">
+            <i class="fas fa-copy"></i> نسخ Endpoint
+          </button>
+        </div>
+
+        <div style="
+          direction:ltr;
+          text-align:left;
+          background:#FFFFFF;
+          border:1px solid #E5E7EB;
+          border-radius:16px;
+          padding:14px;
+          font-family:Consolas, monospace;
+          font-size:12.5px;
+          white-space:pre-wrap;
+          word-break:break-word;
+          line-height:1.6;
+        ">${esc((e.method ? e.method + ' ' : '') + (e.endpoint || '—'))}</div>
+      </div>
+
+      <div class="eqsa-card eqsa-panel" style="box-shadow:none;margin-top:14px;background:#0F172A;color:#E5E7EB;">
+        <div class="eqsa-panel-title">
+          <h3 style="color:#FFFFFF;">
+            <i class="fas fa-code" style="color:#F4D28A;margin-left:8px;"></i>
+            Stack Trace
+          </h3>
+
+          <button class="eqsa-btn" onclick="EasyQSuperAdmin.copyErrorField('${esc(e.id)}','error_stack','تم نسخ Stack Trace')">
+            <i class="fas fa-copy"></i> نسخ Stack
+          </button>
+        </div>
+
+        <pre style="
+          margin:0;
+          direction:ltr;
+          text-align:left;
+          white-space:pre-wrap;
+          word-break:break-word;
+          font-family:Consolas, monospace;
+          font-size:12px;
+          line-height:1.65;
+          color:#E5E7EB;
+          max-height:280px;
+          overflow:auto;
+        ">${esc(e.error_stack || 'لا يوجد Stack Trace')}</pre>
+      </div>
+
+      <div class="eqsa-card eqsa-panel" style="box-shadow:none;margin-top:14px;background:#F8FAFC;">
+        <div class="eqsa-panel-title">
+          <h3>
+            <i class="fas fa-desktop" style="color:#64748B;margin-left:8px;"></i>
+            معلومات الجهاز والمتصفح
+          </h3>
+
+          <button class="eqsa-btn" onclick="EasyQSuperAdmin.copyErrorField('${esc(e.id)}','user_agent','تم نسخ User Agent')">
+            <i class="fas fa-copy"></i> نسخ
+          </button>
+        </div>
+
+        <div style="
+          direction:ltr;
+          text-align:left;
+          background:#FFFFFF;
+          border:1px solid #E5E7EB;
+          border-radius:16px;
+          padding:14px;
+          font-family:Consolas, monospace;
+          font-size:12px;
+          white-space:pre-wrap;
+          word-break:break-word;
+          line-height:1.6;
+        ">${esc(e.user_agent || '—')}</div>
+      </div>
+
+      <div class="eqsa-actions" style="margin-top:18px;">
+        ${
+          e.support_ref
+            ? `<button class="eqsa-btn" onclick="EasyQSuperAdmin.copyText('${esc(e.support_ref)}','تم نسخ رقم الدعم')">
+                <i class="fas fa-headset"></i> نسخ رقم الدعم
+              </button>`
+            : ''
+        }
+
+        ${
+          businessId
+            ? `<button class="eqsa-btn" onclick="EasyQSuperAdmin.openErrorBusiness('${esc(e.id)}')">
+                <i class="fas fa-store"></i> فتح تفاصيل المطعم
+              </button>`
+            : ''
+        }
+
+        <button class="eqsa-btn" onclick="EasyQSuperAdmin.filterErrorsByErrorBusiness('${esc(e.id)}')">
+          <i class="fas fa-filter"></i> أخطاء نفس المطعم
+        </button>
+
+        <button class="eqsa-btn" onclick="EasyQSuperAdmin.copyErrorDiagnostic('${esc(e.id)}')">
+          <i class="fas fa-clipboard-list"></i> نسخ تقرير التشخيص
+        </button>
+
+        ${
+          !resolved
+            ? `<button class="eqsa-btn primary" onclick="EasyQSuperAdmin.markErrorResolved('${esc(e.id)}')">
+                <i class="fas fa-check"></i> تعليم كمحلول
+              </button>`
+            : ''
+        }
+      </div>
+    </div>
+  `);
+}
+
+  async function markErrorResolved(errorId) {
+    if (!isSuperAdmin() || !errorId) return;
+    const ok = confirm('هل تريد تعليم هذا الخطأ كمحلول؟');
+    if (!ok) return;
+    try {
+      await rpc('super_admin_mark_error_resolved', { p_error_id: errorId });
+      notify('تم تعليم الخطأ كمحلول', 'success');
+      closeModal();
+      SA.loaded = false;
+      await loadData(true);
+      renderErrors();
+      updateCounters();
+    } catch (err) {
+      console.error('[EASY-Q SA] mark error resolved failed:', err);
+      notify('تعذر تحديث حالة الخطأ: ' + (err.message || err), 'error');
+    }
+  }
+
+
+  function getErrorBusinessId(errorRow) {
+  if (!errorRow) return '';
+
+  const directId =
+    errorRow.business_id ||
+    errorRow.businessId ||
+    errorRow.restaurant_id ||
+    '';
+
+  if (directId) return String(directId);
+
+  const matched = SA.businesses.find((b) => {
+    const bid = String(b.business_id || b.id || '');
+    const sameSupportRef =
+      errorRow.support_ref &&
+      b.support_ref &&
+      String(errorRow.support_ref) === String(b.support_ref);
+
+    const sameName =
+      errorRow.business_name &&
+      (b.business_name || b.name) &&
+      String(errorRow.business_name).trim() === String(b.business_name || b.name).trim();
+
+    return bid && (sameSupportRef || sameName);
+  });
+
+  return matched ? String(matched.business_id || matched.id || '') : '';
+}
+
+function openErrorBusiness(errorId) {
+  if (!isSuperAdmin()) return;
+
+  const e = SA.errorLogs.find((x) => String(x.id) === String(errorId));
+
+  if (!e) {
+    notify('لم يتم العثور على الخطأ', 'error');
+    return;
+  }
+
+  const businessId = getErrorBusinessId(e);
+
+  if (!businessId) {
+    notify('لا يمكن تحديد المطعم المرتبط بهذا الخطأ', 'error');
+    return;
+  }
+
+  closeModal();
+  viewBusiness(businessId);
+}
+
+function filterErrorsByErrorBusiness(errorId) {
+  if (!isSuperAdmin()) return;
+
+  const e = SA.errorLogs.find((x) => String(x.id) === String(errorId));
+
+  if (!e) {
+    notify('لم يتم العثور على الخطأ', 'error');
+    return;
+  }
+
+  const businessId = getErrorBusinessId(e);
+
+  const searchValue =
+    e.support_ref ||
+    e.business_name ||
+    businessId ||
+    '';
+
+  if (!searchValue) {
+    notify('لا توجد قيمة مناسبة لفلترة أخطاء هذا المطعم', 'error');
+    return;
+  }
+
+  SA.errorsSearch = String(searchValue);
+  SA.errorsStatusFilter = 'all';
+
+  closeModal();
+  showView('errors');
+
+  setTimeout(() => {
+    const input = $('eqsaErrorSearch');
+    if (input) input.value = SA.errorsSearch;
+
+    const status = $('eqsaErrorStatus');
+    if (status) status.value = SA.errorsStatusFilter;
+  }, 50);
+}
+
+function clearErrorSearch() {
+  SA.errorsSearch = '';
+  SA.errorsStatusFilter = 'unresolved';
+  renderErrors();
+}
+
+function buildErrorDiagnosticReport(errorRow) {
+  if (!errorRow) return '';
+
+  const businessId = getErrorBusinessId(errorRow);
+
+  return [
+    'EASY-Q Error Diagnostic Report',
+    '--------------------------------',
+    `Error ID: ${safeText(errorRow.id, '-')}`,
+    `Created At: ${safeText(errorRow.created_at, '-')}`,
+    `Status: ${errorRow.is_resolved === true ? 'Resolved' : 'Unresolved'}`,
+    '',
+    'Business',
+    '--------------------------------',
+    `Business ID: ${safeText(businessId, '-')}`,
+    `Business Name: ${safeText(errorRow.business_name, '-')}`,
+    `Support Ref: ${safeText(errorRow.support_ref, '-')}`,
+    `City: ${safeText(errorRow.city, '-')}`,
+    '',
+    'Error',
+    '--------------------------------',
+    `Code: ${safeText(errorRow.error_code, '-')}`,
+    `Message: ${safeText(errorRow.error_message, '-')}`,
+    '',
+    'Request',
+    '--------------------------------',
+    `Method: ${safeText(errorRow.method, '-')}`,
+    `Endpoint: ${safeText(errorRow.endpoint, '-')}`,
+    `User Email: ${safeText(errorRow.user_email, '-')}`,
+    `User ID: ${safeText(errorRow.user_id, '-')}`,
+    '',
+    'Environment',
+    '--------------------------------',
+    `IP Address: ${safeText(errorRow.ip_address, '-')}`,
+    `User Agent: ${safeText(errorRow.user_agent, '-')}`,
+    '',
+    'Stack',
+    '--------------------------------',
+    safeText(errorRow.error_stack, '-')
+  ].join('\n');
+}
+
+function copyErrorField(errorId, fieldName, successMessage) {
+  const e = SA.errorLogs.find((x) => String(x.id) === String(errorId));
+
+  if (!e) {
+    notify('لم يتم العثور على الخطأ', 'error');
+    return;
+  }
+
+  const value = e[fieldName];
+
+  if (!value) {
+    notify('لا توجد بيانات لنسخها', 'error');
+    return;
+  }
+
+  copyText(String(value), successMessage || 'تم النسخ');
+}
+
+function copyErrorDiagnostic(errorId) {
+  const e = SA.errorLogs.find((x) => String(x.id) === String(errorId));
+
+  if (!e) {
+    notify('لم يتم العثور على الخطأ', 'error');
+    return;
+  }
+
+  const report = buildErrorDiagnosticReport(e);
+  copyText(report, 'تم نسخ تقرير التشخيص');
+}
+
   function renderSupport() {
     const el = $('eqsaViewSupport');
     if (!el) return;
-    el.innerHTML = `
-      ${pageHead('الدعم الحي', 'مركز متابعة محادثات الدعم بين EASY-Q والمطاعم.', false)}
-      <div class="eqsa-card eqsa-panel" style="margin-bottom:14px;">
+el.innerHTML = `
+  ${pageHead('الدعم الحي', 'مركز متابعة محادثات الدعم بين EASY-Q والمطاعم.', false)}
+
+  ${
+    SA.supportBusinessFilter
+      ? `<div class="eqsa-card eqsa-panel" style="margin-bottom:14px;background:#EEF2FF;border-color:#C7D2FE;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div class="eqsa-name">
+                <i class="fas fa-filter" style="color:#0E146D;margin-left:8px;"></i>
+                عرض جلسات دعم مطعم محدد
+              </div>
+              <div class="eqsa-sub">${esc(SA.supportBusinessFilterLabel || 'مطعم محدد')}</div>
+            </div>
+
+            <button class="eqsa-btn" onclick="EasyQSuperAdmin.clearSupportBusinessFilter()">
+              <i class="fas fa-times"></i> عرض كل الجلسات
+            </button>
+          </div>
+        </div>`
+      : ''
+  }
+
+  <div class="eqsa-card eqsa-panel" style="margin-bottom:14px;">
         <div class="eqsa-toolbar">
           <input id="eqsaSupportCode" class="eqsa-input" style="direction:ltr;flex:0 1 220px;min-width:220px;text-align:center" placeholder="رمز الدعم EQ-123456">
           <input id="eqsaSupportSubject" class="eqsa-input" style="flex:0 1 260px;min-width:220px" value="طلب دعم" placeholder="عنوان الجلسة">
@@ -796,22 +1585,48 @@
   }
 
   function supportSessionsHtml() {
-    const rows = SA.supportSessions;
-    if (!rows.length) return `<div class="eqsa-empty">لا توجد جلسات دعم.</div>`;
-    return rows.map((s) => {
-      const sid = esc(s.session_id || s.id);
-      const unread = n(s.unread_for_super_admin_count || s.unread_count);
-      const active = SA.currentSupportSessionId === (s.session_id || s.id) ? 'active' : '';
-      return `<div class="eqsa-support-session ${active}" onclick="EasyQSuperAdmin.openSupportSession('${sid}')">
-        <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
-          <div><div class="eqsa-name">${esc(s.business_name || 'مطعم')}</div><div class="eqsa-sub">${esc(s.subject || 'جلسة دعم')}</div></div>
-          ${unread ? badge(unread, '#DC2626', '#FEF2F2') : badge(s.status || 'open', '#64748B', '#F8FAFC')}
-        </div>
-        <div class="eqsa-sub" style="margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(s.last_message_body || 'لا توجد رسائل بعد')}</div>
-        <div class="eqsa-sub" style="margin-top:5px;">${esc(fmtDateTime(s.last_message_created_at || s.last_message_at || s.created_at))}</div>
-      </div>`;
-    }).join('');
+  const rows = (SA.supportSessions || []).filter((session) => {
+    if (!SA.supportBusinessFilter) return true;
+
+    return String(session.business_id || session.businessId || '') === String(SA.supportBusinessFilter);
+  });
+
+  if (!rows.length) {
+    return `
+      <div class="eqsa-empty">
+        ${
+          SA.supportBusinessFilter
+            ? `لا توجد جلسات دعم للمطعم: ${esc(SA.supportBusinessFilterLabel || '')}`
+            : 'لا توجد جلسات دعم.'
+        }
+      </div>
+    `;
   }
+
+  return rows.map((s) => {
+    const sid = esc(s.session_id || s.id);
+    const unread = n(s.unread_for_super_admin_count || s.unread_count);
+    const active = SA.currentSupportSessionId === (s.session_id || s.id) ? 'active' : '';
+
+    return `<div class="eqsa-support-session ${active}" onclick="EasyQSuperAdmin.openSupportSession('${sid}')">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;">
+        <div>
+          <div class="eqsa-name">${esc(s.business_name || 'مطعم')}</div>
+          <div class="eqsa-sub">${esc(s.subject || 'جلسة دعم')}</div>
+        </div>
+        ${unread ? badge(unread, '#DC2626', '#FEF2F2') : badge(s.status || 'open', '#64748B', '#F8FAFC')}
+      </div>
+
+      <div class="eqsa-sub" style="margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+        ${esc(s.last_message_body || 'لا توجد رسائل بعد')}
+      </div>
+
+      <div class="eqsa-sub" style="margin-top:5px;">
+        ${esc(fmtDateTime(s.last_message_created_at || s.last_message_at || s.created_at))}
+      </div>
+    </div>`;
+  }).join('');
+}
 
   async function reloadSupport(silent = false) {
     const sessions = await loadSupportSessions();
@@ -980,47 +1795,184 @@
   function detail(label, value) {
     return `<div class="eqsa-detail"><label>${esc(label)}</label><strong>${esc(value)}</strong></div>`;
   }
+function businessRecentSupportHtml(businessId) {
+  const rows = (SA.supportSessions || [])
+    .filter((session) => String(session.business_id || session.businessId || '') === String(businessId))
+    .sort((a, b) => new Date(b.last_message_at || b.updated_at || b.created_at || 0) - new Date(a.last_message_at || a.updated_at || a.created_at || 0))
+    .slice(0, 3);
+
+  if (!rows.length) {
+    return `
+      <div class="eqsa-card eqsa-panel" style="box-shadow:none;margin-top:14px;background:#F8FAFC;">
+        <div class="eqsa-panel-title">
+          <h3><i class="fas fa-headset" style="color:#0E146D;margin-left:8px;"></i> آخر جلسات الدعم</h3>
+        </div>
+        <div class="eqsa-empty" style="padding:18px;">لا توجد جلسات دعم لهذا المطعم.</div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="eqsa-card eqsa-panel" style="box-shadow:none;margin-top:14px;background:#F8FAFC;">
+      <div class="eqsa-panel-title">
+        <h3><i class="fas fa-headset" style="color:#0E146D;margin-left:8px;"></i> آخر جلسات الدعم</h3>
+        <button class="eqsa-btn" onclick="EasyQSuperAdmin.showView('support')">
+          <i class="fas fa-arrow-left"></i> فتح الدعم
+        </button>
+      </div>
+
+      <div class="eqsa-alert-list">
+        ${rows.map((session) => {
+          const sessionId = session.session_id || session.id || '';
+          const unread = n(session.unread_for_super_admin_count || session.unread_count || 0);
+
+          const statusLabel =
+            session.status === 'open' ? 'مفتوحة' :
+            session.status === 'pending' ? 'بانتظار الرد' :
+            session.status === 'closed' ? 'مغلقة' :
+            'غير معروف';
+
+          const statusColor =
+            session.status === 'open' ? '#059669' :
+            session.status === 'pending' ? '#D97706' :
+            session.status === 'closed' ? '#64748B' :
+            '#64748B';
+
+          return `
+            <div class="eqsa-alert-item">
+              <div style="min-width:0;">
+                <div class="eqsa-name">${esc(session.subject || 'جلسة دعم')}</div>
+                <div class="eqsa-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${esc(session.last_message_body || 'لا توجد رسالة أخيرة')}
+                </div>
+                <div class="eqsa-sub">
+                  آخر نشاط: ${esc(fmtDateTime(session.last_message_at || session.updated_at || session.created_at))}
+                </div>
+              </div>
+
+              <div class="eqsa-mini-actions">
+                ${unread > 0 ? badge(unread > 99 ? '99+' : String(unread), '#DC2626', '#FEF2F2') : ''}
+                ${badge(statusLabel, statusColor, '#FFFFFF')}
+                ${
+                  sessionId
+                    ? `<button class="eqsa-icon-btn" style="background:#0E146D;" onclick="EasyQSuperAdmin.openSupportSession('${esc(sessionId)}')" title="فتح الجلسة">
+                        <i class="fas fa-comments"></i>
+                      </button>`
+                    : ''
+                }
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
+  function businessRecentErrorsHtml(businessId) {
+    const rows = SA.errorLogs
+      .filter((e) => String(e.business_id) === String(businessId))
+      .slice(0, 5);
+    if (!rows.length) {
+      return `<div class="eqsa-detail" style="margin-top:14px;"><label>آخر أخطاء المطعم</label><strong>لا توجد أخطاء مسجلة</strong></div>`;
+    }
+    return `<div class="eqsa-detail" style="margin-top:14px;"><label>آخر أخطاء المطعم</label><div class="eqsa-alert-list" style="margin-top:10px;">${rows.map((e) => `<div class="eqsa-alert-item"><div><div class="eqsa-name">${esc(e.error_code || 'ERROR')}</div><div class="eqsa-sub">${esc(e.error_message || '')} · ${esc(fmtDateTime(e.created_at))}</div></div>${e.is_resolved ? badge('محلول', '#059669', '#ECFDF5') : badge('غير محلول', '#DC2626', '#FEF2F2')}</div>`).join('')}</div></div>`;
+  }
 
   function viewBusiness(businessId) {
-    if (!isSuperAdmin()) return;
-    const b = SA.businesses.find((x) => String(x.business_id || x.id) === String(businessId));
-    if (!b) { notify('لم يتم العثور على المطعم', 'error'); return; }
-    const s = statusInfo(b);
-    const p = planInfo(b.plan_type || b.plan);
-    openModal(`
-      <div class="eqsa-modal-head">
-        <div><div class="eqsa-name" style="font-size:18px;">${esc(b.business_name || b.name)}</div><div class="eqsa-sub">${esc(b.branch_name || b.address || '')}</div></div>
-        <button class="eqsa-btn" onclick="EasyQSuperAdmin.closeModal()"><i class="fas fa-times"></i> إغلاق</button>
-      </div>
-      <div class="eqsa-modal-body">
-        <div class="eqsa-detail-grid">
-          ${detail('معرف المطعم', b.business_id || b.id)}
-          ${detail('رقم الدعم', b.support_ref || '—')}
-          ${detail('المدينة', b.city)}
-          ${detail('الجوال', b.phone)}
-          ${detail('العنوان', b.address)}
-          ${detail('الباقة', p.label)}
-          ${detail('الحالة', s.label)}
-          ${detail('تاريخ البداية', fmtDate(b.starts_at || b.start_date))}
-          ${detail('تاريخ الانتهاء', fmtDate(b.expires_at || b.end_date))}
-          ${detail('الأيام المتبقية', daysLabel(b.days_remaining))}
-          ${detail('عدد المستخدمين', `${n(b.current_users_count)}/${b.max_users ?? '∞'}`)}
-          ${detail('عدد الطاولات', `${n(b.current_tables_count)}/${b.max_tables ?? '∞'}`)}
-          ${detail('حد الحجوزات', b.max_bookings ?? '∞')}
-        </div>
-        <div class="eqsa-actions" style="margin-top:18px;">
-          <button class="eqsa-btn primary" onclick="EasyQSuperAdmin.copyBookingLink('${esc(b.business_id || b.id)}')"><i class="fas fa-link"></i> نسخ رابط الحجز</button>
-          ${
-  b.support_ref
-    ? `<button class="eqsa-btn" onclick="EasyQSuperAdmin.copyText('${esc(b.support_ref)}','تم نسخ رقم الدعم')">
-        <i class="fas fa-headset"></i> نسخ رقم الدعم
-      </button>`
-    : ''
-}
-          <button class="eqsa-btn" onclick="EasyQSuperAdmin.manageBusinessStatus('${esc(b.business_id || b.id)}')"><i class="fas fa-sliders-h"></i> إدارة الاشتراك/الحالة</button>
-        </div>
-      </div>`);
+  if (!isSuperAdmin()) return;
+
+  const b = SA.businesses.find((x) => String(x.business_id || x.id) === String(businessId));
+
+  if (!b) {
+    notify('لم يتم العثور على المطعم', 'error');
+    return;
   }
+
+  const businessIdValue = b.business_id || b.id;
+  const s = statusInfo(b);
+  const p = planInfo(b.plan_type || b.plan);
+
+  const usageCards = `
+    <div class="eqsa-grid" style="grid-template-columns:repeat(4,minmax(120px,1fr));gap:10px;margin-top:14px;">
+      ${stat('المستخدمون', `${n(b.current_users_count)}/${b.max_users ?? '∞'}`, 'fa-users', '#2563EB')}
+      ${stat('الطاولات', `${n(b.current_tables_count)}/${b.max_tables ?? '∞'}`, 'fa-chair', '#7C3AED')}
+      ${stat('المناطق', `${n(b.current_zones_count)}/${b.max_zones ?? '∞'}`, 'fa-map', '#059669')}
+      ${stat('الطوابق', `${n(b.current_floors_count)}/${b.max_floors ?? '∞'}`, 'fa-building', '#D97706')}
+    </div>
+  `;
+
+  openModal(`
+    <div class="eqsa-modal-head">
+      <div>
+        <div class="eqsa-name" style="font-size:18px;">${esc(b.business_name || b.name || 'مطعم بدون اسم')}</div>
+        <div class="eqsa-sub">
+          ${esc(b.branch_name || b.address || '—')}
+          ${b.support_ref ? ' · ' + esc(b.support_ref) : ''}
+        </div>
+      </div>
+
+      <button class="eqsa-btn" onclick="EasyQSuperAdmin.closeModal()">
+        <i class="fas fa-times"></i> إغلاق
+      </button>
+    </div>
+
+    <div class="eqsa-modal-body">
+      <div class="eqsa-detail-grid">
+        ${detail('معرف المطعم', businessIdValue)}
+        ${detail('رقم الدعم', b.support_ref || '—')}
+        ${detail('المدينة', b.city)}
+        ${detail('الجوال', b.phone)}
+        ${detail('العنوان', b.address)}
+        ${detail('الباقة', p.label)}
+        ${detail('حالة الاشتراك', s.label)}
+        ${detail('السماح بالدخول', b.access_allowed === false ? 'غير مسموح' : 'مسموح')}
+        ${detail('تاريخ البداية', fmtDate(b.starts_at || b.start_date))}
+        ${detail('تاريخ الانتهاء', fmtDate(b.expires_at || b.end_date))}
+        ${detail('الأيام المتبقية', daysLabel(b.days_remaining))}
+        ${detail('أولوية الدعم', b.support_priority || '—')}
+        ${detail('سبب الإيقاف', b.suspension_reason || '—')}
+        ${detail('آخر تحديث اشتراك', fmtDateTime(b.updated_at))}
+      </div>
+
+      ${usageCards}
+
+      ${
+        typeof businessRecentErrorsHtml === 'function'
+          ? businessRecentErrorsHtml(businessIdValue)
+          : ''
+      }
+
+      ${businessRecentSupportHtml(businessIdValue)}
+
+      <div class="eqsa-actions" style="margin-top:18px;">
+        <button class="eqsa-btn primary" onclick="EasyQSuperAdmin.copyBookingLink('${esc(businessIdValue)}')">
+          <i class="fas fa-link"></i> نسخ رابط الحجز
+        </button>
+
+        ${
+          b.support_ref
+            ? `<button class="eqsa-btn" onclick="EasyQSuperAdmin.copyText('${esc(b.support_ref)}','تم نسخ رقم الدعم')">
+                <i class="fas fa-headset"></i> نسخ رقم الدعم
+              </button>`
+            : ''
+        }
+
+<button class="eqsa-btn" onclick="EasyQSuperAdmin.closeModal(); setTimeout(function(){ EasyQSuperAdmin.manageBusinessStatus('${esc(businessIdValue)}'); }, 80);">
+  <i class="fas fa-sliders-h"></i> إدارة الاشتراك/الحالة
+</button>
+
+<button class="eqsa-btn" onclick="EasyQSuperAdmin.openBusinessErrors('${esc(businessIdValue)}')">
+  <i class="fas fa-bug"></i> أخطاء هذا المطعم
+</button>
+
+<button class="eqsa-btn" onclick="EasyQSuperAdmin.openBusinessSupport('${esc(businessIdValue)}')">
+  <i class="fas fa-comments"></i> دعم هذا المطعم
+</button>
+      </div>
+    </div>
+  `);
+}
 
   function openModal(html) {
     closeModal();
@@ -1081,6 +2033,74 @@ function copyText(text, message) {
     notify('دالة إدارة الحالة غير متوفرة حاليًا', 'error');
   }
 
+
+  function openBusinessErrors(businessId) {
+  if (!isSuperAdmin()) return;
+
+  const b = SA.businesses.find((x) => String(x.business_id || x.id) === String(businessId));
+
+  if (!b) {
+    notify('لم يتم العثور على المطعم لفلترة الأخطاء', 'error');
+    return;
+  }
+
+  const searchValue =
+    b.support_ref ||
+    b.business_name ||
+    b.name ||
+    businessId;
+
+  SA.errorsSearch = String(searchValue || '');
+  SA.errorsStatusFilter = 'all';
+
+  closeModal();
+  showView('errors');
+
+  setTimeout(() => {
+    const input = $('eqsaErrorSearch');
+    if (input) input.value = SA.errorsSearch;
+
+    const status = $('eqsaErrorStatus');
+    if (status) status.value = SA.errorsStatusFilter;
+  }, 50);
+}
+
+async function openBusinessSupport(businessId) {
+  if (!isSuperAdmin()) return;
+
+  const b = SA.businesses.find((x) => String(x.business_id || x.id) === String(businessId));
+
+  if (!b) {
+    notify('لم يتم العثور على المطعم لفلترة الدعم', 'error');
+    return;
+  }
+
+  SA.supportBusinessFilter = String(businessId);
+  SA.supportBusinessFilterLabel = b.business_name || b.name || b.support_ref || 'المطعم المحدد';
+
+  closeModal();
+  showView('support');
+
+  const firstSession = (SA.supportSessions || []).find((session) => {
+    return String(session.business_id || session.businessId || '') === String(businessId);
+  });
+
+  if (firstSession) {
+    const sessionId = firstSession.session_id || firstSession.id;
+    if (sessionId) {
+      await openSupportSession(sessionId);
+    }
+  }
+}
+
+function clearSupportBusinessFilter() {
+  SA.supportBusinessFilter = '';
+  SA.supportBusinessFilterLabel = '';
+  SA.currentSupportSessionId = null;
+  SA.supportSessionsSignature = '';
+  renderSupport();
+}
+
   async function refresh() {
     if (!isSuperAdmin()) return;
     SA.loaded = false;
@@ -1110,6 +2130,7 @@ function copyText(text, message) {
         await loadData(true);
         if (SA.currentView === 'overview') renderOverview();
         if (SA.currentView === 'alerts') renderAlerts();
+        if (SA.currentView === 'errors') renderErrors();
         if (SA.currentView === 'restaurants') renderRestaurants();
         if (SA.currentView === 'subscriptions') renderSubscriptions();
       } catch (err) {
@@ -1195,10 +2216,23 @@ function copyText(text, message) {
     setRestaurantSearch(value) { SA.restaurantsSearch = value || ''; renderRestaurants(); },
     setRestaurantStatus(value) { SA.restaurantsStatusFilter = value || 'all'; renderRestaurants(); },
     setRestaurantPlan(value) { SA.restaurantsPlanFilter = value || 'all'; renderRestaurants(); },
+    setErrorSearch(value) { SA.errorsSearch = value || ''; renderErrors(); },
+    setErrorStatus(value) { SA.errorsStatusFilter = value || 'unresolved'; renderErrors(); },
+    renderErrors,
+    viewError,
+    markErrorResolved,
+    openErrorBusiness,
+    filterErrorsByErrorBusiness,
+    clearErrorSearch,
+    copyErrorField,
+    copyErrorDiagnostic,
     viewBusiness,
     copyBookingLink,
     copyText,
     manageBusinessStatus,
+    openBusinessErrors,
+    openBusinessSupport,
+    clearSupportBusinessFilter,
     reloadSupport,
     openSupportSession,
     sendSupportReply,
