@@ -1716,6 +1716,28 @@ async function loadUserPermissions() {
   updateUIBasedOnPermissions();
 }
 
+async function refreshCurrentUserPermissions() {
+  if (!currentUser || !currentUser.role) return;
+
+  const oldPermissions = JSON.stringify(userPermissions || {});
+
+  await loadUserPermissions();
+
+  const newPermissions = JSON.stringify(userPermissions || {});
+
+  if (oldPermissions !== newPermissions) {
+    console.log('🔄 تم تحديث صلاحيات المستخدم تلقائيًا');
+
+    if (typeof updateUIBasedOnPermissions === 'function') {
+      updateUIBasedOnPermissions();
+    }
+
+    if (typeof renderTables === 'function') {
+      renderTables();
+    }
+  }
+}
+
 function updateUIBasedOnPermissions() {
   const addTableBtn = document.getElementById('addTableBtn');
   if (addTableBtn) {
@@ -1826,6 +1848,10 @@ if (canDo('manage_settings') && typeof addBusinessSupportSidebarButton === 'func
 // ============================================================
 
 function openUsersModal() {
+    if (!canDo('manage_users')) {
+    showAlert('ليس لديك صلاحية لإدارة الموظفين');
+    return;
+  }
   document.getElementById('usersModal').classList.add('show');
   loadUsers();
 }
@@ -2208,7 +2234,11 @@ container.innerHTML = `
       font-weight: 700;
     ">
       <i class="fas fa-info-circle"></i>
-      مالك الحساب / الأدمن يملك جميع الصلاحيات دائمًا. من هنا يمكنك التحكم فقط في صلاحيات المشرف والموظف.
+     مالك الحساب / الأدمن يملك جميع الصلاحيات دائمًا. من هنا يمكنك التحكم فقط في صلاحيات المشرف والموظف.
+<br>
+<span style="font-weight: 600;">
+  ملاحظة: تظهر تغييرات الصلاحيات في حسابات الموظفين تلقائيًا خلال 60 ثانية كحد أقصى، أو مباشرة عند تحديث الصفحة.
+</span>
     </div>
 
     <div style="
@@ -5232,3 +5262,20 @@ localStorage.removeItem('easyq_license_status');
 
   showSuccessNotification('تم تسجيل الخروج بنجاح');
 }
+
+// تحديث صلاحيات المستخدم تلقائيًا بدون تحديث الصفحة
+let permissionsRefreshInterval = null;
+
+function startPermissionsAutoRefresh() {
+  if (permissionsRefreshInterval) return;
+
+  permissionsRefreshInterval = setInterval(() => {
+    refreshCurrentUserPermissions();
+  }, 60000);
+
+  window.addEventListener('focus', () => {
+    refreshCurrentUserPermissions();
+  });
+}
+
+startPermissionsAutoRefresh();

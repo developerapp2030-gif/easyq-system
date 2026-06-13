@@ -263,6 +263,10 @@ function disableDeleteMode() {
 }
 
 function editTable(table) {
+    if (!canDo('edit_tables')) {
+    showAlert('ليس لديك صلاحية لتعديل الطاولات');
+    return;
+  }
   selectedTableId = table.id;
   const modalTitle = document.getElementById('tableModalTitle');
   if (modalTitle) modalTitle.innerHTML = currentLang === 'ar' ? 'تعديل طاولة' : 'Edit Table';
@@ -275,6 +279,10 @@ function editTable(table) {
 }
 
 async function deleteTable(tableId, tableName) {
+    if (!canDo('delete_tables')) {
+    showAlert('ليس لديك صلاحية لحذف الطاولات');
+    return;
+  }
   const confirmMsg = currentLang === 'ar'
     ? `هل أنت متأكد من حذف طاولة ${tableName}؟`
     : `Delete table ${tableName}?`;
@@ -298,6 +306,15 @@ async function deleteTable(tableId, tableName) {
 }
 
 async function saveTable() {
+    if (selectedTableId && !canDo('edit_tables')) {
+    showAlert('ليس لديك صلاحية لتعديل الطاولات');
+    return;
+  }
+
+  if (!selectedTableId && !canDo('add_tables')) {
+    showAlert('ليس لديك صلاحية لإضافة طاولات');
+    return;
+  }
   const tableName = document.getElementById('tableName').value.trim();
   const capacity = parseInt(document.getElementById('tableCapacity').value);
   const floorNumber = parseInt(document.getElementById('tableFloor').value);
@@ -408,7 +425,7 @@ function closeTableModal() {
 // ============================================================
 
 function toggleMoveMode() {
-  if (!canDo('move_tables')) {
+  if (!moveModeActive && !canDo('move_tables')) {
     showAlert('ليس لديك صلاحية لتحريك الطاولات');
     return;
   }
@@ -474,6 +491,10 @@ function toggleMoveMode() {
 }
 
 async function saveTablePositions() {
+    if (!canDo('move_tables')) {
+    showAlert('ليس لديك صلاحية لحفظ مواقع الطاولات');
+    return;
+  }
   if (!moveModeActive) {
     alert(currentLang === 'ar' ? 'الرجاء تفعيل وضع التحريك أولاً' : 'Please enable move mode first');
     return;

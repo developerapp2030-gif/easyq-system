@@ -158,6 +158,11 @@ async function changeTableStatus(tableId, newStatus) {
 // ============================================================
 
 async function assignRequestToTable(reqId, partySize, row) {
+  if (!canDo('assign_tables')) {
+    showAlert('ليس لديك صلاحية لتعيين العملاء على الطاولات');
+    return;
+  }
+
   if (!reqId) return;
   if (row.status !== "available") {
     await showAlert("هذه الطاولة غير متاحة");
@@ -622,6 +627,11 @@ function closeEditRequestModal() {
 }
 
 async function saveEditedRequest() {
+  if (!canDo('edit_requests')) {
+    showAlert('ليس لديك صلاحية لحفظ تعديل طلب العميل');
+    return;
+  }
+
   if (!currentEditingRequest) return;
   
   const newName = document.getElementById('editName').value.trim();
