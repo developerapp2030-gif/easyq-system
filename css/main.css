@@ -3233,6 +3233,3 @@ body.theme-premium.edit-mode-active .move-mode-toolbar {
   display: inline-block;
 }
 
-body.theme-premium .waiting-card.ready {
-  animation: none !important;
-}

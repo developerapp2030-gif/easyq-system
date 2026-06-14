@@ -2203,9 +2203,10 @@ async function loadUsers() {
   
   const { data: users, error } = await supabase
     .from('app_users')
-    .select('id, username, display_name, role, is_active, business_id, created_at')
-    .eq('business_id', businessId)
-    .order('created_at', { ascending: false });
+    .select('id, username, display_name, role, is_active, business_id, auth_id, created_at')
+.eq('business_id', businessId)
+.is('archived_at', null)
+.order('created_at', { ascending: false });
   
   if (error) {
     console.error('فشل تحميل الموظفين:', error);
@@ -2352,8 +2353,8 @@ async function loadUsers() {
               ? `<button
                   class="modal-btn"
                   style="background:#DC2626;padding:7px 10px;min-height:auto;font-size:12px;"
-                  onclick="deleteUser('${u.id}')"
-                  title="حذف الموظف"
+                  onclick="archiveBusinessUser('${u.id}')"
+                  title="حذف الموظف من الواجهة"
                 >
                   <i class="fas fa-trash"></i>
                 </button>`
@@ -2394,9 +2395,12 @@ function openEditUserModal(userId) {
   const modal = document.getElementById('editUserModal');
   const idInput = document.getElementById('editUserId');
   const displayNameInput = document.getElementById('editUserDisplayName');
-  const roleSelect = document.getElementById('editUserRole');
-  const warning = document.getElementById('editUserSelfWarning');
-  const sub = document.getElementById('editUserModalSub');
+const roleSelect = document.getElementById('editUserRole');
+const passwordBox = document.getElementById('editUserPasswordBox');
+const newPasswordInput = document.getElementById('editUserNewPassword');
+const confirmPasswordInput = document.getElementById('editUserConfirmPassword');
+const warning = document.getElementById('editUserSelfWarning');
+const sub = document.getElementById('editUserModalSub');
 
   if (!modal || !idInput || !displayNameInput || !roleSelect) {
     console.warn('editUserModal elements are missing in index.html');
@@ -2409,6 +2413,12 @@ function openEditUserModal(userId) {
   idInput.value = user.id;
   displayNameInput.value = user.display_name || '';
   roleSelect.value = user.role || 'staff';
+if (newPasswordInput) newPasswordInput.value = '';
+if (confirmPasswordInput) confirmPasswordInput.value = '';
+
+if (passwordBox) {
+  passwordBox.style.display = user.auth_id ? 'block' : 'none';
+}
 
   // لا نسمح بتغيير دور الحساب الحالي من هذه النافذة
   roleSelect.disabled = isSelf;
@@ -2538,12 +2548,67 @@ updateTopbarUserIdentity(updatedUser);
 
     closeEditUserModal();
 
-    if (typeof showSuccessNotification === 'function') {
-      showSuccessNotification('تم تعديل بيانات الموظف بنجاح');
-    } else {
-      alert('تم تعديل بيانات الموظف بنجاح');
+    const newPasswordInput = document.getElementById('editUserNewPassword');
+    const confirmPasswordInput = document.getElementById('editUserConfirmPassword');
+
+    const newPassword = newPasswordInput ? newPasswordInput.value.trim() : '';
+    const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value.trim() : '';
+
+    if (newPassword || confirmPassword) {
+      if (newPassword.length < 8) {
+        showAlert('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        showAlert('كلمة المرور وتأكيدها غير متطابقين');
+        return;
+      }
+
+      const { data: passwordResult, error: passwordError } = await supabase.functions.invoke('update-user-password', {
+        body: {
+          target_user_id: userId,
+          new_password: newPassword
+        }
+      });
+
+      if (passwordError) {
+        let message = 'فشل تغيير كلمة مرور الموظف';
+
+        try {
+          if (passwordError.context) {
+            const errorBody = await passwordError.context.json();
+            message = errorBody?.message || message;
+          }
+        } catch (parseErr) {
+          console.warn('تعذر قراءة رسالة خطأ تغيير كلمة المرور:', parseErr);
+        }
+
+        showAlert(message);
+        return;
+      }
+
+      if (passwordResult?.success === false) {
+        showAlert(passwordResult.message || 'فشل تغيير كلمة مرور الموظف');
+        return;
+      }
     }
 
+    if (typeof showSuccessNotification === 'function') {
+      showSuccessNotification(
+        newPassword
+          ? 'تم تعديل بيانات الموظف وتغيير كلمة المرور بنجاح'
+          : 'تم تعديل بيانات الموظف بنجاح'
+      );
+    } else {
+      alert(
+        newPassword
+          ? 'تم تعديل بيانات الموظف وتغيير كلمة المرور بنجاح'
+          : 'تم تعديل بيانات الموظف بنجاح'
+      );
+    }
+
+    closeEditUserModal();
     await loadUsers();
 
   } catch (err) {
@@ -2643,6 +2708,91 @@ async function setBusinessUserActive(userId, nextActive) {
       actionBtn.style.opacity = '1';
       actionBtn.style.cursor = 'pointer';
       actionBtn.innerHTML = originalBtnHtml || `<i class="fas ${nextActive ? 'fa-user-check' : 'fa-user-slash'}"></i>`;
+    }
+  }
+}
+
+async function archiveBusinessUser(userId) {
+  if (!canDo('manage_users')) {
+    showAlert('ليس لديك صلاحية لإدارة الموظفين');
+    return;
+  }
+
+  if (!userId) {
+    showAlert('معرف الموظف غير موجود');
+    return;
+  }
+
+  if (String(userId) === String(currentUser?.id)) {
+    showAlert('لا يمكنك حذف حسابك الحالي من الواجهة');
+    return;
+  }
+
+  const users = Array.isArray(window.currentBusinessUsersList)
+    ? window.currentBusinessUsersList
+    : [];
+
+  const targetUser = users.find(item => String(item.id) === String(userId));
+
+  if (!targetUser) {
+    showAlert('لم يتم العثور على بيانات الموظف');
+    return;
+  }
+
+  const confirmed = confirm(
+    `سيتم حذف الموظف "${targetUser.display_name || targetUser.username}" من الواجهة وإيقاف دخوله، مع الاحتفاظ بسجلاته. هل تريد المتابعة؟`
+  );
+
+  if (!confirmed) return;
+
+  const actionBtn = Array.from(document.querySelectorAll('[onclick^="archiveBusinessUser"]'))
+    .find(btn => btn.getAttribute('onclick')?.includes(userId));
+
+  const originalBtnHtml = actionBtn ? actionBtn.innerHTML : '';
+
+  try {
+    if (actionBtn) {
+      actionBtn.disabled = true;
+      actionBtn.style.opacity = '0.75';
+      actionBtn.style.cursor = 'not-allowed';
+      actionBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i>`;
+    }
+
+    const { data, error } = await supabase.rpc('admin_archive_business_user', {
+      p_user_id: userId
+    });
+
+    if (error) {
+      console.error('فشل أرشفة الموظف:', error);
+      showAlert('فشل حذف الموظف من الواجهة: ' + error.message);
+      return;
+    }
+
+    const archivedUser = Array.isArray(data) ? data[0] : null;
+
+    if (!archivedUser) {
+      showAlert('لم يتم إرجاع بيانات الموظف بعد الأرشفة');
+      return;
+    }
+
+    if (typeof showSuccessNotification === 'function') {
+      showSuccessNotification('تم حذف الموظف من الواجهة مع الاحتفاظ بسجلاته');
+    } else {
+      alert('تم حذف الموظف من الواجهة مع الاحتفاظ بسجلاته');
+    }
+
+    await loadUsers();
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء أرشفة الموظف:', err);
+    showAlert('حدث خطأ أثناء حذف الموظف من الواجهة');
+
+  } finally {
+    if (actionBtn) {
+      actionBtn.disabled = false;
+      actionBtn.style.opacity = '1';
+      actionBtn.style.cursor = 'pointer';
+      actionBtn.innerHTML = originalBtnHtml || `<i class="fas fa-trash"></i>`;
     }
   }
 }
