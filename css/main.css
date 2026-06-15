@@ -857,6 +857,24 @@ body.dark::before {
   gap: 4px;
 }
 
+.waiting-row-bottom .detail-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.waiting-row-bottom .detail-item i {
+  flex-shrink: 0;
+}
+
+.waiting-row-bottom .detail-item:last-child {
+  min-width: 58px;
+  justify-content: flex-start;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
 /* Expired Section */
 .expired-section {
   margin-top: 0;
@@ -879,6 +897,24 @@ body.dark::before {
   margin-bottom: 10px;
 }
 
+
+.expired-card .detail-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.expired-card .detail-item i {
+  flex-shrink: 0;
+}
+
+.expired-card .detail-item:last-child {
+  min-width: 58px;
+  justify-content: flex-start;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
 .expired-actions {
   display: flex;
   gap: 8px;
@@ -908,6 +944,8 @@ body.dark::before {
   background: rgba(239,68,68,0.15);
   color: var(--danger);
 }
+
+
 
 /* Walk-in Modal */
 .walkin-form {
@@ -3233,3 +3271,411 @@ body.theme-premium.edit-mode-active .move-mode-toolbar {
   display: inline-block;
 }
 
+/* ============================================================
+   QR MODAL - QR VISUAL FIX
+   إزالة التظليل الأزرق وعزل الباركود داخل صندوق أبيض
+============================================================ */
+
+.qr-code-wrap {
+  margin: 16px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.qr-code-box {
+  width: 224px;
+  height: 224px;
+  padding: 12px;
+  border-radius: 18px;
+  background: #ffffff !important;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.qr-code-box canvas,
+.qr-code-box img,
+.qr-code-box table {
+  width: 200px !important;
+  height: 200px !important;
+  background: #ffffff !important;
+  filter: none !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   QR REFERENCE MODAL - PREMIUM LAYOUT
+   ترتيب مودل الرقم المرجعي بشكل ثابت وقابل للترجمة
+============================================================ */
+
+.qr-reference-modal {
+  width: 420px;
+  max-width: 94vw;
+  padding: 18px;
+  border-radius: 20px;
+}
+
+.qr-reference-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  text-align: start;
+}
+
+.qr-reference-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #0E146D, #060427);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.qr-reference-header .modal-title {
+  margin: 0;
+  text-align: start;
+}
+
+.qr-reference-header .modal-sub {
+  margin-top: 4px;
+  text-align: start;
+  font-size: 12px;
+  color: #64748B;
+}
+
+/* صندوق الباركود */
+.qr-code-wrap {
+  margin: 14px 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.qr-code-box {
+  width: 224px;
+  height: 224px;
+  padding: 12px;
+  border-radius: 18px;
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.qr-code-box canvas,
+.qr-code-box img,
+.qr-code-box table {
+  width: 200px !important;
+  height: 200px !important;
+  background: #FFFFFF !important;
+  filter: none !important;
+  opacity: 1 !important;
+  box-shadow: none !important;
+}
+
+/* بطاقة البيانات */
+.qr-info-card {
+  background: #F8FAFC;
+  border: 1px solid #E5E7EB;
+  border-radius: 16px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qr-info-row {
+  display: grid;
+  grid-template-columns: 115px 1fr;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+}
+
+.qr-info-label {
+  color: #64748B;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.qr-info-value {
+  color: #111827;
+  font-size: 14px;
+  font-weight: 900;
+  text-align: end;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* يمنع تلخبط الرقم المرجعي والجوال عند خلط عربي/إنجليزي */
+.qr-ltr-value {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: end;
+  font-family: Arial, sans-serif;
+}
+
+.qr-phone-value-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.qr-phone-value-wrap #qrCustomerPhone {
+  flex: 1;
+  min-width: 0;
+}
+
+/* أزرار الجوال */
+.qr-contact-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.qr-whatsapp-btn {
+  background: #25D366;
+}
+
+.qr-call-btn {
+  background: #0E146D;
+}
+
+.qr-contact-btn:hover {
+  transform: translateY(-1px);
+}
+
+/* رابط المتابعة والنسخ */
+.qr-link-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.qr-link-row input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid #E5E7EB;
+  background: #F8FAFC;
+  padding: 0 10px;
+  font-size: 12px;
+  direction: ltr;
+  text-align: left;
+}
+
+.qr-link-row button {
+  width: 70px;
+  border: none;
+  border-radius: 12px;
+  background: #0E146D;
+  color: #FFFFFF;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* أزرار أسفل المودل */
+.qr-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.qr-action-btn {
+  flex: 1;
+  height: 42px;
+  border: none;
+  border-radius: 13px;
+  cursor: pointer;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.qr-print-btn {
+  background: #F3F4F6;
+  color: #111827;
+}
+
+.qr-close-btn {
+  background: #111827;
+  color: #FFFFFF;
+}
+
+/* عند اللغة الإنجليزية */
+html[dir="ltr"] .qr-info-row {
+  grid-template-columns: 125px 1fr;
+}
+
+html[dir="ltr"] .qr-info-value {
+  text-align: end;
+}
+
+html[dir="ltr"] .qr-ltr-value {
+  text-align: end;
+}
+
+
+/* ============================================================
+   QR MODAL CONTACT ACTIONS
+   أزرار واتساب والاتصال تحت الباركود
+============================================================ */
+
+.qr-contact-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 14px 0;
+}
+
+.qr-contact-action {
+  height: 40px;
+  min-width: 112px;
+  padding: 0 14px;
+  border-radius: 13px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.qr-whatsapp-action {
+  background: #25D366;
+}
+
+.qr-call-action {
+  background: #0E146D;
+}
+
+.qr-contact-action i {
+  font-size: 16px;
+}
+
+.qr-contact-action:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+/* تعطيل التنسيقات القديمة الخاصة بأزرار الجوال داخل سطر الجوال */
+.qr-phone-value-wrap,
+.qr-contact-btn,
+.qr-whatsapp-btn,
+.qr-call-btn {
+  all: unset;
+}
+
+/* ============================================================
+   QR MODAL COMPACT REFINEMENT
+   تصغير الباركود وضغط بطاقة البيانات لقراءة أسرع
+============================================================ */
+
+/* تصغير مساحة الباركود */
+.qr-code-wrap {
+  margin: 10px 0 8px 0 !important;
+}
+
+.qr-code-box {
+  width: 190px !important;
+  height: 190px !important;
+  padding: 10px !important;
+  border-radius: 16px !important;
+}
+
+.qr-code-box canvas,
+.qr-code-box img,
+.qr-code-box table {
+  width: 170px !important;
+  height: 170px !important;
+}
+
+/* تقريب أزرار التواصل من الباركود */
+.qr-contact-actions {
+  margin: 0 0 10px 0 !important;
+}
+
+/* ضغط بطاقة البيانات */
+.qr-info-card {
+  padding: 8px 10px !important;
+  gap: 4px !important;
+  border-radius: 14px !important;
+}
+
+/* تقليل ارتفاع كل سطر */
+.qr-info-row {
+  grid-template-columns: 92px 1fr !important;
+  min-height: 26px !important;
+  gap: 8px !important;
+}
+
+/* تصغير عنوان الحقل */
+.qr-info-label {
+  font-size: 11px !important;
+  font-weight: 900 !important;
+}
+
+/* تصغير القيمة وتقليل الفراغ */
+.qr-info-value {
+  font-size: 13px !important;
+  font-weight: 900 !important;
+  line-height: 1.15 !important;
+}
+
+/* في الإنجليزية نعطي العنوان مساحة قليلة أكثر */
+html[dir="ltr"] .qr-info-row {
+  grid-template-columns: 105px 1fr !important;
+}
+
+/* ============================================================
+   QR MODAL CANCEL BUTTON
+   زر إلغاء الطلب داخل مودل الرقم المرجعي
+============================================================ */
+
+.qr-cancel-btn {
+  background: #B42318 !important;
+  color: #FFFFFF !important;
+}
+
+.qr-cancel-btn:hover {
+  background: #991B1B !important;
+}

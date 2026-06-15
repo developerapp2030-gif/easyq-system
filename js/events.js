@@ -47,8 +47,9 @@ function closeStatusModal() {
   document.getElementById("statusModal").classList.remove("show");
 }
 
-function showQRModal(bookingCode, customerName, queuePosition, status, phone = '') {
+function showQRModal(bookingCode, customerName, queuePosition, status, phone = '', requestId = '') {
     const trackUrl = `${window.location.origin}/booking.html?code=${bookingCode}`;
+    window.currentQRRequestId = requestId || '';
     const cleanPhone = String(phone || '').replace(/\D/g, '');
 const whatsappPhone =
   cleanPhone.startsWith('966')
@@ -70,11 +71,14 @@ const whatsappUrl = whatsappPhone
     const qrContainer = document.getElementById('qrCodeContainer');
     if (qrContainer && typeof QRCode !== 'undefined') {
         qrContainer.innerHTML = '';
-        new QRCode(qrContainer, {
-            text: trackUrl,
-            width: 200,
-            height: 200
-        });
+new QRCode(qrContainer, {
+    text: trackUrl,
+    width: 200,
+    height: 200,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+});
     }
     
 document.getElementById('qrCustomerName').innerText = customerName;
@@ -188,6 +192,67 @@ function printQR() {
 
 function closeQRModal() {
     document.getElementById('qrModal').classList.remove('show');
+}
+
+async function cancelQRBooking() {
+  const requestId = window.currentQRRequestId || '';
+
+  if (!requestId) {
+    showAlert(currentLang === 'ar'
+      ? 'لا يمكن تحديد الطلب المراد إلغاؤه'
+      : 'Could not identify the booking to cancel');
+    return;
+  }
+
+  const confirmMessage = currentLang === 'ar'
+    ? 'هل أنت متأكد من إلغاء هذا الطلب؟'
+    : 'Are you sure you want to cancel this booking?';
+
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  const cancelBtn = document.getElementById('qrCancelBtn');
+  const oldBtnHtml = cancelBtn ? cancelBtn.innerHTML : '';
+
+  if (cancelBtn) {
+    cancelBtn.disabled = true;
+    cancelBtn.innerHTML = currentLang === 'ar'
+      ? '<i class="fas fa-spinner fa-spin"></i><span>جاري الإلغاء...</span>'
+      : '<i class="fas fa-spinner fa-spin"></i><span>Cancelling...</span>';
+  }
+
+  const { error } = await supabase.rpc('delete_booking', {
+    p_request_id: requestId
+  });
+
+  if (error) {
+    console.error('QR booking cancel error:', error);
+
+    if (cancelBtn) {
+      cancelBtn.disabled = false;
+      cancelBtn.innerHTML = oldBtnHtml;
+    }
+
+    showAlert(currentLang === 'ar'
+      ? 'فشل إلغاء الطلب، حاول مرة أخرى'
+      : 'Failed to cancel booking, please try again');
+    return;
+  }
+
+  closeQRModal();
+
+  selectedRequestId = null;
+  selectedPartySize = null;
+  draggedRequestId = null;
+  draggedPartySize = null;
+  window.currentQRRequestId = '';
+
+  showSuccessNotification(currentLang === 'ar'
+    ? 'تم إلغاء الطلب بنجاح'
+    : 'Booking cancelled successfully');
+
+  await loadAll();
 }
 
 function clearSelection() {

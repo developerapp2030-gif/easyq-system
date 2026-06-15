@@ -651,8 +651,12 @@ if (w.zone_name && w.zone_name !== "") {
       <hr class="waiting-divider">
       <div class="waiting-row-bottom">
         <span class="detail-item"><i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}</span>
+
         <span class="detail-item"><i class="fas fa-user-friends"></i> ${w.requested_party_size || 0}</span>
-             ${w.booking_code ? `<span class="detail-item booking-code-link" onclick="event.stopPropagation(); showQRModal('${w.booking_code}', '${(w.customer_name || "ضيف").replace(/'/g, "\\'")}', '${w.queue_position || "?"}', '${w.status}', '${String(w.phone || "").replace(/'/g, "\\'")}')"><i class="fas fa-qrcode"></i> ${w.booking_code}</span>` : ''}
+
+        ${w.booking_code ? `<span class="detail-item booking-code-link" onclick="event.stopPropagation(); showQRModal('${w.booking_code}', '${(w.customer_name || "ضيف").replace(/'/g, "\\'")}', '${w.queue_position || "?"}', '${w.status}', '${String(w.phone || w.customer_phone || w.customer_phone_snapshot || "").replace(/'/g, "\\'")}', '${w.request_id || ""}')"><i class="fas fa-qrcode"></i> ${w.booking_code}</span>` : ''}
+
+      <span class="detail-item"><i class="fas fa-clock"></i> ${timeSince(w.local_time || w.created_at || w.request_time)}</span>
       </div>
     `;
     
@@ -813,12 +817,12 @@ async function renderExpiredList() {
 
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--gray-600);">
           <span style="display: inline-flex; align-items: center; gap: 4px;">
-            <i class="fas fa-user-friends"></i> ${e.requested_party_size || 0}
+            <i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}
           </span>
 
           <span style="display: inline-flex; align-items: center; gap: 4px;">
-  <i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}
-</span>
+            <i class="fas fa-user-friends"></i> ${e.requested_party_size || 0}
+          </span>
 
 ${e.booking_code ? `
   <span style="display: inline-flex; align-items: center; gap: 4px; color: #06372E; font-weight: 600;">
@@ -827,7 +831,7 @@ ${e.booking_code ? `
 ` : ""}
 
 <span style="display: inline-flex; align-items: center; gap: 4px;">
-  <i class="fas fa-hourglass-end"></i> ${timeSince(e.expired_at || e.created_at)}
+  <i class="fas fa-clock"></i> ${timeSince(e.expired_at || e.created_at)}
 </span>
         </div>
 

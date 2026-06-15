@@ -290,8 +290,8 @@
     <button class="theme-toggle" id="themeToggle">
       <i class="fas fa-moon"></i>
     </button>
-    <button class="theme-toggle" id="premiumThemeToggle" title="Premium Theme">
-  <i class="fas fa-palette"></i>
+<button class="theme-toggle" id="premiumThemeToggle" title="تحديث الصفحة" onclick="window.location.reload()">
+  <i class="fas fa-sync-alt"></i>
 </button>
     <button class="lang-toggle-btn" id="langToggleBtn" onclick="toggleLanguage()" style="font-family: 'Cairo', sans-serif; font-weight: bold;">EN</button>
   </div>
@@ -1393,85 +1393,97 @@
 </div>
 
 <!-- مودال عرض QR Code -->
+<!-- QR / Booking Reference Modal -->
 <div class="modal-backdrop" id="qrModal">
-  <div class="modal" style="max-width: 420px; text-align: center;">
-    <div class="modal-title"><i class="fas fa-qrcode"></i> رمز QR للمتابعة</div>
-    <div class="modal-sub">امسح الرمز لمتابعة الحجز</div>
-    
-    <div style="margin: 15px 0; text-align: center;">
-      <div id="qrCodeContainer" style="display: flex; justify-content: center;"></div>
-    </div>
-    
-    <div style="text-align: right; margin: 12px 0; background: var(--gray-100); padding: 15px; border-radius: 10px; font-size: 15px; line-height: 1.8;">
-      <div><strong> الاسم:</strong> <span id="qrCustomerName" style="font-size: 16px; font-weight: 600;">-</span></div>
-      <div><strong> الرقم المرجعي:</strong> <span id="qrBookingCode" style="font-size: 16px; font-weight: 600; color: #0e146d;">-</span></div>
-      <div><strong> رقم الدور:</strong> <span id="qrQueuePosition" style="font-size: 18px; font-weight: 800; color: #0e146d;">-</span></div>
-      <div style="
-  margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: #F8FAFC;
-  border: 1px solid #E5E7EB;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-">
-  <div style="min-width: 0;">
-    <div style="
-      color: #64748B;
-      font-size: 12px;
-      font-weight: 800;
-      margin-bottom: 4px;
-    ">
-      رقم الجوال
+  <div class="modal qr-reference-modal">
+
+    <div class="qr-reference-header">
+      <div class="qr-reference-icon">
+        <i class="fas fa-qrcode"></i>
+      </div>
+
+      <div>
+        <div class="modal-title" id="qrModalTitle">الرقم المرجعي</div>
+        <div class="modal-sub" id="qrModalSub">تفاصيل الحجز ورابط المتابعة</div>
+      </div>
     </div>
 
-    <div id="qrCustomerPhone" style="
-      color: #111827;
-      font-size: 14px;
-      font-weight: 1000;
-      direction: ltr;
-      text-align: right;
-    ">
-      -
+    <div class="qr-code-wrap">
+      <div id="qrCodeContainer" class="qr-code-box"></div>
     </div>
-  </div>
 
-  <button
-    type="button"
-    id="qrWhatsappBtn"
-    style="
-      display: none;
-      align-items: center;
-      justify-content: center;
-      width: 38px;
-      height: 38px;
-      border-radius: 12px;
-      border: none;
-      background: #25D366;
-      color: #FFFFFF;
-      cursor: pointer;
-      font-size: 18px;
-      flex-shrink: 0;
-    "
-    title="مراسلة واتساب"
-  >
-    <i class="fab fa-whatsapp"></i>
+    <div class="qr-contact-actions">
+      <button
+        type="button"
+        id="qrWhatsappBtn"
+        class="qr-contact-action qr-whatsapp-action"
+        title="مراسلة واتساب"
+      >
+        <i class="fab fa-whatsapp"></i>
+        <span id="qrWhatsappText">واتساب</span>
+      </button>
+
+      <a
+        id="qrCallBtn"
+        class="qr-contact-action qr-call-action"
+        href="#"
+        title="اتصال"
+      >
+        <i class="fas fa-phone"></i>
+        <span id="qrCallText">اتصال</span>
+      </a>
+    </div>
+
+    <div class="qr-info-card">
+
+      <div class="qr-info-row">
+        <div class="qr-info-label" id="qrNameLabel">الاسم</div>
+        <div class="qr-info-value" id="qrCustomerName">-</div>
+      </div>
+
+      <div class="qr-info-row">
+        <div class="qr-info-label" id="qrCodeLabel">الرقم المرجعي</div>
+        <div class="qr-info-value qr-ltr-value" id="qrBookingCode">-</div>
+      </div>
+
+      <div class="qr-info-row">
+        <div class="qr-info-label" id="qrQueueLabel">رقم الدور</div>
+        <div class="qr-info-value qr-ltr-value" id="qrQueuePosition">-</div>
+      </div>
+
+            <div class="qr-info-row qr-phone-row">
+        <div class="qr-info-label" id="qrPhoneLabel">الجوال</div>
+        <div class="qr-info-value qr-ltr-value" id="qrCustomerPhone">-</div>
+      </div>
+      <div class="qr-info-row">
+        <div class="qr-info-label" id="qrStatusLabel">الحالة</div>
+        <div class="qr-info-value" id="qrStatus">-</div>
+      </div>
+
+    </div>
+
+    <div class="qr-link-row">
+      <input type="text" id="qrLink" readonly>
+      <button type="button" id="qrCopyBtn" onclick="copyQRLink()">نسخ</button>
+    </div>
+
+<div class="qr-modal-actions">
+  <button type="button" id="qrPrintBtn" class="qr-action-btn qr-print-btn" onclick="printQR()">
+    <i class="fas fa-print"></i>
+    <span>طباعة QR</span>
+  </button>
+
+  <button type="button" id="qrCancelBtn" class="qr-action-btn qr-cancel-btn" onclick="cancelQRBooking()">
+    <i class="fas fa-ban"></i>
+    <span>إلغاء الطلب</span>
+  </button>
+
+  <button type="button" id="qrCloseBtn" class="qr-action-btn qr-close-btn" onclick="closeQRModal()">
+    <i class="fas fa-times"></i>
+    <span>إغلاق</span>
   </button>
 </div>
-      <div><strong> الحالة:</strong> <span id="qrStatus" style="font-size: 14px; font-weight: 500;">-</span></div>
-    </div>
-    
-    <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-      <input type="text" id="qrLink" readonly style="flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); font-size: 12px; background: var(--gray-50);">
-      <button onclick="copyQRLink()" style="padding: 10px 15px; background: #0e146d; color: white; border: none; border-radius: 10px; cursor: pointer;">نسخ</button>
-    </div>
-    
-    <div style="display: flex; gap: 12px;">
-      <button onclick="printQR()" style="flex: 1; padding: 10px; background: #6B7280; color: white; border: none; border-radius: 10px; cursor: pointer;"><i class="fas fa-print"></i> طباعة QR</button>
-      <button onclick="closeQRModal()" style="flex: 1; padding: 10px; background: #0e146d; color: white; border: none; border-radius: 10px; cursor: pointer;">إغلاق</button>
-    </div>
+
   </div>
 </div>
 
@@ -2839,48 +2851,29 @@ document.addEventListener('click', function(e) {
 (function () {
   const key = "easyq_theme_mode";
 
-  function applyTheme(mode) {
-    if (mode === "premium") {
-      document.body.classList.add("theme-premium");
-    } else {
-      document.body.classList.remove("theme-premium");
-    }
+  function forcePremiumTheme() {
+    localStorage.setItem(key, "premium");
+    document.body.classList.add("theme-premium");
 
     const btn = document.getElementById("premiumThemeToggle");
     if (btn) {
-      btn.classList.toggle("active", mode === "premium");
-      btn.title = mode === "premium" ? "Premium Theme On" : "Premium Theme Off";
+      btn.classList.remove("active");
+      btn.title = currentLang === "ar" ? "تحديث الصفحة" : "Refresh page";
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.location.reload();
+      };
     }
 
-    console.log("✅ Theme applied:", mode, document.body.className);
+    console.log("✅ Premium theme forced permanently");
   }
 
-  function initPremiumTheme() {
-    const btn = document.getElementById("premiumThemeToggle");
-
-    if (!btn) {
-      console.warn("❌ premiumThemeToggle button not found");
-      return;
-    }
-
-    const savedMode = localStorage.getItem(key) || "red";
-    applyTheme(savedMode);
-
-    btn.onclick = function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-
-      const isPremium = document.body.classList.contains("theme-premium");
-      const nextMode = isPremium ? "red" : "premium";
-
-      localStorage.setItem(key, nextMode);
-      applyTheme(nextMode);
-    };
-
-    console.log("✅ Premium theme toggle ready");
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", forcePremiumTheme);
+  } else {
+    forcePremiumTheme();
   }
-
-  setTimeout(initPremiumTheme, 300);
 })();
 </script>
 

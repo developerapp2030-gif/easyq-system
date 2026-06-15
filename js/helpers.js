@@ -210,7 +210,7 @@ if (table.status === "reserved" && table.reserved_at) {
       const timeSpan = card.querySelector('.detail-item:last-child');
       if (timeSpan) {
         const newTime = timeSince(waitingItem.local_time || waitingItem.created_at || waitingItem.request_time);
-        timeSpan.innerHTML = `<i class="fas fa-hourglass-half"></i> ${newTime}`;
+        timeSpan.innerHTML = `<i class="fas fa-clock"></i> ${newTime}`;
       }
     }
   });
