@@ -100,6 +100,20 @@ if (activeTableIds.length > 0) {
   
 
 container.innerHTML = "";
+
+container.onclick = function (e) {
+  if (moveModeActive || tableEditMode || tableDeleteMode) return;
+
+  if (!selectedRequestId && !draggedRequestId) return;
+
+  const clickedTable = e.target.closest('.table-card');
+  const clickedButton = e.target.closest('button');
+
+  if (clickedTable || clickedButton) return;
+
+  clearSelection();
+};
+
 container.style.cssText = `
   display: block;
   position: relative;

@@ -102,6 +102,29 @@ if (qrWhatsappBtn) {
     qrWhatsappBtn.onclick = null;
   }
 }
+
+const qrCallBtn = document.getElementById('qrCallBtn');
+if (qrCallBtn) {
+  if (whatsappPhone) {
+    qrCallBtn.style.display = 'inline-flex';
+
+    // اتصال هاتف عادي فقط - ليس واتساب
+    qrCallBtn.setAttribute('href', `tel:+${whatsappPhone}`);
+    qrCallBtn.removeAttribute('target');
+    qrCallBtn.removeAttribute('onclick');
+
+    qrCallBtn.onclick = function (e) {
+      e.stopPropagation();
+      // نترك المتصفح يفتح تطبيق الهاتف عبر tel:
+    };
+  } else {
+    qrCallBtn.style.display = 'none';
+    qrCallBtn.setAttribute('href', '#');
+    qrCallBtn.removeAttribute('target');
+    qrCallBtn.onclick = null;
+  }
+}
+
     let statusText = '';
     if (status === 'waiting') statusText = 'في الانتظار';
     else if (status === 'offered') statusText = 'تم التعيين';
@@ -2617,3 +2640,30 @@ const waPhone = normalizeWhatsAppPhone(phone);
 window.openTableWhatsAppNotifyModal = openTableWhatsAppNotifyModal;
 window.closeTableWhatsAppNotifyModal = closeTableWhatsAppNotifyModal;
 window.openWhatsAppForAssignedCustomer = openWhatsAppForAssignedCustomer;
+
+
+// ============================================================
+// CLEAR WAITING SELECTION WHEN CLICKING EMPTY PAGE AREA
+// إلغاء تحديد بطاقة الانتظار عند الضغط على مساحة فارغة أو زر عام
+// ============================================================
+
+document.addEventListener('click', function (e) {
+  if (!selectedRequestId && !draggedRequestId) return;
+
+  if (moveModeActive || tableEditMode || tableDeleteMode) return;
+
+  const keepSelectionTarget = e.target.closest(`
+    .waiting-card,
+    .table-card,
+    input,
+    select,
+    textarea,
+    label,
+    a,
+    .modal
+  `);
+
+  if (keepSelectionTarget) return;
+
+  clearSelection();
+});

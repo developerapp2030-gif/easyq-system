@@ -430,7 +430,7 @@ body.dark::before {
 }
 
 .table-card.match {
-  box-shadow: 0 0 0 3px #10B981, 0 0 15px rgba(16,185,129,0.3);
+  box-shadow: 0 0 0 1px #0E146D, 0 0 15px rgba(16,185,129,0.3);
 }
 
 .table-card.dim {
@@ -783,6 +783,19 @@ body.dark::before {
   background: #E3F2FD !important;
   border-color: #2196F3 !important;
   border-width: 2px !important;
+}
+
+#waitingList:has(.waiting-card.selected) .waiting-card:not(.selected) {
+  opacity: 0.38;
+  filter: grayscale(0.15);
+}
+
+#waitingList:has(.waiting-card.selected) .waiting-card.selected {
+  opacity: 1;
+  filter: none;
+  border-color: #0E146D !important;
+  border-width: 1px !important;
+  box-shadow: 0 0 0 2px rgba(14, 20, 109, 0.18);
 }
 
 @keyframes blinkGreen {

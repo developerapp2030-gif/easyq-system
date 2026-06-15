@@ -65,15 +65,27 @@
             btn.onclick = null;
             
             // إضافة الحدث الجديد
-            btn.onclick = function(e) {
-                e.stopPropagation();
-                if (sidebar.classList.contains('open')) {
-                    sidebar.classList.remove('open');
-                } else {
-                    sidebar.classList.add('open');
-                }
-                console.log("Sidebar open:", sidebar.classList.contains('open'));
-            };
+btn.onclick = function(e) {
+    e.stopPropagation();
+
+    if (
+        typeof clearSelection === 'function' &&
+        (window.selectedRequestId || window.draggedRequestId) &&
+        !window.moveModeActive &&
+        !window.tableEditMode &&
+        !window.tableDeleteMode
+    ) {
+        clearSelection();
+    }
+
+    if (sidebar.classList.contains('open')) {
+        sidebar.classList.remove('open');
+    } else {
+        sidebar.classList.add('open');
+    }
+
+    console.log("Sidebar open:", sidebar.classList.contains('open'));
+};
             
             // إغلاق القائمة عند الضغط خارجها
             document.addEventListener('click', function(e) {
@@ -611,7 +623,9 @@
           <i class="fas fa-arrow-left"></i>
         </button>
         <button class="icon-btn" id="walkInBtn" onclick="openWalkInModal()" title="Walk-in"><i class="fas fa-user-plus"></i></button>
-        <button class="icon-btn" id="clearBtn" onclick="clearSelection()" title="Clear"><i class="fas fa-times"></i></button>
+        <button class="icon-btn" id="clearBtn" onclick="clearSelection()" title="Clear" style="display: none;">
+  <i class="fas fa-times"></i>
+</button>
       </div>
     </div>
 
