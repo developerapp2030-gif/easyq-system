@@ -47,8 +47,25 @@ function closeStatusModal() {
   document.getElementById("statusModal").classList.remove("show");
 }
 
-function showQRModal(bookingCode, customerName, queuePosition, status) {
+function showQRModal(bookingCode, customerName, queuePosition, status, phone = '') {
     const trackUrl = `${window.location.origin}/booking.html?code=${bookingCode}`;
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+const whatsappPhone =
+  cleanPhone.startsWith('966')
+    ? cleanPhone
+    : cleanPhone.startsWith('0')
+      ? `966${cleanPhone.slice(1)}`
+      : cleanPhone.length === 9
+        ? `966${cleanPhone}`
+        : cleanPhone;
+
+const whatsappMessage = encodeURIComponent(
+  `مرحباً ${customerName || 'ضيفنا'}، هذا رابط متابعة حجزك:\n${trackUrl}`
+);
+
+const whatsappUrl = whatsappPhone
+  ? `https://wa.me/${whatsappPhone}?text=${whatsappMessage}`
+  : '';
     
     const qrContainer = document.getElementById('qrCodeContainer');
     if (qrContainer && typeof QRCode !== 'undefined') {
@@ -60,9 +77,27 @@ function showQRModal(bookingCode, customerName, queuePosition, status) {
         });
     }
     
-    document.getElementById('qrCustomerName').innerText = customerName;
-    document.getElementById('qrBookingCode').innerText = bookingCode;
-    document.getElementById('qrQueuePosition').innerText = queuePosition;
+document.getElementById('qrCustomerName').innerText = customerName;
+document.getElementById('qrBookingCode').innerText = bookingCode;
+document.getElementById('qrQueuePosition').innerText = queuePosition;
+
+const qrPhoneEl = document.getElementById('qrCustomerPhone');
+if (qrPhoneEl) {
+  qrPhoneEl.innerText = cleanPhone || 'لا يوجد رقم جوال';
+}
+
+const qrWhatsappBtn = document.getElementById('qrWhatsappBtn');
+if (qrWhatsappBtn) {
+  if (whatsappUrl) {
+    qrWhatsappBtn.style.display = 'inline-flex';
+    qrWhatsappBtn.onclick = function () {
+      window.open(whatsappUrl, '_blank');
+    };
+  } else {
+    qrWhatsappBtn.style.display = 'none';
+    qrWhatsappBtn.onclick = null;
+  }
+}
     let statusText = '';
     if (status === 'waiting') statusText = 'في الانتظار';
     else if (status === 'offered') statusText = 'تم التعيين';

@@ -75,7 +75,7 @@ serve(async (req) => {
     // جلب المستخدم الذي ينفذ العملية
     const { data: actor, error: actorError } = await adminSupabase
       .from("app_users")
-      .select("id, role, business_id, is_active")
+      .select("id, role, business_id, is_active, username, display_name")
       .eq("auth_id", authUser.id)
       .eq("is_active", true)
       .single();
@@ -146,18 +146,41 @@ serve(async (req) => {
       }
     );
 
-    if (updatePasswordError) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "فشل تغيير كلمة المرور",
-          details: updatePasswordError.message,
-        }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+if (updatePasswordError) {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      message: "فشل تغيير كلمة المرور",
+      details: updatePasswordError.message,
+    }),
+    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
 
-    return new Response(
+// تسجيل العملية في سجل نشاط المطعم
+await adminSupabase
+  .from("business_activity_logs")
+  .insert({
+    business_id: actor.business_id,
+
+    actor_user_id: actor.id,
+    actor_display_name: actor.display_name || actor.username || "مستخدم",
+    actor_role: actor.role,
+
+    action_key: "user_password_changed",
+    action_label: "تغيير كلمة مرور موظف",
+
+    target_type: "app_user",
+    target_id: targetUser.id,
+    target_label: targetUser.display_name || targetUser.username || "موظف",
+
+    details: {
+      username: targetUser.username || "",
+      password_changed: true
+    }
+  });
+
+return new Response(
       JSON.stringify({
         success: true,
         message: "تم تغيير كلمة مرور الموظف بنجاح",

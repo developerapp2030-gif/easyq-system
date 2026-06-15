@@ -507,9 +507,9 @@
         <div class="sub-menu-item" onclick="openPermissionsModal()">
           <i class="fas fa-lock"></i> <span>الصلاحيات</span>
         </div>
-        <div class="sub-menu-item" data-view="staff-log">
-          <i class="fas fa-history"></i> <span>سجل النشاط</span>
-        </div>
+<div class="sub-menu-item" data-view="staff-log" onclick="openActivityLogModal()">
+  <i class="fas fa-history"></i> <span>سجل النشاط</span>
+</div>
       </div>
     </div>
 
@@ -545,7 +545,7 @@
     <i class="fas fa-qrcode"></i> <span>📱 فتح واجهة الحجز (QR)</span>
   </div>
 
-<div class="sub-menu-item" data-view="branch-account">
+<div class="sub-menu-item" data-view="branch-account" onclick="openBranchAccountModal()">
   <i class="fas fa-credit-card"></i> <span>إدارة الحساب والاشتراكات</span>
 </div>
 
@@ -1104,6 +1104,267 @@
   </div>
 </div>
 
+<!-- ============================================================
+     BRANCH ACCOUNT / SUBSCRIPTION MODAL - EASY-Q
+============================================================ -->
+<div class="modal-backdrop" id="branchAccountModal">
+  <div class="modal-content" style="
+    max-width: 760px;
+    width: calc(100% - 28px);
+    background: #FFFFFF;
+    border-radius: 22px;
+    overflow: hidden;
+    border: 1px solid rgba(226,232,240,0.95);
+    box-shadow: 0 24px 70px rgba(15,23,42,0.28);
+  ">
+
+    <div style="
+      background: linear-gradient(135deg, #0E146D, #060427);
+      color: #FFFFFF;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    ">
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      ">
+        <div style="
+          width: 38px;
+          height: 38px;
+          border-radius: 14px;
+          background: rgba(244,210,138,0.16);
+          color: #F4D28A;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        ">
+          <i class="fas fa-credit-card"></i>
+        </div>
+
+        <div>
+          <h3 style="
+            margin: 0;
+            color: #FFFFFF;
+            font-size: 17px;
+            font-weight: 1000;
+            line-height: 1.3;
+          ">
+            إدارة الحساب والاشتراك
+          </h3>
+
+          <div style="
+            margin-top: 3px;
+            color: rgba(255,255,255,0.70);
+            font-size: 12px;
+            font-weight: 700;
+          ">
+            تفاصيل الباقة، الحالة، والحدود الحالية
+          </div>
+        </div>
+      </div>
+
+      <button type="button" onclick="closeBranchAccountModal()" style="
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        border: none;
+        background: rgba(255,255,255,0.12);
+        color: #FFFFFF;
+        font-size: 22px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      ">
+        &times;
+      </button>
+    </div>
+
+    <div style="
+      background: #F8FAFC;
+      padding: 16px;
+    ">
+      <div style="
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 18px;
+        padding: 14px;
+        box-shadow: 0 10px 26px rgba(15,23,42,0.06);
+      ">
+        <div id="branchAccountSubscriptionBox">
+          <div style="
+            padding: 22px;
+            text-align: center;
+            color: #64748B;
+            font-weight: 800;
+          ">
+            <i class="fas fa-spinner fa-spin"></i>
+            جاري تحميل بيانات الاشتراك...
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     ACTIVITY LOG MODAL - EASY-Q
+============================================================ -->
+<div class="modal-backdrop" id="activityLogModal">
+  <div class="modal-content" style="
+    max-width: 860px;
+    width: calc(100% - 28px);
+    background: #FFFFFF;
+    border-radius: 22px;
+    overflow: hidden;
+    border: 1px solid rgba(226,232,240,0.95);
+    box-shadow: 0 24px 70px rgba(15,23,42,0.28);
+  ">
+
+    <div style="
+      background: linear-gradient(135deg, #0E146D, #060427);
+      color: #FFFFFF;
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.10);
+    ">
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      ">
+        <div style="
+          width: 38px;
+          height: 38px;
+          border-radius: 14px;
+          background: rgba(244,210,138,0.16);
+          color: #F4D28A;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        ">
+          <i class="fas fa-history"></i>
+        </div>
+
+        <div>
+          <h3 style="
+            margin: 0;
+            color: #FFFFFF;
+            font-size: 17px;
+            font-weight: 1000;
+            line-height: 1.3;
+          ">
+            سجل النشاط
+          </h3>
+
+          <div style="
+            margin-top: 3px;
+            color: rgba(255,255,255,0.70);
+            font-size: 12px;
+            font-weight: 700;
+          ">
+            آخر العمليات التي تمت داخل المطعم
+          </div>
+        </div>
+      </div>
+
+      <button type="button" onclick="closeActivityLogModal()" style="
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        border: none;
+        background: rgba(255,255,255,0.12);
+        color: #FFFFFF;
+        font-size: 22px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      ">
+        &times;
+      </button>
+    </div>
+
+<div style="
+  background: #F8FAFC;
+  padding: 16px;
+  max-height: 70vh;
+  overflow-y: auto;
+">
+      <div style="
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 18px;
+        padding: 14px;
+        box-shadow: 0 10px 26px rgba(15,23,42,0.06);
+      ">
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 12px;
+          flex-wrap: wrap;
+        ">
+          <div style="
+            color: #111827;
+            font-size: 14px;
+            font-weight: 1000;
+          ">
+            آخر الأنشطة
+          </div>
+
+          <button type="button" onclick="loadActivityLogs()" style="
+            border: none;
+            border-radius: 12px;
+            padding: 9px 12px;
+            background: #EEF2FF;
+            color: #0E146D;
+            font-size: 12px;
+            font-weight: 900;
+            cursor: pointer;
+          ">
+            <i class="fas fa-sync-alt"></i>
+            تحديث
+          </button>
+        </div>
+
+        <div id="activityLogList" style="
+  max-height: 56vh;
+  overflow-y: auto;
+  padding-left: 4px;
+">
+          <div style="
+            padding: 22px;
+            text-align: center;
+            color: #64748B;
+            font-weight: 800;
+          ">
+            <i class="fas fa-spinner fa-spin"></i>
+            جاري تحميل سجل النشاط...
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 <div id="offlineToastContainer"></div>
 
 <!-- =========================================================
@@ -1145,6 +1406,60 @@
       <div><strong> الاسم:</strong> <span id="qrCustomerName" style="font-size: 16px; font-weight: 600;">-</span></div>
       <div><strong> الرقم المرجعي:</strong> <span id="qrBookingCode" style="font-size: 16px; font-weight: 600; color: #0e146d;">-</span></div>
       <div><strong> رقم الدور:</strong> <span id="qrQueuePosition" style="font-size: 18px; font-weight: 800; color: #0e146d;">-</span></div>
+      <div style="
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #F8FAFC;
+  border: 1px solid #E5E7EB;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+">
+  <div style="min-width: 0;">
+    <div style="
+      color: #64748B;
+      font-size: 12px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    ">
+      رقم الجوال
+    </div>
+
+    <div id="qrCustomerPhone" style="
+      color: #111827;
+      font-size: 14px;
+      font-weight: 1000;
+      direction: ltr;
+      text-align: right;
+    ">
+      -
+    </div>
+  </div>
+
+  <button
+    type="button"
+    id="qrWhatsappBtn"
+    style="
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: none;
+      background: #25D366;
+      color: #FFFFFF;
+      cursor: pointer;
+      font-size: 18px;
+      flex-shrink: 0;
+    "
+    title="مراسلة واتساب"
+  >
+    <i class="fab fa-whatsapp"></i>
+  </button>
+</div>
       <div><strong> الحالة:</strong> <span id="qrStatus" style="font-size: 14px; font-weight: 500;">-</span></div>
     </div>
     

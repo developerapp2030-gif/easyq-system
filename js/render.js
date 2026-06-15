@@ -581,11 +581,17 @@ function renderWaitingList() {
       renderWaitingList();
     };
     
-    let phoneDisplay = "";
-    if (w.phone) {
-      let phoneStr = w.phone.toString();
-      phoneDisplay = phoneStr.length >= 8 ? phoneStr.slice(-8) : phoneStr;
-    }
+let phoneDisplay = "";
+const rawPhone =
+  w.phone ||
+  w.customer_phone ||
+  w.customer_phone_snapshot ||
+  "";
+
+if (rawPhone) {
+  const phoneStr = String(rawPhone).replace(/\D/g, "");
+  phoneDisplay = phoneStr.length >= 5 ? phoneStr.slice(-5) : phoneStr;
+}
     
 let zoneDisplayText = currentLang === 'ar' ? "بدون تفضيل" : "No Preference";
 if (w.zone_name && w.zone_name !== "") {
@@ -646,7 +652,7 @@ if (w.zone_name && w.zone_name !== "") {
       <div class="waiting-row-bottom">
         <span class="detail-item"><i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}</span>
         <span class="detail-item"><i class="fas fa-user-friends"></i> ${w.requested_party_size || 0}</span>
-              ${w.booking_code ? `<span class="detail-item" style="color: #06372E; cursor: pointer;" onclick="showQRModal('${w.booking_code}', '${(w.customer_name || "ضيف").replace(/'/g, "\\'")}', '${w.queue_position || "?"}', '${w.status}')"><i class="fas fa-qrcode"></i> ${w.booking_code}</span>` : ''}        <span class="detail-item"><i class="fas fa-hourglass-half"></i> ${timeSince(w.local_time || w.created_at || w.request_time)}</span>
+             ${w.booking_code ? `<span class="detail-item booking-code-link" onclick="event.stopPropagation(); showQRModal('${w.booking_code}', '${(w.customer_name || "ضيف").replace(/'/g, "\\'")}', '${w.queue_position || "?"}', '${w.status}', '${String(w.phone || "").replace(/'/g, "\\'")}')"><i class="fas fa-qrcode"></i> ${w.booking_code}</span>` : ''}
       </div>
     `;
     

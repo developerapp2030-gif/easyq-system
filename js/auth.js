@@ -1565,6 +1565,18 @@ currentUser = user;
 localStorage.setItem('easyq_user', JSON.stringify(user));
 localStorage.setItem('easyq_license_status', JSON.stringify(licenseStatus));
 
+await logBusinessActivitySafe(
+  'user_logged_in',
+  'تسجيل دخول',
+  'app_user',
+  user.id,
+  user.display_name || user.username || 'مستخدم',
+  {
+    username: user.username || '',
+    login_method: 'email_password'
+  }
+);
+
 const loginOverlay = document.getElementById('loginOverlay');
 if (loginOverlay) loginOverlay.style.display = 'none';
 
@@ -1620,6 +1632,374 @@ if (licenseStatus.should_show_expiry_warning) {
 // SUBSCRIPTION NOTICE UI - EASY-Q
 // عرض تنبيه الاشتراك بجوار اسم المستخدم داخل الواجهة
 // ============================================================
+
+function formatEasyQDate(dateValue) {
+  if (!dateValue) return '-';
+
+  try {
+    return new Date(dateValue).toLocaleDateString('ar-SA', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (err) {
+    return '-';
+  }
+}
+
+function getEasyQPlanLabel(planType) {
+  const labels = {
+    trial: 'تجربة',
+    basic: 'أساسية',
+    pro: 'احترافية',
+    enterprise: 'Enterprise'
+  };
+
+  return labels[planType] || planType || '-';
+}
+
+function getEasyQSubscriptionStatusLabel(status) {
+  const labels = {
+    trial: 'تجريبي',
+    active: 'نشط',
+    grace: 'فترة سماح',
+    expired: 'منتهي',
+    suspended: 'موقوف',
+    cancelled: 'ملغي'
+  };
+
+  return labels[status] || status || '-';
+}
+
+function formatEasyQLimit(value) {
+  if (value === null || value === undefined) return 'غير محدود';
+  return String(value);
+}
+
+async function openBranchAccountModal() {
+  const modal = document.getElementById('branchAccountModal');
+
+  if (!modal) {
+    showAlert('مودل الاشتراك غير موجود في الصفحة');
+    return;
+  }
+
+  modal.classList.add('show');
+  await renderBranchAccountSubscription();
+}
+
+function closeBranchAccountModal() {
+  const modal = document.getElementById('branchAccountModal');
+  if (modal) modal.classList.remove('show');
+}
+
+async function renderBranchAccountSubscription() {
+  const box = document.getElementById('branchAccountSubscriptionBox');
+
+  if (!box) return;
+
+  box.innerHTML = `
+    <div style="
+      padding: 22px;
+      text-align: center;
+      color: #64748B;
+      font-weight: 800;
+    ">
+      <i class="fas fa-spinner fa-spin"></i>
+      جاري تحميل بيانات الاشتراك...
+    </div>
+  `;
+
+  try {
+    const { data, error } = await supabase.rpc('get_my_license_status');
+
+    if (error) {
+      console.error('فشل تحميل بيانات الاشتراك:', error);
+      box.innerHTML = `
+        <div style="
+          padding: 18px;
+          border-radius: 14px;
+          background: #FEF2F2;
+          color: #DC2626;
+          font-weight: 900;
+          text-align: center;
+        ">
+          فشل تحميل بيانات الاشتراك
+        </div>
+      `;
+      return;
+    }
+
+    const license = Array.isArray(data) ? data[0] : null;
+
+    if (!license) {
+      box.innerHTML = `
+        <div style="
+          padding: 18px;
+          border-radius: 14px;
+          background: #FFF7ED;
+          color: #C2410C;
+          font-weight: 900;
+          text-align: center;
+        ">
+          لا توجد بيانات اشتراك لهذا المطعم
+        </div>
+      `;
+      return;
+    }
+
+    localStorage.setItem('easyq_license_status', JSON.stringify(license));
+
+    const statusLabel = getEasyQSubscriptionStatusLabel(license.effective_status || license.subscription_status);
+    const planLabel = getEasyQPlanLabel(license.plan_type);
+
+    const statusColor =
+      license.access_allowed === false ? '#DC2626' :
+      license.effective_status === 'grace' ? '#F59E0B' :
+      license.effective_status === 'active' ? '#059669' :
+      '#64748B';
+
+    const daysText =
+      license.access_allowed === false
+        ? 'غير متاح'
+        : `${Number(license.days_remaining || 0)} يوم`;
+
+    box.innerHTML = `
+      <div style="
+        display: grid;
+        gap: 14px;
+      ">
+        <div style="
+          border-radius: 18px;
+          padding: 18px;
+          background: linear-gradient(135deg, #0E146D, #060427);
+          color: #FFFFFF;
+          box-shadow: 0 14px 30px rgba(14,20,109,0.18);
+        ">
+          <div style="
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+            gap:12px;
+            flex-wrap:wrap;
+          ">
+            <div>
+              <div style="font-size:13px; opacity:0.78; font-weight:800; margin-bottom:6px;">
+                الباقة الحالية
+              </div>
+
+              <div style="font-size:26px; font-weight:1000; line-height:1.2;">
+                ${planLabel}
+              </div>
+            </div>
+
+            <div style="
+              display:inline-flex;
+              align-items:center;
+              gap:7px;
+              padding:8px 12px;
+              border-radius:999px;
+              background:rgba(255,255,255,0.12);
+              color:#F4D28A;
+              font-weight:1000;
+              font-size:13px;
+            ">
+              <span style="
+                width:9px;
+                height:9px;
+                border-radius:50%;
+                background:${statusColor};
+                display:inline-block;
+              "></span>
+              ${statusLabel}
+            </div>
+          </div>
+
+          <div style="
+            margin-top:18px;
+            display:grid;
+            grid-template-columns:repeat(3, minmax(0, 1fr));
+            gap:10px;
+          ">
+            <div style="background:rgba(255,255,255,0.1); border-radius:14px; padding:12px;">
+              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">تاريخ البداية</div>
+              <div style="font-weight:900; font-size:13px;">${formatEasyQDate(license.starts_at)}</div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.1); border-radius:14px; padding:12px;">
+              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">تاريخ الانتهاء</div>
+              <div style="font-weight:900; font-size:13px;">${formatEasyQDate(license.expires_at)}</div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.1); border-radius:14px; padding:12px;">
+              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">الأيام المتبقية</div>
+              <div style="font-weight:1000; font-size:17px; color:#F4D28A;">${daysText}</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="
+          display:grid;
+          grid-template-columns:repeat(2, minmax(0, 1fr));
+          gap:12px;
+        ">
+          <div style="border:1px solid #E5E7EB; border-radius:16px; padding:14px; background:#FFFFFF;">
+            <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
+              حد الطاولات
+            </div>
+            <div style="font-size:22px; font-weight:1000; color:#0E146D;">
+              ${formatEasyQLimit(license.max_tables)}
+            </div>
+          </div>
+
+          <div style="border:1px solid #E5E7EB; border-radius:16px; padding:14px; background:#FFFFFF;">
+            <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
+              حد المستخدمين
+            </div>
+            <div style="font-size:22px; font-weight:1000; color:#0E146D;">
+              ${formatEasyQLimit(license.max_users)}
+            </div>
+          </div>
+
+          <div style="border:1px solid #E5E7EB; border-radius:16px; padding:14px; background:#FFFFFF;">
+            <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
+              حد المناطق
+            </div>
+            <div style="font-size:22px; font-weight:1000; color:#0E146D;">
+              ${formatEasyQLimit(license.max_zones)}
+            </div>
+          </div>
+
+          <div style="border:1px solid #E5E7EB; border-radius:16px; padding:14px; background:#FFFFFF;">
+            <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
+              حد الأدوار
+            </div>
+            <div style="font-size:22px; font-weight:1000; color:#0E146D;">
+              ${formatEasyQLimit(license.max_floors)}
+            </div>
+          </div>
+        </div>
+
+        <div style="
+          border:1px solid #E5E7EB;
+          border-radius:16px;
+          padding:14px;
+          background:#F8FAFC;
+          display:grid;
+          gap:8px;
+        ">
+          <div style="display:flex; justify-content:space-between; gap:10px;">
+            <span style="color:#64748B; font-weight:800;">التحليلات</span>
+            <strong style="color:${license.analytics_enabled ? '#059669' : '#DC2626'};">
+              ${license.analytics_enabled ? 'مفعلة ضمن الباقة' : 'غير مفعلة ضمن الباقة'}
+            </strong>
+          </div>
+
+          ${
+            license.is_in_grace_period
+              ? `<div style="
+                  margin-top:8px;
+                  background:#FFFBEB;
+                  color:#92400E;
+                  border:1px solid #FDE68A;
+                  border-radius:12px;
+                  padding:10px;
+                  font-weight:900;
+                ">
+                  الاشتراك في فترة السماح، متبقي ${license.grace_days_remaining || 0} يوم.
+                </div>`
+              : ''
+          }
+
+          ${
+            license.suspension_reason
+              ? `<div style="
+                  margin-top:8px;
+                  background:#FEF2F2;
+                  color:#991B1B;
+                  border:1px solid #FECACA;
+                  border-radius:12px;
+                  padding:10px;
+                  font-weight:900;
+                ">
+                  سبب الإيقاف: ${license.suspension_reason}
+                </div>`
+              : ''
+          }
+        </div>
+
+        <button
+          type="button"
+          onclick="openSubscriptionRenewalRequest()"
+          style="
+            border:none;
+            border-radius:16px;
+            padding:14px 16px;
+            background:linear-gradient(135deg, #F4D28A, #D9A441);
+            color:#111827;
+            font-weight:1000;
+            font-size:14px;
+            cursor:pointer;
+            box-shadow:0 10px 22px rgba(217,164,65,0.22);
+          "
+        >
+          <i class="fas fa-sync-alt"></i>
+          طلب تجديد أو ترقية الاشتراك
+        </button>
+      </div>
+    `;
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء عرض بيانات الاشتراك:', err);
+
+    box.innerHTML = `
+      <div style="
+        padding: 18px;
+        border-radius: 14px;
+        background: #FEF2F2;
+        color: #DC2626;
+        font-weight: 900;
+        text-align: center;
+      ">
+        حدث خطأ أثناء عرض بيانات الاشتراك
+      </div>
+    `;
+  }
+}
+
+
+function openSubscriptionRenewalRequest() {
+  let license = null;
+
+  try {
+    const savedLicense = localStorage.getItem('easyq_license_status');
+    license = savedLicense ? JSON.parse(savedLicense) : null;
+  } catch (err) {
+    console.warn('تعذر قراءة بيانات الاشتراك من التخزين المحلي:', err);
+  }
+
+  const planLabel = getEasyQPlanLabel(license?.plan_type);
+  const statusLabel = getEasyQSubscriptionStatusLabel(
+    license?.effective_status || license?.subscription_status
+  );
+
+  const daysRemaining =
+    license?.access_allowed === false
+      ? 'غير متاح'
+      : `${Number(license?.days_remaining || 0)} يوم`;
+
+  const message = `
+طلب تجديد أو ترقية الاشتراك
+
+الباقة الحالية: ${planLabel}
+حالة الاشتراك: ${statusLabel}
+الأيام المتبقية: ${daysRemaining}
+
+لطلب التجديد أو الترقية، يرجى التواصل مع إدارة EASY-Q عبر قسم الدعم الحي، وسيتم مراجعة طلبك من السوبر أدمن.
+  `.trim();
+
+  showAlert(message);
+}
 
 function showSubscriptionNotice(licenseStatus) {
   if (!licenseStatus) return;
@@ -1853,6 +2233,26 @@ return;
 
 
 async function logoutAndClean() {
+  const loggingOutUser = currentUser ? { ...currentUser } : null;
+
+  if (
+    loggingOutUser &&
+    loggingOutUser.role !== 'super_admin' &&
+    !document.body.classList.contains('super-admin-mode')
+  ) {
+    await logBusinessActivitySafe(
+      'user_logged_out',
+      'تسجيل خروج',
+      'app_user',
+      loggingOutUser.id,
+      loggingOutUser.display_name || loggingOutUser.username || 'مستخدم',
+      {
+        username: loggingOutUser.username || '',
+        logout_method: 'manual'
+      }
+    );
+  }
+
   // 1. تسجيل الخروج من Supabase Auth
   await supabase.auth.signOut();
   
@@ -2146,6 +2546,284 @@ if (settingsSection) {
 if (canDo('manage_settings') && typeof addBusinessSupportSidebarButton === 'function') {
   setTimeout(addBusinessSupportSidebarButton, 300);
 }
+}
+
+// ============================================================
+// ACTIVITY LOG MODAL
+// ============================================================
+
+function openActivityLogModal() {
+  if (!canDo('manage_users')) {
+    showAlert('ليس لديك صلاحية لعرض سجل النشاط');
+    return;
+  }
+
+  const modal = document.getElementById('activityLogModal');
+
+  if (!modal) {
+    showAlert('مودل سجل النشاط غير موجود في الصفحة');
+    return;
+  }
+
+  modal.classList.add('show');
+  loadActivityLogs();
+}
+
+function closeActivityLogModal() {
+  const modal = document.getElementById('activityLogModal');
+  if (modal) modal.classList.remove('show');
+}
+
+function formatActivityLogDate(dateValue) {
+  if (!dateValue) return '-';
+
+  try {
+    return new Date(dateValue).toLocaleString('ar-SA', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (err) {
+    return '-';
+  }
+}
+
+function getActivityRoleLabel(role) {
+  const labels = {
+    admin: 'مدير النظام',
+    manager: 'مدير',
+    staff: 'موظف',
+    super_admin: 'سوبر أدمن'
+  };
+
+  return labels[role] || role || '-';
+}
+
+async function loadActivityLogs() {
+  if (!canDo('manage_users')) {
+    showAlert('ليس لديك صلاحية لعرض سجل النشاط');
+    return;
+  }
+
+  const list = document.getElementById('activityLogList');
+
+  if (!list) return;
+
+  list.innerHTML = `
+    <div style="
+      padding: 22px;
+      text-align: center;
+      color: #64748B;
+      font-weight: 800;
+    ">
+      <i class="fas fa-spinner fa-spin"></i>
+      جاري تحميل سجل النشاط...
+    </div>
+  `;
+
+  try {
+const { data: logs, error } = await supabase.rpc('get_my_business_activity_logs', {
+  p_limit: 50
+});
+
+    if (error) {
+      console.error('فشل تحميل سجل النشاط:', error);
+
+      list.innerHTML = `
+        <div style="
+          padding: 18px;
+          border-radius: 14px;
+          background: #FEF2F2;
+          color: #DC2626;
+          font-weight: 900;
+          text-align: center;
+        ">
+          فشل تحميل سجل النشاط
+        </div>
+      `;
+      return;
+    }
+
+    const rows = Array.isArray(logs) ? logs : [];
+
+    if (rows.length === 0) {
+      list.innerHTML = `
+        <div style="
+          padding: 22px;
+          text-align: center;
+          color: #64748B;
+          font-weight: 800;
+        ">
+          لا توجد أنشطة مسجلة حتى الآن
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = rows.map(log => {
+      const details = log.details || {};
+
+const detailLabels = {
+  username: 'البريد / اسم المستخدم',
+  old_display_name: 'الاسم السابق',
+  new_display_name: 'الاسم الجديد',
+  old_role: 'الدور السابق',
+  new_role: 'الدور الجديد',
+  old_status: 'الحالة السابقة',
+  new_status: 'الحالة الجديدة',
+  password_changed: 'تغيير كلمة المرور',
+  login_method: 'طريقة الدخول',
+  logout_method: 'طريقة الخروج',
+  source: 'المصدر'
+};
+
+const detailValueLabels = {
+  admin: 'مدير النظام',
+  manager: 'مدير',
+  staff: 'موظف',
+  active: 'نشط',
+  inactive: 'موقوف',
+  archived: 'مؤرشف',
+  true: 'تم',
+  false: 'لا',
+  email_password: 'البريد وكلمة المرور',
+  manual: 'يدوي',
+  console_test: 'اختبار من Console'
+};
+
+const detailsText = Object.keys(details).length > 0
+  ? Object.entries(details)
+      .map(([key, value]) => {
+        const label = detailLabels[key] || key;
+        const cleanValue = detailValueLabels[value] || value || '-';
+        return `${label}: ${cleanValue}`;
+      })
+      .join(' | ')
+  : '';
+
+      return `
+        <div style="
+          border: 1px solid #E5E7EB;
+          border-radius: 14px;
+          padding: 12px;
+          margin-bottom: 10px;
+          background: #FFFFFF;
+        ">
+          <div style="
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+          ">
+            <div style="min-width: 0;">
+              <div style="
+                color: #111827;
+                font-weight: 1000;
+                font-size: 14px;
+                margin-bottom: 5px;
+              ">
+                ${log.action_label || 'نشاط'}
+              </div>
+
+              <div style="
+                color: #64748B;
+                font-size: 12px;
+                line-height: 1.6;
+              ">
+                بواسطة: <strong>${log.actor_display_name || 'مستخدم'}</strong>
+                -
+                ${getActivityRoleLabel(log.actor_role)}
+              </div>
+
+              ${
+                log.target_label
+                  ? `<div style="
+                      color: #475569;
+                      font-size: 12px;
+                      margin-top: 5px;
+                    ">
+                      الهدف: ${log.target_label}
+                    </div>`
+                  : ''
+              }
+
+              ${
+                detailsText
+                  ? `<div style="
+                      color: #64748B;
+                      font-size: 11px;
+                      margin-top: 7px;
+                      background: #F8FAFC;
+                      border-radius: 10px;
+                      padding: 7px 9px;
+                      direction: ltr;
+                      text-align: left;
+                      overflow-wrap: anywhere;
+                    ">
+                      ${detailsText}
+                    </div>`
+                  : ''
+              }
+            </div>
+
+            <div style="
+              color: #94A3B8;
+              font-size: 11px;
+              font-weight: 800;
+              white-space: nowrap;
+            ">
+              ${formatActivityLogDate(log.created_at)}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء تحميل سجل النشاط:', err);
+
+    list.innerHTML = `
+      <div style="
+        padding: 18px;
+        border-radius: 14px;
+        background: #FEF2F2;
+        color: #DC2626;
+        font-weight: 900;
+        text-align: center;
+      ">
+        حدث خطأ أثناء تحميل سجل النشاط
+      </div>
+    `;
+  }
+}
+
+// ============================================================
+// BUSINESS ACTIVITY LOG HELPER
+// ============================================================
+
+async function logBusinessActivitySafe(actionKey, actionLabel, targetType = null, targetId = null, targetLabel = null, details = {}) {
+  try {
+    if (!currentUser || currentUser.role === 'super_admin') return;
+    if (document.body.classList.contains('super-admin-mode')) return;
+
+    const { error } = await supabase.rpc('log_business_activity', {
+      p_action_key: actionKey,
+      p_action_label: actionLabel,
+      p_target_type: targetType,
+      p_target_id: targetId,
+      p_target_label: targetLabel,
+      p_details: details || {}
+    });
+
+    if (error) {
+      console.warn('تعذر تسجيل النشاط:', error);
+    }
+  } catch (err) {
+    console.warn('خطأ غير متوقع أثناء تسجيل النشاط:', err);
+  }
 }
 
 // ============================================================
@@ -2538,6 +3216,21 @@ if (!updatedUser) {
   return;
 }
 
+await logBusinessActivitySafe(
+  'user_updated',
+  'تعديل بيانات موظف',
+  'app_user',
+  updatedUser.id,
+  updatedUser.display_name || updatedUser.username || 'موظف',
+  {
+    username: updatedUser.username,
+    old_display_name: oldUser.display_name,
+    new_display_name: updatedUser.display_name,
+    old_role: oldUser.role,
+    new_role: updatedUser.role
+  }
+);
+
 // إذا كان المستخدم يعدل اسمه هو، حدّث الاسم في الواجهة والتخزين
 if (isSelf) {
   currentUser = updatedUser;
@@ -2690,13 +3383,26 @@ async function setBusinessUserActive(userId, nextActive) {
       return;
     }
 
-    if (typeof showSuccessNotification === 'function') {
-      showSuccessNotification(`تم ${actionText} الموظف بنجاح`);
-    } else {
-      alert(`تم ${actionText} الموظف بنجاح`);
-    }
+await logBusinessActivitySafe(
+  nextActive ? 'user_activated' : 'user_deactivated',
+  nextActive ? 'تفعيل موظف' : 'إيقاف موظف',
+  'app_user',
+  updatedUser.id,
+  updatedUser.display_name || updatedUser.username || targetUser.display_name || targetUser.username || 'موظف',
+  {
+    username: updatedUser.username || targetUser.username || '',
+    old_status: nextActive ? 'inactive' : 'active',
+    new_status: nextActive ? 'active' : 'inactive'
+  }
+);
 
-    await loadUsers();
+if (typeof showSuccessNotification === 'function') {
+  showSuccessNotification(`تم ${actionText} الموظف بنجاح`);
+} else {
+  alert(`تم ${actionText} الموظف بنجاح`);
+}
+
+await loadUsers();
 
   } catch (err) {
     console.error(`خطأ غير متوقع أثناء ${actionText} الموظف:`, err);
@@ -2775,13 +3481,26 @@ async function archiveBusinessUser(userId) {
       return;
     }
 
-    if (typeof showSuccessNotification === 'function') {
-      showSuccessNotification('تم حذف الموظف من الواجهة مع الاحتفاظ بسجلاته');
-    } else {
-      alert('تم حذف الموظف من الواجهة مع الاحتفاظ بسجلاته');
-    }
+await logBusinessActivitySafe(
+  'user_archived',
+  'أرشفة موظف',
+  'app_user',
+  archivedUser?.id || userId,
+  archivedUser?.display_name || archivedUser?.username || targetUser?.display_name || targetUser?.username || 'موظف',
+  {
+    username: archivedUser?.username || targetUser?.username || '',
+    old_status: targetUser?.is_active ? 'active' : 'inactive',
+    new_status: 'archived'
+  }
+);
 
-    await loadUsers();
+if (typeof showSuccessNotification === 'function') {
+  showSuccessNotification('تم حذف الموظف من القائمة بنجاح');
+} else {
+  alert('تم حذف الموظف من القائمة بنجاح');
+}
+
+await loadUsers();
 
   } catch (err) {
     console.error('خطأ غير متوقع أثناء أرشفة الموظف:', err);
@@ -6087,18 +6806,41 @@ document.addEventListener('keydown', function(e) {
 // ============================================================
 
 async function logoutAndClean() {
-await supabase.auth.signOut();
+  const loggingOutUser = currentUser ? { ...currentUser } : null;
 
-// إيقاف مؤقت تحديث الاشتراك عند تسجيل الخروج
-if (window.subscriptionRefreshInterval) {
-  clearInterval(window.subscriptionRefreshInterval);
-  window.subscriptionRefreshInterval = null;
-}
+  if (
+    loggingOutUser &&
+    loggingOutUser.role !== 'super_admin' &&
+    !document.body.classList.contains('super-admin-mode')
+  ) {
+    await logBusinessActivitySafe(
+      'user_logged_out',
+      'تسجيل خروج',
+      'app_user',
+      loggingOutUser.id,
+      loggingOutUser.display_name || loggingOutUser.username || 'مستخدم',
+      {
+        username: loggingOutUser.username || '',
+        logout_method: 'manual'
+      }
+    );
+  }
 
-currentUser = null;
-stopCurrentUserProfileAutoRefresh();
-localStorage.removeItem('easyq_user');
-localStorage.removeItem('easyq_license_status');
+  await supabase.auth.signOut();
+
+  if (window.subscriptionRefreshInterval) {
+    clearInterval(window.subscriptionRefreshInterval);
+    window.subscriptionRefreshInterval = null;
+  }
+
+  if (typeof stopCurrentUserProfileAutoRefresh === 'function') {
+    stopCurrentUserProfileAutoRefresh();
+  }
+
+  currentUser = null;
+
+  localStorage.removeItem('easyq_user');
+  localStorage.removeItem('easyq_license_status');
 
   settings = {
     ready_mode: "any_match",
@@ -6148,6 +6890,7 @@ localStorage.removeItem('easyq_license_status');
 
   const usernameInput = document.getElementById('loginUsername');
   const passwordInput = document.getElementById('loginPassword');
+
   if (usernameInput) usernameInput.value = '';
   if (passwordInput) passwordInput.value = '';
 
