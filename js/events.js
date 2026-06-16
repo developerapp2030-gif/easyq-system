@@ -146,71 +146,156 @@ function copyQRLink() {
 }
 
 function printQR() {
-    const qrContainer = document.getElementById('qrCodeContainer');
-    if (!qrContainer) return;
-    
-    // الحصول على رابط QR من المودال
-    const qrLink = document.getElementById('qrLink')?.value || '';
-    
-    // إنشاء نافذة طباعة
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>طباعة QR Code - EASY-Q</title>
-            <meta charset="UTF-8">
-            <style>
-                body {
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                    font-family: Arial, sans-serif;
-                    background: white;
-                }
-                .qr-container {
-                    text-align: center;
-                    padding: 30px;
-                }
-                .qr-container img {
-                    width: 250px;
-                    height: 250px;
-                }
-                .info {
-                    margin-top: 20px;
-                    font-size: 14px;
-                    color: #333;
-                }
-                .info div {
-                    margin: 5px 0;
-                }
-                .link {
-                    font-size: 12px;
-                    color: #666;
-                    word-break: break-all;
-                }
-            </style>
-        </head>
-        <body>
-            <div class="qr-container">
-                <h2>EASY-Q - رمز متابعة الحجز</h2>
-                ${qrContainer.innerHTML}
-                <div class="info">
-                    <div><strong>${document.getElementById('qrCustomerName')?.innerText || ''}</strong></div>
-                    <div>الرقم المرجعي: ${document.getElementById('qrBookingCode')?.innerText || ''}</div>
-                    <div>رقم الدور: ${document.getElementById('qrQueuePosition')?.innerText || ''}</div>
-                    <div class="link">رابط المتابعة: ${qrLink}</div>
-                </div>
-                <p>امسح الرمز لمتابعة الحجز</p>
-            </div>
-        </body>
-        </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-    printWindow.close();
+  const qrContainer = document.getElementById('qrCodeContainer');
+  if (!qrContainer) return;
+
+  const qrLink = document.getElementById('qrLink')?.value || '';
+  const customerName = document.getElementById('qrCustomerName')?.innerText || '';
+  const bookingCode = document.getElementById('qrBookingCode')?.innerText || '';
+  const queuePosition = document.getElementById('qrQueuePosition')?.innerText || '';
+
+  let qrImageSrc = '';
+
+  const canvas = qrContainer.querySelector('canvas');
+  const img = qrContainer.querySelector('img');
+
+  if (canvas) {
+    qrImageSrc = canvas.toDataURL('image/png');
+  } else if (img && img.src) {
+    qrImageSrc = img.src;
+  }
+
+  if (!qrImageSrc) {
+    showAlert(currentLang === 'ar'
+      ? 'لم يتم تجهيز الباركود بعد، حاول مرة أخرى بعد ثانية'
+      : 'QR code is not ready yet, please try again');
+    return;
+  }
+
+  const printWindow = window.open('', '_blank');
+
+  if (!printWindow) {
+    showAlert(currentLang === 'ar'
+      ? 'المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.'
+      : 'Popup was blocked. Please allow popups and try again.');
+    return;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>طباعة QR Code - EASY-Q</title>
+      <style>
+        body {
+          margin: 0;
+          padding: 0;
+          min-height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          font-family: Arial, sans-serif;
+          background: #ffffff;
+          color: #111827;
+        }
+
+        .qr-print-card {
+          width: 320px;
+          padding: 24px;
+          text-align: center;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+        }
+
+        .qr-print-title {
+          font-size: 20px;
+          font-weight: 800;
+          margin-bottom: 14px;
+        }
+
+        .qr-print-image {
+          width: 220px;
+          height: 220px;
+          display: block;
+          margin: 0 auto 16px auto;
+        }
+
+        .qr-print-info {
+          font-size: 14px;
+          line-height: 1.9;
+        }
+
+        .qr-print-code {
+          font-size: 18px;
+          font-weight: 800;
+          letter-spacing: 1px;
+          direction: ltr;
+        }
+
+        .qr-print-link {
+          margin-top: 12px;
+          font-size: 11px;
+          color: #6b7280;
+          word-break: break-all;
+          direction: ltr;
+        }
+
+        @media print {
+          body {
+            min-height: auto;
+          }
+
+          .qr-print-card {
+            border: none;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="qr-print-card">
+        <div class="qr-print-title">EASY-Q</div>
+
+        <img
+          class="qr-print-image"
+          src="${qrImageSrc}"
+          alt="QR Code"
+          onload="window.__qrReady = true"
+        >
+
+        <div class="qr-print-info">
+          <div><strong>${customerName}</strong></div>
+          <div>الرقم المرجعي</div>
+          <div class="qr-print-code">${bookingCode}</div>
+          <div>رقم الدور: ${queuePosition}</div>
+        </div>
+
+        <div class="qr-print-link">${qrLink}</div>
+      </div>
+
+      <script>
+        function doPrintWhenReady() {
+          const img = document.querySelector('.qr-print-image');
+
+          if (!img || !img.complete) {
+            setTimeout(doPrintWhenReady, 150);
+            return;
+          }
+
+          setTimeout(function () {
+            window.focus();
+            window.print();
+            window.close();
+          }, 250);
+        }
+
+        window.onload = doPrintWhenReady;
+      <\/script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
 
 function closeQRModal() {

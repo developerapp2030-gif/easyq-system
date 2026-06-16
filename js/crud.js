@@ -469,20 +469,32 @@ async function saveWalkIn() {
     return;
   }
 
-  let name = document.getElementById("walkInName").value.trim();
-  if (name.length > 20) {
-    name = name.substring(0, 20);
-    alert("الاسم مقيد بـ 20 حرف كحد أقصى");
-  }
-  const party = parseInt(document.getElementById("walkInParty").value);
-  let phoneDigits = document.getElementById("walkInPhone").value.trim();
-  const preferredZone = document.getElementById("walkInZone").value;
-  const customerName = name || "Guest";
+let name = document.getElementById("walkInName").value.trim();
+
+if (!name) {
+  alert("اسم العميل مطلوب لإضافة عميل محلي");
+  return;
+}
+
+if (name.length > 20) {
+  name = name.substring(0, 20);
+  alert("الاسم مقيد بـ 20 حرف كحد أقصى");
+}
+
+const party = parseInt(document.getElementById("walkInParty").value);
+let phoneDigits = document.getElementById("walkInPhone").value.trim();
+const preferredZone = document.getElementById("walkInZone").value;
+const customerName = name;
+
+if (!phoneDigits) {
+  alert("رقم الجوال مطلوب لإضافة عميل محلي");
+  return;
+}
   
-  if (!party || party < 1) {
-    alert("أدخل عدد أشخاص صحيح");
-    return;
-  }
+if (!party || party < 1) {
+  alert("أدخل عدد أشخاص صحيح");
+  return;
+}
   
   let fullPhone = "";
   if (phoneDigits && phoneDigits.length === 8) {
@@ -497,7 +509,17 @@ async function saveWalkIn() {
     return;
   }
   
-  let customerId = null;
+  const saveBtn = document.getElementById('walkInSaveBtn');
+const saveBtnText = document.getElementById('walkInSaveBtnText');
+const saveBtnSpinner = document.getElementById('walkInSaveBtnSpinner');
+
+if (saveBtn) saveBtn.disabled = true;
+if (saveBtnText) saveBtnText.innerText = 'جاري الإضافة...';
+if (saveBtnSpinner) saveBtnSpinner.style.display = 'inline-block';
+
+let customerId = null;
+
+try {
   
   // البحث عن عميل موجود بنفس رقم الهاتف
   if (fullPhone) {
@@ -568,6 +590,12 @@ if (snapshotError) {
   closeWalkInModal();
   await loadAll();
   showSuccessNotification("تم إضافة العميل");
+
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+    if (saveBtnText) saveBtnText.innerText = 'إضافة';
+    if (saveBtnSpinner) saveBtnSpinner.style.display = 'none';
+  }
 }
 
 // ============================================================
