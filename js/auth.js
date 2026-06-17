@@ -1693,6 +1693,54 @@ function closeBranchAccountModal() {
   if (modal) modal.classList.remove('show');
 }
 
+async function getBranchAccountBusinessProfile() {
+  try {
+    if (window.currentBusinessProfile?.support_ref) {
+      return window.currentBusinessProfile;
+    }
+
+    if (window.currentBusiness?.support_ref) {
+      return window.currentBusiness;
+    }
+
+    const { data, error } = await supabase.rpc('get_my_business_profile_secure');
+
+    if (error) {
+      console.warn('تعذر جلب معرف الدعم:', error);
+      return null;
+    }
+
+    return Array.isArray(data) ? data[0] : data;
+  } catch (err) {
+    console.warn('خطأ أثناء جلب معرف الدعم:', err);
+    return null;
+  }
+}
+
+function copyBranchAccountSupportRef() {
+  const refEl = document.getElementById('branchAccountSupportRefValue');
+  const supportRef = refEl ? refEl.textContent.trim() : '';
+
+  if (!supportRef || supportRef === '-') {
+    showAlert('لا يوجد معرف دعم لنسخه');
+    return;
+  }
+
+  navigator.clipboard.writeText(supportRef)
+    .then(() => {
+      showSuccessNotification('✅ تم نسخ معرف الدعم');
+    })
+    .catch(() => {
+      const tempInput = document.createElement('input');
+      tempInput.value = supportRef;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      tempInput.remove();
+      showSuccessNotification('✅ تم نسخ معرف الدعم');
+    });
+}
+
 async function renderBranchAccountSubscription() {
   const box = document.getElementById('branchAccountSubscriptionBox');
 
@@ -1749,6 +1797,15 @@ async function renderBranchAccountSubscription() {
     }
 
     localStorage.setItem('easyq_license_status', JSON.stringify(license));
+
+    const businessProfile = await getBranchAccountBusinessProfile();
+
+    const supportRef =
+      businessProfile?.support_ref ||
+      window.currentBusinessProfile?.support_ref ||
+      window.currentBusiness?.support_ref ||
+      license.support_ref ||
+      '-';
 
     const statusLabel = getEasyQSubscriptionStatusLabel(license.effective_status || license.subscription_status);
     const planLabel = getEasyQPlanLabel(license.plan_type);
@@ -1836,6 +1893,58 @@ async function renderBranchAccountSubscription() {
               <div style="font-weight:1000; font-size:17px; color:#F4D28A;">${daysText}</div>
             </div>
           </div>
+        </div>
+
+        <div style="
+          border:1px solid #E5E7EB;
+          border-radius:16px;
+          padding:14px;
+          background:#FFFFFF;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          flex-wrap:wrap;
+        ">
+          <div>
+            <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
+              معرف الدعم الموحد
+            </div>
+
+            <div
+              id="branchAccountSupportRefValue"
+              style="
+                font-size:18px;
+                font-weight:1000;
+                color:#0E146D;
+                direction:ltr;
+                text-align:left;
+                letter-spacing:0.5px;
+              "
+            >
+              ${supportRef}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onclick="copyBranchAccountSupportRef()"
+            style="
+              border:none;
+              border-radius:12px;
+              padding:10px 14px;
+              background:#0E146D;
+              color:#FFFFFF;
+              font-weight:1000;
+              cursor:pointer;
+              display:inline-flex;
+              align-items:center;
+              gap:7px;
+            "
+          >
+            <i class="fas fa-copy"></i>
+            نسخ
+          </button>
         </div>
 
         <div style="

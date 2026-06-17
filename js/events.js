@@ -47,7 +47,7 @@ function closeStatusModal() {
   document.getElementById("statusModal").classList.remove("show");
 }
 
-function showQRModal(bookingCode, customerName, queuePosition, status, phone = '', requestId = '') {
+function showQRModal(bookingCode, customerName, queuePosition, status, phone = '', requestId = '', repeatVisitCount = 0) {
     const trackUrl = `${window.location.origin}/booking.html?code=${bookingCode}`;
     window.currentQRRequestId = requestId || '';
     const cleanPhone = String(phone || '').replace(/\D/g, '');
@@ -81,7 +81,47 @@ new QRCode(qrContainer, {
 });
     }
     
-document.getElementById('qrCustomerName').innerText = customerName;
+const qrCustomerNameEl = document.getElementById('qrCustomerName');
+const repeatVisitNumber = Number(repeatVisitCount || 0);
+
+if (qrCustomerNameEl) {
+  // إزالة تنبيه سابق عند فتح المودل أكثر من مرة
+  const oldRepeatNotice = document.getElementById('qrRepeatVisitNotice');
+  if (oldRepeatNotice) oldRepeatNotice.remove();
+
+  // إبقاء اسم العميل في مكانه الطبيعي تحت لابل "اسم العميل"
+  qrCustomerNameEl.textContent = customerName || 'ضيف';
+
+  if (repeatVisitNumber > 0) {
+    const repeatNotice = document.createElement('div');
+    repeatNotice.id = 'qrRepeatVisitNotice';
+    repeatNotice.textContent = `🏆 زارنا ${repeatVisitNumber} مرات خلال 30 يوم .. يستحق الاهتمام`;
+
+    repeatNotice.style.color = '#B91C1C';
+    repeatNotice.style.background = 'rgba(185, 28, 28, 0.08)';
+    repeatNotice.style.border = '1px solid rgba(185, 28, 28, 0.18)';
+    repeatNotice.style.borderRadius = '999px';
+    repeatNotice.style.fontSize = '12px';
+    repeatNotice.style.fontWeight = '1000';
+    repeatNotice.style.lineHeight = '1.45';
+    repeatNotice.style.margin = '0 auto 10px auto';
+    repeatNotice.style.padding = '6px 12px';
+    repeatNotice.style.whiteSpace = 'normal';
+    repeatNotice.style.textAlign = 'center';
+    repeatNotice.style.display = 'flex';
+    repeatNotice.style.alignItems = 'center';
+    repeatNotice.style.justifyContent = 'center';
+    repeatNotice.style.width = 'fit-content';
+    repeatNotice.style.maxWidth = '100%';
+    repeatNotice.style.boxShadow = '0 6px 18px rgba(185, 28, 28, 0.08)';
+
+    const nameBlock = qrCustomerNameEl.parentElement;
+
+    if (nameBlock && nameBlock.parentElement) {
+      nameBlock.parentElement.insertBefore(repeatNotice, nameBlock);
+    }
+  }
+}
 document.getElementById('qrBookingCode').innerText = bookingCode;
 document.getElementById('qrQueuePosition').innerText = queuePosition;
 

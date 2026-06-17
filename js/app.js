@@ -455,6 +455,132 @@ async function loadActiveSettings() {
   }
 }
 
+function easyqNormalizePhoneForRepeatVisit(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+
+  if (!digits) return '';
+
+  if (digits.startsWith('00966')) {
+    return digits.slice(2);
+  }
+
+  if (digits.startsWith('966')) {
+    return digits;
+  }
+
+  if (digits.startsWith('05')) {
+    return `966${digits.slice(1)}`;
+  }
+
+  if (digits.startsWith('5') && digits.length >= 9) {
+    return `966${digits}`;
+  }
+
+  return digits;
+}
+
+function easyqGetWaitingCustomerPhone(row) {
+  return (
+    row?.phone ||
+    row?.customer_phone ||
+    row?.customer_phone_snapshot ||
+    row?.customers?.phone ||
+    row?.customers?.whatsapp_number ||
+    ''
+  );
+}
+
+async function enrichWaitingDataWithRepeatVisits() {
+  try {
+    const businessId = currentUser?.business_id;
+
+    if (!businessId || !Array.isArray(waitingData) || waitingData.length === 0) {
+      return;
+    }
+
+    const waitingPhones = waitingData
+      .map((row) => easyqNormalizePhoneForRepeatVisit(easyqGetWaitingCustomerPhone(row)))
+      .filter((phone) => phone && phone.length >= 9);
+
+    const uniqueWaitingPhones = [...new Set(waitingPhones)];
+
+    if (uniqueWaitingPhones.length === 0) {
+      waitingData = waitingData.map((row) => ({
+        ...row,
+        repeat_visit_30_days: false,
+        repeat_visit_count_30_days: 0,
+        repeat_last_visit_at: null
+      }));
+      return;
+    }
+
+    const sinceDate = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString();
+
+    const { data, error } = await supabase
+      .from('table_requests')
+      .select(`
+        id,
+        customer_id,
+        customer_phone_snapshot,
+        created_at,
+        customers (
+          phone,
+          whatsapp_number
+        )
+      `)
+      .eq('business_id', businessId)
+      .gte('created_at', sinceDate);
+
+    if (error) {
+      console.warn('تعذر فحص تكرار زيارات العملاء خلال 30 يوم:', error);
+      return;
+    }
+
+    const visitsByPhone = new Map();
+
+    (data || []).forEach((visit) => {
+      const visitPhone = easyqNormalizePhoneForRepeatVisit(
+        visit.customer_phone_snapshot ||
+        visit.customers?.phone ||
+        visit.customers?.whatsapp_number ||
+        ''
+      );
+
+      if (!visitPhone || !uniqueWaitingPhones.includes(visitPhone)) return;
+
+      if (!visitsByPhone.has(visitPhone)) {
+        visitsByPhone.set(visitPhone, []);
+      }
+
+      visitsByPhone.get(visitPhone).push(visit);
+    });
+
+    waitingData = waitingData.map((row) => {
+      const currentPhone = easyqNormalizePhoneForRepeatVisit(easyqGetWaitingCustomerPhone(row));
+      const currentRequestId = String(row.request_id || row.id || '');
+      const visits = visitsByPhone.get(currentPhone) || [];
+
+      const previousVisits = visits.filter((visit) => {
+        return String(visit.id || '') !== currentRequestId;
+      });
+
+      previousVisits.sort((a, b) => {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      return {
+        ...row,
+        repeat_visit_30_days: previousVisits.length > 0,
+        repeat_visit_count_30_days: previousVisits.length,
+        repeat_last_visit_at: previousVisits[0]?.created_at || null
+      };
+    });
+
+  } catch (err) {
+    console.warn('خطأ أثناء فحص تكرار زيارة العميل:', err);
+  }
+}
+
 async function loadWaitingList() {
   const businessId = currentUser?.business_id;
 
@@ -479,6 +605,8 @@ async function loadWaitingList() {
 
   // حماية إضافية داخل الواجهة حتى لو رجعت بيانات خاطئة من الـ view
   waitingData = (data || []).filter(r => r.business_id === businessId);
+
+  await enrichWaitingDataWithRepeatVisits();
 
   console.log(`✅ تم تحميل قائمة انتظار المطعم الحالي فقط: ${waitingData.length} طلب`);
   renderWaitingList();

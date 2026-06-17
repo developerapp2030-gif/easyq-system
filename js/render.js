@@ -626,6 +626,30 @@ if (w.zone_name && w.zone_name !== "") {
 }
     
     const queueNum = w.queue_position || "?";
+        const customerNameText = String(w.customer_name || "ضيف").trim() || "ضيف";
+    const customerNameDir = /[\u0600-\u06FF]/.test(customerNameText) ? 'rtl' : 'ltr';
+
+    const safeCustomerNameText = customerNameText
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+       const repeatVisitCount = Number(w.repeat_visit_count_30_days || 0);
+    const repeatCupHtml = repeatVisitCount > 0
+      ? `<span
+          title="زارنا ${repeatVisitCount} مرات خلال 30 يوم"
+          style="
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            font-size:15px;
+            line-height:1;
+            margin-inline-end:4px;
+            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12));
+          "
+        >🏆</span>`
+      : ''; 
     
     let sourceLabel = "";
     let sourceIcon = "";
@@ -656,7 +680,10 @@ if (w.zone_name && w.zone_name !== "") {
       <div class="waiting-row-top">
         <div class="waiting-left-group">
           <span class="source-badge"><i class="${iconClass} ${sourceIcon}"></i> ${sourceLabel}</span>
-          <span class="customer-name-part">${(w.customer_name || "ضيف").substring(0, 18)}${phoneDisplay ? ` - ${phoneDisplay}` : ""}</span>
+                    <span class="customer-name-part" style="display:inline-flex; align-items:center; gap:4px;">
+            ${repeatCupHtml}
+            <span>${(w.customer_name || "ضيف").substring(0, 18)}${phoneDisplay ? ` - ${phoneDisplay}` : ""}</span>
+          </span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span class="queue-number-badge">${queueNum}</span>
@@ -668,7 +695,7 @@ if (w.zone_name && w.zone_name !== "") {
 
         <span class="detail-item"><i class="fas fa-user-friends"></i> ${w.requested_party_size || 0}</span>
 
-        ${w.booking_code ? `<span class="detail-item booking-code-link" onclick="event.stopPropagation(); showQRModal('${w.booking_code}', '${(w.customer_name || "ضيف").replace(/'/g, "\\'")}', '${w.queue_position || "?"}', '${w.status}', '${String(w.phone || w.customer_phone || w.customer_phone_snapshot || "").replace(/'/g, "\\'")}', '${w.request_id || ""}')"><i class="fas fa-qrcode"></i> ${w.booking_code}</span>` : ''}
+                ${w.booking_code ? `<span class="detail-item booking-code-link" onclick="event.stopPropagation(); showQRModal('${w.booking_code}', '${(w.customer_name || "ضيف").replace(/'/g, "\\'")}', '${w.queue_position || "?"}', '${w.status}', '${String(w.phone || w.customer_phone || w.customer_phone_snapshot || "").replace(/'/g, "\\'")}', '${w.request_id || ""}', '${repeatVisitCount}')"><i class="fas fa-qrcode"></i> ${w.booking_code}</span>` : ''}
 
       <span class="detail-item"><i class="fas fa-clock"></i> ${timeSince(w.local_time || w.created_at || w.request_time)}</span>
       </div>

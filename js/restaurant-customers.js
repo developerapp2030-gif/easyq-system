@@ -1,452 +1,347 @@
 /* ============================================================
-   EASY-Q RESTAURANT CUSTOMERS
-   ملف مستقل لقسم العملاء لمسؤول المطعم
-   الربط لاحقًا: <script src="js/restaurant-customers.js"></script>
+   EASY-Q Restaurant Customers
+   ملف شامل لقسم العملاء
+   - إجمالي العملاء من customers حسب رقم الجوال
+   - نشاط الفترة من table_requests
+   - يحل مشكلة ظهور 10 عملاء فقط
    ============================================================ */
 
 (function () {
   'use strict';
 
   const EQC = {
-    activeView: 'overview',
+    view: 'overview',
     range: 'last30',
     search: '',
-    segment: 'all',
-    source: 'all',
-    status: 'all',
-    selectedCustomerKey: null,
+    filter: 'all',
+    page: 1,
+    pageSize: 50,
+    selectedKey: null,
+    data: null,
     loadedAt: null,
-    lastData: null,
-    lastRange: null
+    loading: false,
+    lastError: null
   };
 
   const $ = (id) => document.getElementById(id);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
-  const I18N = {
+  const T = {
     ar: {
       title: 'العملاء',
-      subtitle: 'نظرة شاملة على العملاء، التكرار، الشرائح، وملفات العملاء اعتمادًا على بيانات الحجوزات والطابور.',
-      loading: 'جاري تجهيز قسم العملاء...',
-      load_error: 'تعذر فتح قسم العملاء',
-      no_permission: 'ليس لديك صلاحية لعرض قسم العملاء.',
-      refresh_now: 'تحديث الآن',
-      last_update: 'آخر تحديث',
+      subtitle: 'نظرة واضحة على عملاء المطعم وزياراتهم وبياناتهم .',
+      loading: 'جاري تحميل قاعدة العملاء...',
+      error: 'تعذر تحميل بيانات العملاء',
+      refresh: 'تحديث',
       range: 'النطاق',
-      all_time: 'كل البيانات',
       today: 'اليوم',
-      last7: 'آخر 7 أيام',
-      last30: 'آخر 30 يوم',
-      last90: 'آخر 90 يوم',
+      last7: '7 أيام',
+      last30: '30 يوم',
+      last90: '90 يوم',
+      all_time: 'كل البيانات',
       overview: 'ملخص العملاء',
       list: 'قائمة العملاء',
       profile: 'ملف العميل',
-      segments: 'شرائح العملاء',
+      segments: 'لمحات العملاء',
       loyalty: 'الولاء والتكرار',
       export: 'تصدير العملاء',
-      total_customers: 'إجمالي العملاء',
-      new_customers: 'عملاء جدد',
-      repeat_customers: 'عملاء متكررون',
-      inactive_customers: 'غير نشطين',
-      online_customers: 'عملاء أونلاين',
-      local_customers: 'عملاء محليون',
-      vip_potential: 'VIP محتملون',
-      high_loss_customers: 'فقد عالي',
-      customers_with_notes: 'لديهم ملاحظات',
-      latest_customer: 'آخر عميل',
-      search_placeholder: 'ابحث بالاسم أو رقم الجوال...',
-      filter_segment: 'الشريحة',
-      filter_source: 'المصدر',
-      filter_status: 'الحالة',
+      unique_customers: 'إجمالي العملاء المسجلين',
+      raw_rows: 'سجلات داخلية',
+      active_period: 'عملاء في الفترة',
+      requests_period: 'زيارات الفترة',
+      requests_all: 'كل الزيارات',
+      no_phone: 'بدون رقم جوال',
+      duplicated_rows: 'أرقام مكررة تم دمجها',
+      multi_names: 'أسماء متعددة لنفس الجوال',
+      visible_groups: 'العملاء الظاهرون',
+      period_note: 'إجمالي العملاء ثابت، والفترة توضّح من زار المطعم خلال المدة المحددة.',
+      diagnostic: 'معلومات غير معروضة',
+      business_id: 'معرف المطعم',
+      support_ref: 'معرف الدعم',
+      loaded_at: 'آخر تحديث',
+      source_rpc: 'مصدر البيانات جاهز',
+      source_direct: 'مصدر البيانات جاهز',
+      search_placeholder: 'ابحث باسم العميل أو رقم الجوال...',
       all: 'الكل',
-      walk_in: 'محلي',
+      active_in_range: 'زاروا في الفترة',
+      with_requests: 'لديهم زيارات',
+      no_requests: 'بدون زيارات',
+      repeat: 'زيارات متكررة',
+      multi_name_filter: 'أكثر من اسم',
+      no_phone_filter: 'بدون جوال',
       online: 'أونلاين',
-      restored: 'مسترجع',
-      other: 'غير مصنف',
-      active: 'نشط',
-      inactive: 'غير نشط',
-      new: 'جديد',
-      repeat: 'متكرر',
-      vip: 'VIP محتمل',
-      high_loss: 'فقد عالي',
-      name: 'الاسم',
+      walk_in: 'محلي',
+      inactive: 'لم يزوروا منذ فترة',
+      reset: 'إعادة ضبط',
+      showing: 'المعروض',
+      of: 'من',
       phone: 'الجوال',
-      whatsapp: 'واتساب',
-      visits: 'الطلبات',
-      last_visit: 'آخر ظهور',
-      first_visit: 'أول ظهور',
-      preferred_source: 'المصدر المفضل',
-      preferred_zone: 'المنطقة المفضلة',
-      avg_party_size: 'متوسط المجموعة',
-      loss_count: 'الفقد',
-      completed_count: 'خدمة/نشط',
-      actions: 'إجراءات',
-      open_profile: 'فتح الملف',
-      no_customers: 'لا توجد بيانات عملاء مطابقة',
-      customer_profile: 'ملف العميل',
-      profile_hint: 'اختر عميلًا من القائمة لعرض ملفه التفصيلي.',
+      latest_name: 'الاسم الأخير',
+      used_names: 'الأسماء المستخدمة',
+      customer_ids: 'بيانات داخلية',
+      raw_count: 'الأسماء المرتبطة',
+      visits: 'عدد الزيارات',
+      period_visits: 'زيارات الفترة',
+      first_seen: 'أول ظهور',
+      last_seen: 'آخر ظهور',
+      top_source: 'المصدر المعتاد',
+      top_zone: 'المنطقة المفضلة',
+      avg_party: 'متوسط المجموعة',
+      actions: 'إجراء',
+      open_profile: 'عرض الملف',
       close_profile: 'إغلاق الملف',
       back_to_list: 'العودة للقائمة',
-      customer_data: 'بيانات العميل',
-      request_history: 'سجل الطلبات',
-      customer_insights: 'مؤشرات العميل',
-      private_notes: 'ملاحظات داخلية',
-      source_mix: 'توزيع المصادر',
-      zone_mix: 'المناطق المفضلة',
-      booking_code: 'رقم الحجز',
-      request_source: 'مصدر الطلب',
+      copy_phone: 'نسخ الجوال',
+      copied: 'تم النسخ',
+      no_data: 'لا توجد بيانات مطابقة',
+      customer_file: 'ملف العميل',
+      identity: 'بيانات العميل',
+      requests_linked: 'كل الزيارات المرتبطة بنفس الجوال',
+      booking_code: 'رمز الزيارة',
+      date: 'التاريخ',
+      source: 'المصدر',
       zone: 'المنطقة',
-      party_size: 'عدد الأشخاص',
+      party: 'عدد الأشخاص',
       status: 'الحالة',
-      created_at: 'تاريخ الطلب',
+      notes: 'ملاحظات',
+      segments_summary: 'لمحات العملاء',
+      loyalty_hint: 'هذا القسم لا يمنح نقاطًا تلقائيًا؛ هو يساعدك على ملاحظة العملاء المتكررين واتخاذ قرار المكافأة بنفسك.',
+      gold: 'مرشحون للاهتمام',
+      silver: 'زيارات جيدة',
+      bronze: 'عادوا مرة أخرى',
+      one_time: 'زيارة واحدة',
+      top_repeat: 'العملاء الأكثر زيارة',
+      needs_followup: 'عادوا مؤخرًا',
+      export_excel: 'تحميل Excel',
+      export_current: 'تصدير المعروض',
+      export_all: 'تصدير كل العملاء',
+      table_requests_only_warning: '',
+      customers_today: 'عملاء اليوم',
+      customers_7: 'خلال 7 أيام',
+      customers_30: 'خلال 30 يوم',
+      customers_90: 'خلال 90 يوم',
+      source_summary: 'مصادر العملاء',
+      zone_summary: 'المناطق الأكثر اختيارًا',
+      simple_snapshot: 'نظرة سريعة',
+      customer_love_note: 'هذه الأرقام تساعد المطعم يعرف من عاد، ومن يستحق اهتمامًا خاصًا.',
+      print_current: 'طباعة المعروض',
+      print_all: 'طباعة كل العملاء',
+      loyalty_cup_note: 'علامة الكأس 🏆 تعني أن العميل كرر الزيارة بنفس رقم الجوال خلال أقل من 30 يوم. عند ظهوره في قائمة الانتظار يستطيع صاحب الصلاحية  فتح ملفه ومعرفة هل يستحق ترحيبًا خاصًا أو مكافأة.',
+      cup_candidate: 'عميل متكرر قريبًا',
+      no_auto_points: 'لا توجد نقاط أو مكافآت تلقائية هنا. القرار يبقى للمطعم.',
+      visits_history: 'سجل الزيارات',
+      unknown: 'غير محدد',
+      other: 'غير مصنف',
+      restored: 'مسترجع',
       waiting: 'انتظار',
-      offered: 'جاهز/معيّن',
+      offered: 'جاهز',
       reserved: 'محجوز',
       occupied: 'مشغول',
       cleaning: 'تنظيف',
       completed: 'مكتمل',
       cancelled: 'ملغي',
       expired: 'منتهي',
-      no_show: 'لم يحضر',
-      unknown: 'غير محدد',
-      segment_summary: 'ملخص الشرائح',
-      segment_table: 'تفاصيل الشرائح',
-      segment_name: 'اسم الشريحة',
-      count: 'العدد',
-      percent: 'النسبة',
-      description: 'الوصف',
-      new_desc: 'ظهروا لأول مرة خلال آخر 7 أيام',
-      repeat_desc: 'لديهم أكثر من طلب أو زيارة',
-      active_desc: 'لديهم نشاط خلال آخر 30 يوم',
-      inactive_desc: 'لم يظهروا منذ 30 يوم أو أكثر',
-      online_desc: 'مصدرهم الغالب أونلاين أو QR',
-      local_desc: 'مصدرهم الغالب إضافة محلية من المطعم',
-      vip_desc: 'تكرار جيد وفقد منخفض',
-      high_loss_desc: 'لديهم أكثر من طلب ملغي أو منتهي',
-      loyalty_title: 'الولاء والتكرار',
-      loyalty_subtitle: 'تحليل تكرار العملاء فقط، وليس نظام نقاط حقيقي في هذه المرحلة.',
-      top_repeat: 'أكثر العملاء تكرارًا',
-      comeback_candidates: 'عملاء يستحقون متابعة',
-      loyalty_levels: 'مستويات الولاء التحليلية',
-      bronze: 'Bronze',
-      silver: 'Silver',
-      gold: 'Gold',
-      gold_desc: '5 طلبات أو أكثر وفقد منخفض',
-      silver_desc: '3-4 طلبات',
-      bronze_desc: 'طلبان',
-      one_time_desc: 'طلب واحد فقط',
-      one_time: 'مرة واحدة',
-      export_title: 'تصدير العملاء',
-      export_subtitle: 'تصدير ملف Excel قابل للفتح مباشرة للبيانات الحالية أو العملاء المعروضين بعد الفلاتر.',
-      download_csv: 'تحميل CSV',
-      download_excel: 'تحميل Excel',
-      copy_summary: 'نسخ الملخص',
-      export_all: 'تصدير كل العملاء',
-      export_filtered: 'تصدير النتائج الحالية',
-      csv_ready: 'ملف العملاء جاهز للتنزيل',
-      summary_copied: 'تم نسخ الملخص',
-      no_data: 'لا توجد بيانات كافية',
-      source: 'المصدر',
-      details: 'التفاصيل',
-      value: 'القيمة',
-      customer: 'عميل',
-      customers: 'عملاء',
-      request: 'طلب',
-      requests: 'طلبات',
-      days_since_last: 'أيام منذ آخر ظهور',
-      loss_rate: 'نسبة الفقد',
-      repeat_rate: 'نسبة التكرار',
-      top_source: 'أعلى مصدر',
-      top_zone: 'أكثر منطقة',
-      quick_read: 'قراءة سريعة',
-      insights: 'ملاحظات ذكية',
-      no_notes: 'لا توجد ملاحظات محفوظة',
-      customer_without_name: 'عميل',
-      last_name: 'الاسم الأخير',
-      used_names: 'الأسماء المستخدمة',
-      linked_customer_ids: 'معرفات العملاء المرتبطة',
-      linked_records: 'السجلات المرتبطة',
-      raw_customer_records: 'سجلات العملاء الخام',
-      unique_phone_customers: 'عملاء فريدون حسب الجوال',
-      no_phone_customer: 'بدون رقم جوال',
-      requests_by_phone: 'كل الطلبات المرتبطة بنفس الجوال',
-      profile_summary: 'ملخص الملف',
-      identity_section: 'هوية العميل الموحدة',
-      latest_name_hint: 'يعرض آخر اسم مستخدم مع هذا الرقم، مع حفظ كل الأسماء السابقة.',
-      no_phone: 'بدون رقم',
-      table_view: 'عرض جدولي',
-      card_view: 'بطاقات',
-      reset_filters: 'إعادة ضبط',
-      period_note: 'البيانات تعتمد على العملاء وجدول الطلبات في النطاق المحدد، مع الاحتفاظ بسجل العميل المتاح.',
-      profile_not_found: 'لم يتم العثور على العميل المحدد',
-      export_note: 'يتم التصدير بصيغة Excel حسب اللغة الحالية والفلاتر المحددة.',
-      inactive_alert: 'لم يظهر منذ فترة طويلة',
-      loss_alert: 'لديه فقد متكرر',
-      vip_alert: 'عميل مميز محتمل',
-      online_alert: 'يتفاعل أونلاين',
-      local_alert: 'غالبًا من داخل المطعم'
+      no_show: 'لم يحضر'
     },
     en: {
       title: 'Customers',
-      subtitle: 'A complete customer view with profiles, segments, repeat behavior, and loyalty-style analysis based on queue and booking data.',
-      loading: 'Preparing customers section...',
-      load_error: 'Unable to open customers section',
-      no_permission: 'You do not have permission to view customers.',
-      refresh_now: 'Refresh Now',
-      last_update: 'Last Update',
+      subtitle: 'A simple view of restaurant customers, visits, and sources.',
+      loading: 'Loading customer base...',
+      error: 'Unable to load customers',
+      refresh: 'Refresh',
       range: 'Range',
-      all_time: 'All Data',
       today: 'Today',
-      last7: 'Last 7 Days',
-      last30: 'Last 30 Days',
-      last90: 'Last 90 Days',
-      overview: 'Customer Overview',
+      last7: '7 Days',
+      last30: '30 Days',
+      last90: '90 Days',
+      all_time: 'All Data',
+      overview: 'Overview',
       list: 'Customer List',
       profile: 'Customer Profile',
-      segments: 'Customer Segments',
-      loyalty: 'Loyalty & Repeat',
-      export: 'Customer Export',
-      total_customers: 'Total Customers',
-      new_customers: 'New Customers',
-      repeat_customers: 'Repeat Customers',
-      inactive_customers: 'Inactive Customers',
-      online_customers: 'Online Customers',
-      local_customers: 'Local Customers',
-      vip_potential: 'Potential VIP',
-      high_loss_customers: 'High Loss',
-      customers_with_notes: 'With Notes',
-      latest_customer: 'Latest Customer',
-      search_placeholder: 'Search by name or phone...',
-      filter_segment: 'Segment',
-      filter_source: 'Source',
-      filter_status: 'Status',
+      segments: 'Highlights',
+      loyalty: 'Loyalty & Repeat Visits',
+      export: 'Export',
+      unique_customers: 'Registered Customers',
+      raw_rows: 'Internal Rows',
+      active_period: 'Visited in Range',
+      requests_period: 'Range Visits',
+      requests_all: 'All Visits',
+      no_phone: 'No Phone',
+      duplicated_rows: 'Merged Duplicate Phones',
+      multi_names: 'Multiple Names',
+      visible_groups: 'List Rows',
+      period_note: 'Range affects activity only, not the total customer base.',
+      diagnostic: 'Hidden Info',
+      business_id: 'Business ID',
+      support_ref: 'Support Ref',
+      loaded_at: 'Last Update',
+      source_rpc: 'Source: Secure RPC',
+      source_direct: 'Source: Direct Fetch',
+      search_placeholder: 'Search by customer name or phone...',
       all: 'All',
-      walk_in: 'Local',
+      active_in_range: 'Visited in Range',
+      with_requests: 'With Visits',
+      no_requests: 'No Visits',
+      repeat: 'Repeat Visits',
+      multi_name_filter: 'Multiple Names',
+      no_phone_filter: 'No Phone',
       online: 'Online',
-      restored: 'Restored',
-      other: 'Unclassified',
-      active: 'Active',
+      walk_in: 'Local',
       inactive: 'Inactive',
-      new: 'New',
-      repeat: 'Repeat',
-      vip: 'Potential VIP',
-      high_loss: 'High Loss',
-      name: 'Name',
+      reset: 'Reset',
+      showing: 'Showing',
+      of: 'of',
       phone: 'Phone',
-      whatsapp: 'WhatsApp',
-      visits: 'Requests',
-      last_visit: 'Last Seen',
-      first_visit: 'First Seen',
-      preferred_source: 'Preferred Source',
-      preferred_zone: 'Preferred Zone',
-      avg_party_size: 'Avg Party Size',
-      loss_count: 'Loss',
-      completed_count: 'Served/Active',
+      latest_name: 'Latest Name',
+      used_names: 'Used Names',
+      customer_ids: 'Internal Data',
+      raw_count: 'Linked Names',
+      visits: 'Visits',
+      period_visits: 'Range Visits',
+      first_seen: 'First Seen',
+      last_seen: 'Last Seen',
+      top_source: 'Usual Source',
+      top_zone: 'Top Zone',
+      avg_party: 'Avg Party',
       actions: 'Actions',
-      open_profile: 'Open Profile',
-      no_customers: 'No matching customers found',
-      customer_profile: 'Customer Profile',
-      profile_hint: 'Choose a customer from the list to view their profile.',
+      open_profile: 'View Profile',
       close_profile: 'Close Profile',
       back_to_list: 'Back to List',
-      customer_data: 'Customer Data',
-      request_history: 'Request History',
-      customer_insights: 'Customer Insights',
-      private_notes: 'Internal Notes',
-      source_mix: 'Source Mix',
-      zone_mix: 'Preferred Zones',
-      booking_code: 'Booking Code',
-      request_source: 'Request Source',
+      copy_phone: 'Copy Phone',
+      copied: 'Copied',
+      no_data: 'No matching data',
+      customer_file: 'Customer File',
+      identity: 'Customer Details',
+      requests_linked: 'All Visits Linked to This Phone',
+      booking_code: 'Visit Code',
+      date: 'Date',
+      source: 'Source',
       zone: 'Zone',
-      party_size: 'Party Size',
+      party: 'Party',
       status: 'Status',
-      created_at: 'Request Date',
+      notes: 'Notes',
+      segments_summary: 'Customer Highlights',
+      loyalty_hint: 'This is not an automatic points program; it highlights repeat customers so the restaurant can decide how to reward them.',
+      gold: 'Worth Attention',
+      silver: 'Good Repeat',
+      bronze: 'Returned Again',
+      one_time: 'One Time',
+      top_repeat: 'Most Visiting Customers',
+      needs_followup: 'Returned Recently',
+      export_excel: 'Download Excel',
+      export_current: 'Export Current Results',
+      export_all: 'Export All Customers',
+      table_requests_only_warning: '',
+      customers_today: 'Today',
+      customers_7: 'Last 7 Days',
+      customers_30: 'Last 30 Days',
+      customers_90: 'Last 90 Days',
+      source_summary: 'Customer Sources',
+      zone_summary: 'Top Zones',
+      simple_snapshot: 'Quick Snapshot',
+      customer_love_note: 'These numbers help the restaurant notice returning customers and reward good relationships.',
+      print_current: 'Print Current',
+      print_all: 'Print All Customers',
+      loyalty_cup_note: 'The cup 🏆 means this phone number repeated a visit within less than 30 days. When it appears in the queue, staff can open the profile and decide whether to offer a special welcome or reward.',
+      cup_candidate: 'Recent Repeat Customer',
+      no_auto_points: 'No automatic points or rewards. The decision remains with the restaurant.',
+      visits_history: 'Visit History',
+      unknown: 'Unknown',
+      other: 'Other',
+      restored: 'Restored',
       waiting: 'Waiting',
-      offered: 'Ready/Assigned',
+      offered: 'Ready',
       reserved: 'Reserved',
       occupied: 'Occupied',
       cleaning: 'Cleaning',
       completed: 'Completed',
       cancelled: 'Cancelled',
       expired: 'Expired',
-      no_show: 'No Show',
-      unknown: 'Unknown',
-      segment_summary: 'Segment Summary',
-      segment_table: 'Segment Details',
-      segment_name: 'Segment Name',
-      count: 'Count',
-      percent: 'Percent',
-      description: 'Description',
-      new_desc: 'First seen during the last 7 days',
-      repeat_desc: 'More than one request or visit',
-      active_desc: 'Active during the last 30 days',
-      inactive_desc: 'No activity for 30 days or more',
-      online_desc: 'Main source is online or QR',
-      local_desc: 'Main source is local walk-in entry',
-      vip_desc: 'Good repeat behavior and low loss',
-      high_loss_desc: 'More than one cancelled or expired request',
-      loyalty_title: 'Loyalty & Repeat',
-      loyalty_subtitle: 'Repeat-behavior analysis only, not a real points program yet.',
-      top_repeat: 'Top Repeat Customers',
-      comeback_candidates: 'Customers To Follow Up',
-      loyalty_levels: 'Analytical Loyalty Levels',
-      bronze: 'Bronze',
-      silver: 'Silver',
-      gold: 'Gold',
-      gold_desc: '5+ requests with low loss',
-      silver_desc: '3-4 requests',
-      bronze_desc: '2 requests',
-      one_time_desc: 'One request only',
-      one_time: 'One Time',
-      export_title: 'Customer Export',
-      export_subtitle: 'Export an Excel-ready file for all customers or the current filtered results.',
-      download_csv: 'Download CSV',
-      download_excel: 'Download Excel',
-      copy_summary: 'Copy Summary',
-      export_all: 'Export All Customers',
-      export_filtered: 'Export Current Results',
-      csv_ready: 'Customer file is ready to download',
-      summary_copied: 'Summary copied',
-      no_data: 'Not enough data',
-      source: 'Source',
-      details: 'Details',
-      value: 'Value',
-      customer: 'customer',
-      customers: 'customers',
-      request: 'request',
-      requests: 'requests',
-      days_since_last: 'Days Since Last Seen',
-      loss_rate: 'Loss Rate',
-      repeat_rate: 'Repeat Rate',
-      top_source: 'Top Source',
-      top_zone: 'Top Zone',
-      quick_read: 'Quick Read',
-      insights: 'Smart Notes',
-      no_notes: 'No saved notes',
-      customer_without_name: 'Customer',
-      last_name: 'Latest Name',
-      used_names: 'Used Names',
-      linked_customer_ids: 'Linked Customer IDs',
-      linked_records: 'Linked Records',
-      raw_customer_records: 'Raw Customer Records',
-      unique_phone_customers: 'Unique Customers by Phone',
-      no_phone_customer: 'No Phone Number',
-      requests_by_phone: 'All Requests Linked to This Phone',
-      profile_summary: 'Profile Summary',
-      identity_section: 'Unified Customer Identity',
-      latest_name_hint: 'Shows the latest name used with this phone while keeping all previous names.',
-      no_phone: 'No Phone',
-      table_view: 'Table View',
-      card_view: 'Cards',
-      reset_filters: 'Reset',
-      period_note: 'Data is based on customers and requests in the selected range while keeping the available customer record.',
-      profile_not_found: 'Selected customer was not found',
-      export_note: 'Export creates an Excel-ready file using the current language and selected filters.',
-      inactive_alert: 'Inactive for a long time',
-      loss_alert: 'Repeated loss behavior',
-      vip_alert: 'Potential high-value customer',
-      online_alert: 'Engages online',
-      local_alert: 'Mostly local walk-in'
+      no_show: 'No Show'
     }
   };
 
   function lang() {
-    return (window.currentLang || 'ar') === 'ar' ? 'ar' : 'en';
+    return String(window.currentLang || localStorage.getItem('easyq_lang') || 'ar').toLowerCase().startsWith('en') ? 'en' : 'ar';
   }
 
-  function t(key, forcedLang) {
-    const l = forcedLang || lang();
-    return (I18N[l] && I18N[l][key]) || (I18N.ar && I18N.ar[key]) || key;
+  function t(key) {
+    const l = lang();
+    return (T[l] && T[l][key]) || T.ar[key] || key;
   }
 
   function esc(value) {
-    if (value === null || value === undefined || value === '') return '';
-    return String(value)
+    return String(value === null || value === undefined ? '' : value)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replace(/'/g, '&#039;');
   }
 
   function n(value) {
-    const num = Number(value);
+    const num = Number(value || 0);
     return Number.isFinite(num) ? num : 0;
   }
 
-  function pct(part, total) {
-    const p = n(part);
-    const totalNum = n(total);
-    if (!totalNum) return 0;
-    return Math.max(0, Math.min(100, Math.round((p / totalNum) * 100)));
+  function isAr() {
+    return lang() === 'ar';
   }
 
-  function average(list) {
-    if (!Array.isArray(list) || !list.length) return 0;
-    return Math.round(list.reduce((sum, item) => sum + n(item), 0) / list.length);
-  }
-
-  function fmtDate(value, forcedLang) {
+  function fmtDate(value) {
     if (!value) return '—';
-    const locale = (forcedLang || lang()) === 'ar' ? 'ar-SA' : 'en-US';
-    try {
-      return new Date(value).toLocaleDateString(locale, { year: 'numeric', month: '2-digit', day: '2-digit' });
-    } catch (_) {
-      return '—';
-    }
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString(isAr() ? 'ar-SA' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' });
   }
 
-  function fmtDateTime(value, forcedLang) {
-    if (!value) return '—';
-    const locale = (forcedLang || lang()) === 'ar' ? 'ar-SA' : 'en-US';
-    try {
-      return new Date(value).toLocaleString(locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-    } catch (_) {
-      return '—';
-    }
+  function normalizePhone(phone) {
+    const digits = String(phone || '').replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('00966')) return digits.slice(2);
+    if (digits.startsWith('966')) return digits;
+    if (digits.startsWith('05')) return `966${digits.slice(1)}`;
+    if (digits.startsWith('5') && digits.length >= 9) return `966${digits}`;
+    return digits;
+  }
+
+  function validPhone(phone) {
+    return normalizePhone(phone).length >= 9;
+  }
+
+  function rangeStart(range) {
+    const now = new Date();
+    if (range === 'today') return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (range === 'last7') return new Date(now.getTime() - 7 * 86400000);
+    if (range === 'last30') return new Date(now.getTime() - 30 * 86400000);
+    if (range === 'last90') return new Date(now.getTime() - 90 * 86400000);
+    return null;
+  }
+
+  function rangeLabel(range) {
+    if (range === 'today') return t('today');
+    if (range === 'last7') return t('last7');
+    if (range === 'last30') return t('last30');
+    if (range === 'last90') return t('last90');
+    return t('all_time');
   }
 
   function daysSince(value) {
     if (!value) return null;
-    const d = new Date(value).getTime();
-    if (!Number.isFinite(d)) return null;
-    const diff = Date.now() - d;
-    if (diff < 0) return 0;
-    return Math.floor(diff / 86400000);
+    const ts = new Date(value).getTime();
+    if (!Number.isFinite(ts)) return null;
+    return Math.floor((Date.now() - ts) / 86400000);
   }
 
-  function rangeStart(rangeKey) {
-    if (rangeKey === 'all') return null;
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    if (rangeKey === 'today') return d;
-    if (rangeKey === 'last7') d.setDate(d.getDate() - 6);
-    else if (rangeKey === 'last90') d.setDate(d.getDate() - 89);
-    else d.setDate(d.getDate() - 29);
-    return d;
-  }
-
-  function rangeLabel(rangeKey) {
-    if (rangeKey === 'all') return t('all_time');
-    if (rangeKey === 'today') return t('today');
-    if (rangeKey === 'last7') return t('last7');
-    if (rangeKey === 'last90') return t('last90');
-    return t('last30');
-  }
-
-  function normalizePhone(value) {
-    return String(value || '').replace(/\D/g, '');
-  }
-
-  function displayPhone(value) {
-    const clean = normalizePhone(value);
-    return clean || t('no_phone');
+  function pct(part, total) {
+    return total ? Math.round((n(part) / n(total)) * 100) : 0;
   }
 
   function sourceKey(source) {
-    if (source === 'walk_in') return 'walk_in';
-    if (source === 'web_booking' || source === 'booking_page' || source === 'online' || source === 'qr_code') return 'online';
-    if (source === 'restored') return 'restored';
+    const s = String(source || '').toLowerCase();
+    if (['walk_in', 'manual', 'local'].includes(s)) return 'walk_in';
+    if (['web_booking', 'booking_page', 'online', 'qr_code', 'qr'].includes(s)) return 'online';
+    if (['restored', 'restore', 'recovered'].includes(s)) return 'restored';
     return 'other';
   }
 
@@ -454,16 +349,11 @@
     return t(sourceKey(source));
   }
 
-  function statusLabel(status) {
-    return t(status || 'unknown');
-  }
-
-  function statusClass(status) {
-    if (status === 'waiting') return 'wait';
-    if (status === 'offered' || status === 'reserved') return 'warn';
-    if (status === 'occupied' || status === 'completed' || status === 'cleaning') return 'ok';
-    if (status === 'cancelled' || status === 'expired' || status === 'no_show') return 'bad';
-    return 'muted';
+  function topFromObject(obj) {
+    const entries = Object.entries(obj || {}).filter(([, value]) => n(value) > 0);
+    if (!entries.length) return null;
+    entries.sort((a, b) => n(b[1]) - n(a[1]));
+    return entries[0][0];
   }
 
   function getBusinessId() {
@@ -473,73 +363,74 @@
       window.currentUser?.business_id,
       window.BUSINESS_ID
     ];
-
-    return candidates.find((value) => value && String(value).trim() && String(value).trim() !== 'undefined' && String(value).trim() !== 'null') || null;
+    return candidates.find((x) => x && String(x).trim() && !['undefined', 'null'].includes(String(x).trim())) || null;
   }
 
   function getBusinessProfile() {
-    return window.currentBusinessProfile || window.currentBusiness || null;
+    return window.currentBusinessProfile || window.currentBusiness || {};
   }
 
-  function canOpenCustomers() {
+  function canOpen() {
     if (!window.currentUser) return false;
     if (window.currentUser.role === 'super_admin') return false;
     if (typeof window.canDo !== 'function') return true;
-    return window.canDo('view_customers') || window.canDo('manage_queue') || window.canDo('add_walkin') || window.canDo('view_reports');
+    return window.canDo('view_customers') || window.canDo('manage_queue') || window.canDo('view_reports') || window.canDo('add_walkin');
   }
 
   function ensureStyles() {
-    if ($('eqCustomerStyles')) return;
+    if ($('eqcFinalStyles')) return;
     const style = document.createElement('style');
-    style.id = 'eqCustomerStyles';
+    style.id = 'eqcFinalStyles';
     style.textContent = `
       .eqc-page{font-family:inherit;color:#111827;padding:18px;background:#F5F7FF;min-height:calc(100vh - 120px)}
       .eqc-page[dir="rtl"]{direction:rtl;text-align:right}.eqc-page[dir="ltr"]{direction:ltr;text-align:left}
-      .eqc-hero{background:linear-gradient(135deg,#070219 0%,#060427 52%,#0E146D 100%);color:#fff;border-radius:24px;padding:20px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,.7fr);gap:18px;box-shadow:0 18px 45px rgba(15,23,42,.18);overflow:hidden;position:relative}
-      .eqc-hero:after{content:'';position:absolute;width:260px;height:260px;border-radius:50%;inset-inline-end:-90px;top:-110px;background:rgba(221,231,255,.11);pointer-events:none}
-      .eqc-hero h2{margin:0 0 8px;font-size:24px;font-weight:1000;letter-spacing:-.4px}.eqc-hero p{margin:0;color:rgba(255,255,255,.76);font-size:13px;font-weight:700;line-height:1.8}
-      .eqc-hero-actions,.eqc-toolbar,.eqc-tabs,.eqc-chip-row,.eqc-export-actions{display:flex;gap:10px;flex-wrap:wrap}.eqc-hero-actions{margin-top:16px}
-      .eqc-btn,.eqc-tab,.eqc-chip,.eqc-mini-btn{border:none;min-height:40px;padding:0 14px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-weight:1000;font-size:12px;transition:transform .16s ease,opacity .16s ease,background .16s ease}
-      .eqc-btn:hover,.eqc-tab:hover,.eqc-chip:hover,.eqc-mini-btn:hover{transform:translateY(-1px)}.eqc-btn.primary{background:#fff;color:#0E146D}.eqc-btn.ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.16)}
-      .eqc-health-card{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:15px;position:relative;z-index:1}.eqc-health-title{font-size:13px;color:rgba(255,255,255,.75);font-weight:900;margin-bottom:8px}.eqc-health-value{display:flex;align-items:center;gap:10px;font-size:28px;font-weight:1000}
-      .eqc-toolbar{align-items:flex-end;justify-content:space-between;margin-top:14px;background:#fff;border:1px solid #E5E7EB;border-radius:20px;padding:12px;box-shadow:0 10px 26px rgba(15,23,42,.055)}
-      .eqc-search{min-height:40px;border:1px solid #E5E7EB;border-radius:13px;padding:0 12px;min-width:260px;background:#F8FAFC;font-weight:800;color:#111827;outline:none}.eqc-search:focus{border-color:#0E146D;box-shadow:0 0 0 3px rgba(14,20,109,.10)}
-      .eqc-chip{border:1px solid #E5E7EB;background:#fff;color:#64748B;border-radius:999px;min-height:36px}.eqc-chip.active{background:#0E146D;border-color:#0E146D;color:#fff}.eqc-mini-btn{min-height:34px;background:#EEF2FF;color:#0E146D}.eqc-mini-btn.active{background:#0E146D;color:#fff}
-      .eqc-tabs{margin-top:14px;gap:8px}.eqc-tab{border:1px solid #E5E7EB;background:#fff;color:#64748B;border-radius:999px;min-height:38px}.eqc-tab.active{background:#0E146D;color:#fff;border-color:#0E146D}
-      .eqc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}.eqc-card{background:#fff;border:1px solid #E5E7EB;border-radius:20px;padding:15px;box-shadow:0 10px 26px rgba(15,23,42,.055);min-width:0}.eqc-card.soft{background:linear-gradient(180deg,#fff 0%,#F8FAFF 100%)}.eqc-card.wide{grid-column:span 2}.eqc-card.full{grid-column:1/-1}
-      .eqc-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px}.eqc-card-title{font-size:13px;font-weight:1000;color:#111827;display:flex;align-items:center;gap:8px}.eqc-card-title i{color:#0E146D}.eqc-card-sub{font-size:11px;color:#64748B;font-weight:800;margin-top:4px;line-height:1.6}.eqc-kpi-value{font-size:30px;font-weight:1000;color:#0F172A;line-height:1}.eqc-kpi-label{margin-top:8px;font-size:12px;color:#64748B;font-weight:800;line-height:1.6}
-      .eqc-mini-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.eqc-mini-stat{background:#F8FAFC;border:1px solid #EEF2F7;border-radius:15px;padding:10px}.eqc-mini-num{font-size:20px;font-weight:1000;color:#111827}.eqc-mini-label{font-size:11px;font-weight:800;color:#64748B;margin-top:3px;line-height:1.5}
-      .eqc-list{display:flex;flex-direction:column;gap:9px}.eqc-list-item{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;background:#F8FAFC;border:1px solid #EEF2F7;border-radius:16px}.eqc-icon-box{width:38px;height:38px;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;background:#EEF2FF;color:#0E146D;flex-shrink:0}.eqc-list-title{font-size:12.5px;font-weight:1000;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.eqc-list-sub{font-size:11px;font-weight:800;color:#64748B;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .eqc-hero{background:linear-gradient(135deg,#070219,#060427 54%,#0E146D);color:#fff;border-radius:24px;padding:20px;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:16px;box-shadow:0 18px 45px rgba(15,23,42,.18);position:relative;overflow:hidden}.eqc-hero:after{content:'';position:absolute;inset-inline-end:-80px;top:-110px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,.10)}
+      .eqc-hero h2{margin:0 0 8px;font-size:24px;font-weight:1000}.eqc-hero p{margin:0;color:rgba(255,255,255,.75);font-size:13px;font-weight:800;line-height:1.8}.eqc-hero>*{position:relative;z-index:1}
+      .eqc-health{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);border-radius:20px;padding:15px}.eqc-health-num{font-size:34px;font-weight:1000;line-height:1}.eqc-health-label{font-size:13px;font-weight:900;color:rgba(255,255,255,.80);margin-top:6px}.eqc-health-note{font-size:11px;font-weight:800;color:rgba(255,255,255,.68);line-height:1.7;margin-top:9px}
+      .eqc-btn,.eqc-chip,.eqc-tab,.eqc-mini{border:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:0 13px;border-radius:13px;font-size:12px;font-weight:1000;cursor:pointer;transition:.16s ease}.eqc-btn:hover,.eqc-chip:hover,.eqc-tab:hover,.eqc-mini:hover{transform:translateY(-1px)}.eqc-btn.primary{background:#fff;color:#0E146D}.eqc-btn.dark{background:#0E146D;color:#fff}.eqc-btn.light{background:#EEF2FF;color:#0E146D}.eqc-btn.danger{background:#FEF2F2;color:#B91C1C}
+      .eqc-toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;margin-top:14px;background:#fff;border:1px solid #E5E7EB;border-radius:20px;padding:12px;box-shadow:0 10px 26px rgba(15,23,42,.055)}.eqc-chip-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.eqc-chip{background:#fff;border:1px solid #E5E7EB;color:#64748B;border-radius:999px;min-height:35px}.eqc-chip.active{background:#0E146D;border-color:#0E146D;color:#fff}.eqc-search{min-height:40px;border:1px solid #E5E7EB;border-radius:13px;padding:0 12px;background:#F8FAFC;color:#111827;font-weight:900;min-width:320px;outline:none}.eqc-search:focus{border-color:#0E146D;box-shadow:0 0 0 3px rgba(14,20,109,.10)}
+      .eqc-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.eqc-tab{background:#fff;border:1px solid #E5E7EB;color:#64748B;border-radius:999px}.eqc-tab.active{background:#0E146D;border-color:#0E146D;color:#fff}
+      .eqc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}.eqc-card{background:#fff;border:1px solid #E5E7EB;border-radius:20px;padding:15px;box-shadow:0 10px 26px rgba(15,23,42,.055);min-width:0}.eqc-card.wide{grid-column:span 2}.eqc-card.full{grid-column:1/-1}.eqc-card.soft{background:linear-gradient(180deg,#fff,#F8FAFF)}
+      .eqc-title{font-size:13px;font-weight:1000;color:#111827;display:flex;align-items:center;gap:8px}.eqc-title i{color:#0E146D}.eqc-sub{font-size:11px;color:#64748B;font-weight:800;line-height:1.7;margin-top:4px}.eqc-num{font-size:30px;font-weight:1000;color:#0F172A;line-height:1;margin-top:10px}.eqc-small-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.eqc-small{background:#F8FAFC;border:1px solid #EEF2F7;border-radius:15px;padding:10px}.eqc-small-num{font-size:19px;font-weight:1000}.eqc-small-label{font-size:11px;font-weight:800;color:#64748B;margin-top:3px}
       .eqc-badge{min-height:25px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:1000;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap}.eqc-badge.ok{background:#ECFDF5;color:#047857}.eqc-badge.warn{background:#FFFBEB;color:#B45309}.eqc-badge.bad{background:#FEF2F2;color:#B91C1C}.eqc-badge.info{background:#EFF6FF;color:#1D4ED8}.eqc-badge.wait{background:#EEF2FF;color:#0E146D}.eqc-badge.muted{background:#F3F4F6;color:#6B7280}
-      .eqc-progress{height:9px;border-radius:999px;background:#EEF2FF;overflow:hidden;margin-top:12px}.eqc-progress>span{display:block;height:100%;width:0%;background:linear-gradient(90deg,#0E146D,#3B82F6);border-radius:inherit}
-      .eqc-table-wrap{overflow:auto;border:1px solid #EEF2F7;border-radius:16px}.eqc-table{width:100%;border-collapse:collapse;min-width:960px}.eqc-table th,.eqc-table td{padding:12px;border-bottom:1px solid #EEF2F7;text-align:start;font-size:12px;font-weight:800}.eqc-table th{background:#F8FAFC;color:#64748B;font-weight:1000;position:sticky;top:0}.eqc-table tr:last-child td{border-bottom:none}
-      .eqc-empty{padding:20px;text-align:center;color:#64748B;font-weight:900;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:16px}.eqc-loader{min-height:260px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#64748B;font-weight:1000}.eqc-spinner{width:34px;height:34px;border-radius:50%;border:4px solid rgba(14,20,109,.13);border-top-color:#0E146D;animation:eqcSpin .8s linear infinite}@keyframes eqcSpin{to{transform:rotate(360deg)}}
-      .eqc-bars{display:flex;flex-direction:column;gap:8px}.eqc-bar-row{display:grid;grid-template-columns:130px minmax(0,1fr) 56px;gap:10px;align-items:center;font-size:11px;font-weight:900;color:#475569}.eqc-bar-track{width:100%;height:10px;border-radius:999px;background:#EDF2FF;overflow:hidden}.eqc-bar-fill{height:100%;border-radius:inherit;background:linear-gradient(90deg,#0E146D,#60A5FA)}
-      .eqc-profile-layout{display:grid;grid-template-columns:minmax(0,.75fr) minmax(0,1.25fr);gap:12px}.eqc-profile-avatar{width:62px;height:62px;border-radius:20px;background:#EEF2FF;color:#0E146D;display:inline-flex;align-items:center;justify-content:center;font-weight:1000;font-size:22px}.eqc-alert{display:flex;align-items:flex-start;gap:10px;padding:11px;border-radius:16px;border:1px solid #EEF2F7;background:#fff}.eqc-alert.warn{background:#FFFBEB;border-color:#FDE68A}.eqc-alert.bad{background:#FEF2F2;border-color:#FECACA}.eqc-alert.ok{background:#ECFDF5;border-color:#A7F3D0}.eqc-note{font-size:11px;color:#64748B;font-weight:800;line-height:1.7}.eqc-export-actions{margin-top:10px}
-      @media(max-width:1180px){.eqc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.eqc-hero,.eqc-profile-layout{grid-template-columns:1fr}}@media(max-width:720px){.eqc-page{padding:12px}.eqc-grid{grid-template-columns:1fr}.eqc-card.wide{grid-column:span 1}.eqc-hero h2{font-size:20px}.eqc-search{min-width:100%;width:100%}}
+      .eqc-table-wrap{overflow:auto;border:1px solid #EEF2F7;border-radius:16px}.eqc-table{width:100%;border-collapse:collapse;min-width:1050px}.eqc-table th,.eqc-table td{padding:12px;border-bottom:1px solid #EEF2F7;text-align:start;font-size:12px;font-weight:850;vertical-align:top}.eqc-table th{background:#F8FAFC;color:#64748B;font-weight:1000;position:sticky;top:0}.eqc-table tr:last-child td{border-bottom:none}.eqc-phone{direction:ltr;text-align:left;font-weight:1000;color:#0E146D}.eqc-ids{direction:ltr;text-align:left;max-width:360px;white-space:normal;word-break:break-all;color:#475569;font-size:11px;line-height:1.6}
+      .eqc-list{display:flex;flex-direction:column;gap:9px}.eqc-item{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px;background:#F8FAFC;border:1px solid #EEF2F7;border-radius:16px}.eqc-icon{width:40px;height:40px;border-radius:14px;background:#EEF2FF;color:#0E146D;display:inline-flex;align-items:center;justify-content:center}.eqc-item-title{font-size:12.5px;font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.eqc-item-sub{font-size:11px;color:#64748B;font-weight:800;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .eqc-empty{padding:22px;text-align:center;color:#64748B;font-weight:900;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:16px}.eqc-loader{min-height:260px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#64748B;font-weight:1000}.eqc-spinner{width:34px;height:34px;border-radius:50%;border:4px solid rgba(14,20,109,.13);border-top-color:#0E146D;animation:eqcSpin .8s linear infinite}@keyframes eqcSpin{to{transform:rotate(360deg)}}
+      .eqc-profile{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:12px}.eqc-avatar{width:62px;height:62px;border-radius:20px;background:#EEF2FF;color:#0E146D;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:1000}.eqc-pill-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}.eqc-pill{background:#F8FAFC;border:1px solid #EEF2F7;border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900;color:#475569}.eqc-alert{display:flex;gap:10px;align-items:flex-start;padding:11px;border-radius:16px;border:1px solid #EEF2F7;background:#fff}.eqc-alert.warn{background:#FFFBEB;border-color:#FDE68A}.eqc-alert.bad{background:#FEF2F2;border-color:#FECACA}.eqc-alert.ok{background:#ECFDF5;border-color:#A7F3D0}
+      .eqc-bars{display:flex;flex-direction:column;gap:8px}.eqc-bar{display:grid;grid-template-columns:135px minmax(0,1fr) 48px;gap:8px;align-items:center;font-size:11px;font-weight:900;color:#475569}.eqc-track{height:9px;background:#EDF2FF;border-radius:999px;overflow:hidden}.eqc-fill{height:100%;background:linear-gradient(90deg,#0E146D,#60A5FA);border-radius:999px}
+      @media(max-width:1180px){.eqc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.eqc-hero,.eqc-profile{grid-template-columns:1fr}}@media(max-width:720px){.eqc-page{padding:12px}.eqc-grid{grid-template-columns:1fr}.eqc-card.wide{grid-column:span 1}.eqc-search{min-width:100%;width:100%}.eqc-hero h2{font-size:20px}}
     `;
     document.head.appendChild(style);
   }
 
-  function openPanel(title, subtitle, bodyHtml) {
+  function openPanel(title, subtitle, html) {
     ensureStyles();
     if (typeof window.openFullPagePanel === 'function') {
-      window.openFullPagePanel(title, subtitle, bodyHtml);
+      window.openFullPagePanel(title, subtitle, html);
       return;
     }
-    let fallback = $('eqcFallbackPanel');
-    if (!fallback) {
-      fallback = document.createElement('div');
-      fallback.id = 'eqcFallbackPanel';
-      fallback.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#F5F7FF;overflow:auto;';
-      document.body.appendChild(fallback);
+    let panel = $('eqcFallbackPanel');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'eqcFallbackPanel';
+      panel.style.cssText = 'position:fixed;inset:0;background:#F5F7FF;z-index:99999;overflow:auto;';
+      document.body.appendChild(panel);
     }
-    fallback.innerHTML = `<div style="padding:14px;background:#070219;color:white;display:flex;justify-content:space-between;align-items:center;gap:12px;"><div><div style="font-weight:1000;font-size:18px;">${esc(title)}</div><div style="font-weight:700;font-size:12px;opacity:.72;margin-top:4px;">${esc(subtitle)}</div></div><button onclick="document.getElementById('eqcFallbackPanel').remove()" style="width:38px;height:38px;border:none;border-radius:12px;background:rgba(255,255,255,.12);color:white;font-size:20px;cursor:pointer;">×</button></div>${bodyHtml}`;
+    panel.innerHTML = `<div style="padding:14px;background:#070219;color:#fff;display:flex;justify-content:space-between;gap:12px;"><div><b>${esc(title)}</b><div style="font-size:12px;opacity:.7;margin-top:4px;">${esc(subtitle)}</div></div><button onclick="document.getElementById('eqcFallbackPanel').remove()" style="width:38px;height:38px;border:none;border-radius:12px;">×</button></div>${html}`;
+  }
+
+  function loadingHtml() {
+    return `<div class="eqc-page" dir="${isAr() ? 'rtl' : 'ltr'}"><div class="eqc-loader"><div class="eqc-spinner"></div><div>${esc(t('loading'))}</div></div></div>`;
+  }
+
+  function errorHtml(message) {
+    return `<div class="eqc-page" dir="${isAr() ? 'rtl' : 'ltr'}"><div class="eqc-card full"><div class="eqc-alert bad"><i class="fas fa-triangle-exclamation"></i><div><div class="eqc-title">${esc(t('error'))}</div><div class="eqc-sub">${esc(message || '')}</div></div></div></div></div>`;
   }
 
   function setActiveSidebar(view) {
     $$('.sidebar .sub-menu-item').forEach((item) => {
-      item.classList.toggle('active', item.getAttribute('data-view') === `customers-${view}`);
+      const expected = view === 'overview' ? 'customers-list' : `customers-${view}`;
+      item.classList.toggle('active', item.getAttribute('data-view') === expected);
     });
     const parent = document.querySelector('.main-menu-item[data-menu="customers"]');
     if (parent) parent.classList.add('open', 'active');
@@ -547,803 +438,852 @@
     if (submenu) submenu.classList.add('open');
   }
 
-  function loadingHtml() {
-    return `<div class="eqc-page" id="eqCustomers" dir="${lang() === 'ar' ? 'rtl' : 'ltr'}"><div class="eqc-loader"><div class="eqc-spinner"></div><div>${esc(t('loading'))}</div></div></div>`;
-  }
-
-  function errorHtml(message) {
-    return `<div class="eqc-page" id="eqCustomers" dir="${lang() === 'ar' ? 'rtl' : 'ltr'}"><div class="eqc-card full"><div class="eqc-alert bad"><i class="fas fa-triangle-exclamation"></i><div><div class="eqc-list-title">${esc(t('load_error'))}</div><div class="eqc-list-sub" style="white-space:normal;line-height:1.6;">${esc(message)}</div></div></div></div></div>`;
-  }
-
-  async function safeQuery(fn, fallback) {
-    try {
-      return await fn();
-    } catch (err) {
-      console.warn('[EASY-Q Customers] query failed:', err);
-      return fallback;
-    }
-  }
-
-  async function fetchAllRows(buildQuery, pageSize = 1000, maxPages = 30) {
+  async function fetchAllRows(buildQuery, pageSize = 1000, maxPages = 50) {
     const all = [];
-
     for (let page = 0; page < maxPages; page += 1) {
       const from = page * pageSize;
       const to = from + pageSize - 1;
-      const query = buildQuery().range(from, to);
-      const { data, error } = await query;
-
+      const { data, error } = await buildQuery().range(from, to);
       if (error) throw error;
-
       const rows = Array.isArray(data) ? data : [];
       all.push(...rows);
-
       if (rows.length < pageSize) break;
     }
-
     return all;
   }
 
-  async function loadCustomersData() {
-    const businessId = getBusinessId();
-    if (!businessId) throw new Error('No business_id available for current user');
-
-    const start = rangeStart(EQC.range);
-    const fromIso = start ? start.toISOString() : null;
-
-    const customersPromise = safeQuery(async () => {
-      return await fetchAllRows(() => window.supabase
-        .from('customers')
-        .select('*')
-        .eq('business_id', businessId)
-        .order('created_at', { ascending: false })
-      );
-    }, []);
-
-    const requestsPromise = safeQuery(async () => {
-      return await fetchAllRows(() => {
-        let query = window.supabase
-          .from('table_requests')
-          .select('*')
-          .eq('business_id', businessId)
-          .order('created_at', { ascending: false });
-
-        if (fromIso) query = query.gte('created_at', fromIso);
-        return query;
-      });
-    }, []);
-
-    const arrivalsPromise = safeQuery(async () => {
-      return await fetchAllRows(() => {
-        let query = window.supabase
-          .from('customer_arrivals')
-          .select('*')
-          .eq('business_id', businessId)
-          .order('created_at', { ascending: false });
-
-        if (fromIso) query = query.gte('created_at', fromIso);
-        return query;
-      });
-    }, []);
-
-    const [customers, requests, arrivals] = await Promise.all([customersPromise, requestsPromise, arrivalsPromise]);
-
-    const result = buildCustomersModel({ customers, requests, arrivals, business: getBusinessProfile() || {}, rangeStart: start });
-    result.businessId = businessId;
-    EQC.loadedAt = new Date();
-    EQC.lastRange = EQC.range;
-    EQC.lastData = result;
-    return result;
+  async function tryRpcLoad(businessId) {
+    const { data, error } = await window.supabase.rpc('get_restaurant_customers_dashboard', {
+      p_business_id: businessId,
+      p_range: EQC.range
+    });
+    if (error) throw error;
+    return normalizePayload(data, 'rpc');
   }
 
-  function buildCustomersModel({ customers, requests, arrivals, business, rangeStart }) {
+  async function directLoad(businessId) {
+    const customers = await fetchAllRows(() => window.supabase
+      .from('customers')
+      .select('id,business_id,name,phone,whatsapp_number,notes,created_at')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
+    );
+
+    const requests = await fetchAllRows(() => window.supabase
+      .from('table_requests')
+      .select('id,business_id,customer_id,customer_name_snapshot,customer_phone_snapshot,booking_code,request_source,requested_party_size,status,zone_name,created_at,expired_at')
+      .eq('business_id', businessId)
+      .order('created_at', { ascending: false })
+    );
+
+    return buildDirectPayload(customers, requests, businessId);
+  }
+
+  async function loadData(force = false) {
+    if (EQC.loading) return EQC.data;
+    if (!force && EQC.data && EQC.data.range === EQC.range) return EQC.data;
+
+    const businessId = getBusinessId();
+    if (!businessId) throw new Error('business_id غير متوفر في الجلسة الحالية');
+    if (!window.supabase) throw new Error('Supabase client غير متوفر');
+
+    EQC.loading = true;
+    EQC.lastError = null;
+
+    try {
+      let data;
+      try {
+        data = await tryRpcLoad(businessId);
+      } catch (rpcErr) {
+        console.warn('[EASY-Q Customers] RPC failed, falling back to direct fetch:', rpcErr);
+        data = await directLoad(businessId);
+        data.rpcError = rpcErr.message || String(rpcErr);
+      }
+
+      data.businessId = businessId;
+      data.range = EQC.range;
+      data.loadedAt = new Date().toISOString();
+      EQC.data = data;
+      EQC.loadedAt = new Date();
+      return data;
+    } finally {
+      EQC.loading = false;
+    }
+  }
+
+  function normalizePayload(payload, source) {
+    const p = Array.isArray(payload) ? payload[0] : payload;
+    const business = p?.business || getBusinessProfile() || {};
+    const stats = p?.stats || {};
+    const customers = Array.isArray(p?.customers) ? p.customers.map(finalizeCustomer) : [];
+    const filtered = filterCustomers(customers);
+
+    return {
+      source,
+      business,
+      stats: normalizeStats(stats, customers),
+      customers,
+      filtered,
+      segments: buildSegments(customers),
+      loyalty: buildLoyalty(customers),
+      range: EQC.range
+    };
+  }
+
+  function normalizeStats(stats, customers) {
+    const s = stats || {};
+    return {
+      rawCustomerRows: n(s.raw_customer_rows ?? s.rawCustomerRows),
+      customerRowsWithValidPhone: n(s.customer_rows_with_valid_phone ?? s.customerRowsWithValidPhone),
+      uniqueCustomersByPhone: n(s.unique_customers_by_phone ?? s.uniqueCustomersByPhone),
+      customerRowsWithoutValidPhone: n(s.customer_rows_without_valid_phone ?? s.customerRowsWithoutValidPhone),
+      duplicatedCustomerRowsByPhone: n(s.duplicated_customer_rows_by_phone ?? s.duplicatedCustomerRowsByPhone),
+      requestRowsAllTime: n(s.request_rows_all_time ?? s.requestRowsAllTime),
+      requestRowsInRange: n(s.request_rows_in_range ?? s.requestRowsInRange),
+      activeCustomersAllTime: n(s.active_customers_all_time ?? s.activeCustomersAllTime),
+      activeCustomersInRange: n(s.active_customers_in_range ?? s.activeCustomersInRange),
+      visibleCustomerGroups: n((s.visible_customer_groups ?? s.visibleCustomerGroups) || customers.length),
+      multiNameCustomers: customers.filter((c) => c.hasMultipleNames).length,
+      listRowsIncludingNoPhone: customers.length
+    };
+  }
+
+  function buildDirectPayload(customers, requests, businessId) {
+    const start = rangeStart(EQC.range);
     const map = new Map();
 
-    function keyFor({ id, phone, whatsapp_number, customer_phone_snapshot, name }) {
-      const clean = normalizePhone(phone || whatsapp_number || customer_phone_snapshot);
-      if (clean) return `phone:${clean}`;
-      if (id) return `id:${id}`;
-      return `name:${String(name || 'unknown').trim().toLowerCase()}`;
+    function keyForCustomer(c) {
+      const phone = normalizePhone(c.phone || c.whatsapp_number || '');
+      return phone && phone.length >= 9 ? `phone:${phone}` : `id:${c.id}`;
     }
 
-    function pushUnique(arr, value) {
-      if (value === null || value === undefined || value === '') return;
-      const text = String(value).trim();
-      if (!text) return;
-      if (!arr.includes(text)) arr.push(text);
-    }
-
-    function chooseLatestName(row, name, createdAt) {
-      const nextName = String(name || '').trim();
-      if (!nextName) return;
-      pushUnique(row.namesUsed, nextName);
-
-      const nextTime = createdAt ? new Date(createdAt).getTime() : 0;
-      const currentTime = row.latestNameAt ? new Date(row.latestNameAt).getTime() : -1;
-
-      if (!row.name || row.name === t('customer_without_name') || nextTime >= currentTime) {
-        row.name = nextName;
-        row.latestNameAt = createdAt || row.latestNameAt || row.created_at || null;
-      }
-    }
-
-    function ensureCustomer(seed) {
-      const key = keyFor(seed);
+    function ensure(key, seed) {
       if (!map.has(key)) {
-        const phone = seed.phone || seed.customer_phone_snapshot || seed.whatsapp_number || '';
+        const phone = normalizePhone(seed.phone || seed.whatsapp_number || seed.customer_phone_snapshot || '');
         map.set(key, {
           key,
-          id: seed.id || null,
-          name: t('customer_without_name'),
-          latestNameAt: seed.created_at || null,
-          phone,
-          cleanPhone: normalizePhone(phone),
-          whatsapp: seed.whatsapp_number || seed.customer_phone_snapshot || seed.phone || '',
+          cleanPhone: phone || '',
+          phone: phone || t('no_phone'),
+          name: seed.name || seed.customer_name_snapshot || 'عميل',
+          namesUsed: [],
+          customerIds: [],
+          rawCustomerCount: 0,
           notes: '',
           firstSeen: seed.created_at || null,
           lastSeen: seed.created_at || null,
-          requests: [],
-          arrivals: [],
-          rawCustomers: [],
-          customerIds: [],
-          namesUsed: [],
           sourceCounts: {},
           zoneCounts: {},
-          statuses: {},
+          statusCounts: {},
+          requests: [],
+          avgParty: 0,
           partySizes: [],
-          fromCustomersTable: !!seed.fromCustomersTable
+          activeInRange: false,
+          periodRequests: 0,
+          totalRequests: 0,
+          hasValidPhone: !!phone && phone.length >= 9
         });
       }
-
-      const row = map.get(key);
-      const seedName = seed.name || seed.customer_name_snapshot || '';
-      chooseLatestName(row, seedName, seed.created_at);
-
-      if (seed.id) {
-        if (!row.id) row.id = seed.id;
-        pushUnique(row.customerIds, seed.id);
-      }
-
-      if (seed.fromCustomersTable) {
-        row.fromCustomersTable = true;
-        if (!row.rawCustomers.some((item) => item.id === seed.id)) row.rawCustomers.push(seed);
-      }
-
-      if (!row.phone && (seed.phone || seed.customer_phone_snapshot || seed.whatsapp_number)) {
-        row.phone = seed.phone || seed.customer_phone_snapshot || seed.whatsapp_number;
-        row.cleanPhone = normalizePhone(row.phone);
-      }
-
-      if (!row.whatsapp && (seed.whatsapp_number || seed.phone || seed.customer_phone_snapshot)) {
-        row.whatsapp = seed.whatsapp_number || seed.phone || seed.customer_phone_snapshot;
-      }
-
-      if (seed.notes) {
-        row.notes = row.notes ? `${row.notes} | ${seed.notes}` : seed.notes;
-      }
-
-      if (seed.created_at) {
-        if (!row.firstSeen || new Date(seed.created_at) < new Date(row.firstSeen)) row.firstSeen = seed.created_at;
-        if (!row.lastSeen || new Date(seed.created_at) > new Date(row.lastSeen)) row.lastSeen = seed.created_at;
-      }
-
-      return row;
+      return map.get(key);
     }
 
-    customers.forEach((customer) => ensureCustomer({ ...customer, fromCustomersTable: true }));
-
-    requests.forEach((req) => {
-      const row = ensureCustomer({
-        id: req.customer_id || null,
-        name: req.customer_name_snapshot,
-        phone: req.customer_phone_snapshot,
-        created_at: req.created_at
-      });
-      row.requests.push(req);
-      if (req.created_at) {
-        if (!row.firstSeen || new Date(req.created_at) < new Date(row.firstSeen)) row.firstSeen = req.created_at;
-        if (!row.lastSeen || new Date(req.created_at) > new Date(row.lastSeen)) row.lastSeen = req.created_at;
+    customers.forEach((c) => {
+      const key = keyForCustomer(c);
+      const row = ensure(key, c);
+      row.rawCustomerCount += 1;
+      if (c.id && !row.customerIds.includes(c.id)) row.customerIds.push(c.id);
+      if (c.name && !row.namesUsed.includes(c.name)) row.namesUsed.push(c.name);
+      if (c.name) row.name = c.name;
+      if (c.notes) row.notes = row.notes ? `${row.notes} | ${c.notes}` : c.notes;
+      if (c.created_at) {
+        if (!row.firstSeen || new Date(c.created_at) < new Date(row.firstSeen)) row.firstSeen = c.created_at;
+        if (!row.lastSeen || new Date(c.created_at) > new Date(row.lastSeen)) row.lastSeen = c.created_at;
       }
-      const src = sourceKey(req.request_source);
-      row.sourceCounts[src] = (row.sourceCounts[src] || 0) + 1;
-      const zone = req.zone_name || t('unknown');
-      row.zoneCounts[zone] = (row.zoneCounts[zone] || 0) + 1;
-      const status = req.status || 'unknown';
-      row.statuses[status] = (row.statuses[status] || 0) + 1;
-      row.partySizes.push(n(req.requested_party_size) || 1);
     });
 
-    arrivals.forEach((arr) => {
-      const row = ensureCustomer({ phone: arr.customer_phone, created_at: arr.created_at });
-      row.arrivals.push(arr);
-      if (arr.created_at) {
-        if (!row.firstSeen || new Date(arr.created_at) < new Date(row.firstSeen)) row.firstSeen = arr.created_at;
-        if (!row.lastSeen || new Date(arr.created_at) > new Date(row.lastSeen)) row.lastSeen = arr.created_at;
+    const phoneToKey = new Map();
+    map.forEach((row, key) => {
+      if (row.cleanPhone) phoneToKey.set(row.cleanPhone, key);
+    });
+    const idToKey = new Map();
+    map.forEach((row, key) => {
+      (row.customerIds || []).forEach((id) => idToKey.set(id, key));
+    });
+
+    requests.forEach((r) => {
+      const phone = normalizePhone(r.customer_phone_snapshot || '');
+      const key = idToKey.get(r.customer_id) || phoneToKey.get(phone) || (phone ? `phone:${phone}` : `request:${r.id}`);
+      const row = ensure(key, {
+        customer_phone_snapshot: r.customer_phone_snapshot,
+        customer_name_snapshot: r.customer_name_snapshot,
+        created_at: r.created_at
+      });
+
+      if (r.customer_id && !row.customerIds.includes(r.customer_id)) row.customerIds.push(r.customer_id);
+      if (r.customer_name_snapshot && !row.namesUsed.includes(r.customer_name_snapshot)) row.namesUsed.push(r.customer_name_snapshot);
+      if (r.customer_name_snapshot) row.name = r.customer_name_snapshot;
+      row.requests.push(r);
+      row.totalRequests += 1;
+      const inRange = !start || new Date(r.created_at) >= start;
+      if (inRange) {
+        row.periodRequests += 1;
+        row.activeInRange = true;
+      }
+      const src = sourceKey(r.request_source);
+      row.sourceCounts[src] = (row.sourceCounts[src] || 0) + 1;
+      const zone = r.zone_name || t('unknown');
+      row.zoneCounts[zone] = (row.zoneCounts[zone] || 0) + 1;
+      const status = r.status || 'unknown';
+      row.statusCounts[status] = (row.statusCounts[status] || 0) + 1;
+      row.partySizes.push(n(r.requested_party_size) || 1);
+      if (r.created_at) {
+        if (!row.firstSeen || new Date(r.created_at) < new Date(row.firstSeen)) row.firstSeen = r.created_at;
+        if (!row.lastSeen || new Date(r.created_at) > new Date(row.lastSeen)) row.lastSeen = r.created_at;
       }
     });
 
     const rows = Array.from(map.values()).map((row) => finalizeCustomer(row));
-    const filtered = applyFilters(rows);
-    const segments = buildSegments(rows);
-    const loyalty = buildLoyalty(rows);
-    const summary = buildSummary(rows, filtered, segments);
+    const validPhoneRows = customers.map((c) => normalizePhone(c.phone || c.whatsapp_number)).filter((p) => p && p.length >= 9);
+    const activeAllSet = new Set();
+    const activeRangeSet = new Set();
+    const reqStart = rangeStart(EQC.range);
+    requests.forEach((r) => {
+      const phone = normalizePhone(r.customer_phone_snapshot || '');
+      if (phone && phone.length >= 9) {
+        activeAllSet.add(phone);
+        if (!reqStart || new Date(r.created_at) >= reqStart) activeRangeSet.add(phone);
+      }
+    });
 
-    return { business, rangeStart, customers: rows, filtered, requests, arrivals, segments, loyalty, summary, rawCustomerCount: customers.length };
+    const payload = {
+      source: 'direct',
+      business: getBusinessProfile(),
+      stats: {
+        rawCustomerRows: customers.length,
+        customerRowsWithValidPhone: validPhoneRows.length,
+        uniqueCustomersByPhone: new Set(validPhoneRows).size,
+        customerRowsWithoutValidPhone: customers.length - validPhoneRows.length,
+        duplicatedCustomerRowsByPhone: customers.length - new Set(validPhoneRows).size,
+        requestRowsAllTime: requests.length,
+        requestRowsInRange: reqStart ? requests.filter((r) => new Date(r.created_at) >= reqStart).length : requests.length,
+        activeCustomersAllTime: activeAllSet.size,
+        activeCustomersInRange: activeRangeSet.size,
+        visibleCustomerGroups: rows.length,
+        multiNameCustomers: rows.filter((r) => r.hasMultipleNames).length,
+        listRowsIncludingNoPhone: rows.length
+      },
+      customers: rows,
+      range: EQC.range
+    };
+    payload.filtered = filterCustomers(payload.customers);
+    payload.segments = buildSegments(payload.customers);
+    payload.loyalty = buildLoyalty(payload.customers);
+    return payload;
   }
 
   function finalizeCustomer(row) {
-    const totalRequests = row.requests.length;
-    const lossCount = row.requests.filter((r) => ['cancelled', 'expired', 'no_show'].includes(r.status)).length;
-    const completedCount = row.requests.filter((r) => ['offered', 'reserved', 'occupied', 'cleaning', 'completed'].includes(r.status)).length;
-    const days = daysSince(row.lastSeen);
-    const preferredSource = topKey(row.sourceCounts) || 'other';
-    const preferredZone = topKey(row.zoneCounts) || t('unknown');
-    const avgParty = average(row.partySizes);
-    const repeat = totalRequests > 1;
-    const isNew = row.firstSeen ? daysSince(row.firstSeen) <= 7 : false;
-    const inactive = days !== null && days >= 30;
-    const highLoss = lossCount >= 2 || pct(lossCount, totalRequests) >= 50 && totalRequests >= 2;
+    const sourceCounts = row.sourceCounts || row.source_counts || {};
+    const zoneCounts = row.zoneCounts || row.zone_counts || {};
+    const statusCounts = row.statusCounts || row.status_counts || {};
+    const requests = Array.isArray(row.requests) ? row.requests : [];
+    const totalRequests = n(row.totalRequests ?? row.total_requests ?? requests.length);
+    const periodRequests = n(row.periodRequests ?? row.period_requests);
+    const avgParty = n(row.avgParty ?? row.avg_party_size);
+    const lossCount = n(statusCounts.cancelled) + n(statusCounts.expired) + n(statusCounts.no_show);
+    const lastSeen = row.lastSeen || row.last_seen || row.lastRequestAt || row.last_request_at || row.lastCustomerCreatedAt || row.last_customer_created_at;
+    const firstSeen = row.firstSeen || row.first_seen || row.firstRequestAt || row.first_request_at || row.firstCustomerCreatedAt || row.first_customer_created_at;
+    const namesUsed = Array.isArray(row.namesUsed) ? row.namesUsed : (Array.isArray(row.names_used) ? row.names_used : []);
+    const customerIds = Array.isArray(row.customerIds) ? row.customerIds : (Array.isArray(row.customer_ids) ? row.customer_ids : []);
+    const cleanPhone = row.cleanPhone || row.clean_phone || normalizePhone(row.phone);
+    const preferredSource = topFromObject(sourceCounts) || 'other';
+    const preferredZone = topFromObject(zoneCounts) || t('unknown');
+    const inactive = daysSince(lastSeen) !== null && daysSince(lastSeen) >= 30;
+    const repeat = totalRequests > 1 || n(row.rawCustomerCount ?? row.raw_customer_count) > 1;
     const vip = totalRequests >= 5 && pct(lossCount, totalRequests) <= 20;
-    const level = totalRequests >= 5 && pct(lossCount, totalRequests) <= 20 ? 'gold' : totalRequests >= 3 ? 'silver' : totalRequests >= 2 ? 'bronze' : 'one_time';
+    const highLoss = totalRequests >= 2 && pct(lossCount, totalRequests) >= 50;
+    const level = totalRequests >= 5 ? 'gold' : totalRequests >= 3 ? 'silver' : totalRequests >= 2 ? 'bronze' : 'one_time';
+
     return {
       ...row,
+      key: row.key || (cleanPhone ? `phone:${cleanPhone}` : `id:${customerIds[0] || Math.random()}`),
+      name: row.name || row.last_name || namesUsed[0] || 'عميل',
+      cleanPhone,
+      phone: cleanPhone || row.phone || t('no_phone'),
+      namesUsed: namesUsed.length ? namesUsed : [row.name || row.last_name || 'عميل'],
+      customerIds,
+      rawCustomerCount: n((row.rawCustomerCount ?? row.raw_customer_count) || customerIds.length),
+      firstSeen,
+      lastSeen,
+      requests,
       totalRequests,
-      lossCount,
-      completedCount,
-      daysSinceLast: days,
+      periodRequests,
+      activeInRange: !!row.activeInRange || !!row.active_in_range || periodRequests > 0,
+      sourceCounts,
+      zoneCounts,
+      statusCounts,
       preferredSource,
       preferredZone,
       avgParty,
-      repeat,
-      isNew,
       inactive,
-      highLoss,
+      repeat,
       vip,
+      highLoss,
       level,
-      lossRate: pct(lossCount, totalRequests),
-      repeatScore: totalRequests + Math.max(0, completedCount - lossCount),
-      rawCustomerCount: row.rawCustomers ? row.rawCustomers.length : 0,
-      namesUsed: Array.isArray(row.namesUsed) && row.namesUsed.length ? row.namesUsed : [row.name],
-      customerIds: Array.isArray(row.customerIds) ? row.customerIds : []
+      lossCount,
+      hasValidPhone: cleanPhone && cleanPhone.length >= 9,
+      hasMultipleNames: (namesUsed || []).filter(Boolean).length > 1,
+      daysSinceLast: daysSince(lastSeen),
+      repeatWithin30: hasRecentRepeat(requests, 30) || (totalRequests >= 2 && daysSince(lastSeen) !== null && daysSince(lastSeen) <= 30)
     };
   }
 
-  function topKey(obj) {
-    const entries = Object.entries(obj || {});
-    if (!entries.length) return null;
-    entries.sort((a, b) => b[1] - a[1]);
-    return entries[0][0];
+  function filterCustomers(rows) {
+    const q = String(EQC.search || '').trim().toLowerCase();
+    let out = rows.filter((c) => {
+      const searchText = [c.name, c.phone, c.cleanPhone, c.notes, ...(c.namesUsed || []), ...(c.customerIds || [])]
+        .map((v) => String(v || '').toLowerCase()).join(' ');
+      if (q && !searchText.includes(q)) return false;
+
+      if (EQC.filter === 'active') return c.activeInRange;
+      if (EQC.filter === 'with_requests') return c.totalRequests > 0;
+      if (EQC.filter === 'no_requests') return c.totalRequests === 0;
+      if (EQC.filter === 'repeat') return c.repeat;
+      if (EQC.filter === 'multi_names') return c.hasMultipleNames;
+      if (EQC.filter === 'no_phone') return !c.hasValidPhone;
+      if (EQC.filter === 'online') return c.preferredSource === 'online';
+      if (EQC.filter === 'walk_in') return c.preferredSource === 'walk_in';
+      if (EQC.filter === 'inactive') return c.inactive;
+      return true;
+    });
+
+    out.sort((a, b) => new Date(b.lastSeen || 0) - new Date(a.lastSeen || 0));
+    return out;
   }
 
-  function applyFilters(rows) {
-    const query = String(EQC.search || '').trim().toLowerCase();
-    return rows.filter((row) => {
-      const searchOk = !query || [
-        row.name,
-        row.phone,
-        row.whatsapp,
-        ...(row.namesUsed || []),
-        ...(row.customerIds || [])
-      ].some((value) => String(value || '').toLowerCase().includes(query));
-      const sourceOk = EQC.source === 'all' || row.preferredSource === EQC.source;
-      let segmentOk = true;
-      if (EQC.segment === 'new') segmentOk = row.isNew;
-      if (EQC.segment === 'repeat') segmentOk = row.repeat;
-      if (EQC.segment === 'vip') segmentOk = row.vip;
-      if (EQC.segment === 'high_loss') segmentOk = row.highLoss;
-      if (EQC.segment === 'inactive') segmentOk = row.inactive;
-      let statusOk = true;
-      if (EQC.status === 'active') statusOk = !row.inactive;
-      if (EQC.status === 'inactive') statusOk = row.inactive;
-      return searchOk && sourceOk && segmentOk && statusOk;
-    }).sort((a, b) => new Date(b.lastSeen || 0) - new Date(a.lastSeen || 0));
+  function visitsOf(c) {
+    return Array.isArray(c.requests) ? c.requests : [];
+  }
+
+  function visitDate(r) {
+    return r && r.created_at ? new Date(r.created_at) : null;
+  }
+
+  function customerVisitedInRange(c, key) {
+    const start = rangeStart(key);
+    return visitsOf(c).some((r) => {
+      const d = visitDate(r);
+      if (!d || !Number.isFinite(d.getTime())) return false;
+      return !start || d >= start;
+    });
+  }
+
+  function countVisitedInRange(rows, key) {
+    return (rows || []).filter((c) => customerVisitedInRange(c, key)).length;
+  }
+
+  function hasRecentRepeat(requests, days = 30) {
+    const times = (requests || [])
+      .map((r) => new Date(r.created_at || 0).getTime())
+      .filter((v) => Number.isFinite(v) && v > 0)
+      .sort((a, b) => b - a);
+    if (times.length < 2) return false;
+    for (let i = 0; i < times.length - 1; i++) {
+      if ((times[i] - times[i + 1]) <= days * 86400000) return true;
+    }
+    return false;
+  }
+
+  function sourceSummary(rows) {
+    const out = {};
+    (rows || []).forEach((c) => {
+      Object.entries(c.sourceCounts || {}).forEach(([k, v]) => { out[k] = (out[k] || 0) + n(v); });
+    });
+    return Object.entries(out).map(([label, value]) => ({ label: t(label), value })).sort((a, b) => b.value - a.value);
+  }
+
+  function zoneSummary(rows) {
+    const out = {};
+    (rows || []).forEach((c) => {
+      Object.entries(c.zoneCounts || {}).forEach(([k, v]) => { out[k] = (out[k] || 0) + n(v); });
+    });
+    return Object.entries(out).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8);
+  }
+
+  function rangeCustomers(rows) {
+    if (EQC.range === 'all') return rows || [];
+    return (rows || []).filter((c) => customerVisitedInRange(c, EQC.range));
   }
 
   function buildSegments(rows) {
-    const total = rows.length;
     const items = [
-      { key: 'new', labelKey: 'new_customers', descKey: 'new_desc', rows: rows.filter((r) => r.isNew), icon: 'fa-user-plus' },
-      { key: 'repeat', labelKey: 'repeat_customers', descKey: 'repeat_desc', rows: rows.filter((r) => r.repeat), icon: 'fa-repeat' },
-      { key: 'active', labelKey: 'active', descKey: 'active_desc', rows: rows.filter((r) => !r.inactive), icon: 'fa-heart-pulse' },
-      { key: 'inactive', labelKey: 'inactive_customers', descKey: 'inactive_desc', rows: rows.filter((r) => r.inactive), icon: 'fa-user-clock' },
-      { key: 'online', labelKey: 'online_customers', descKey: 'online_desc', rows: rows.filter((r) => r.preferredSource === 'online'), icon: 'fa-globe' },
-      { key: 'local', labelKey: 'local_customers', descKey: 'local_desc', rows: rows.filter((r) => r.preferredSource === 'walk_in'), icon: 'fa-store' },
-      { key: 'vip', labelKey: 'vip_potential', descKey: 'vip_desc', rows: rows.filter((r) => r.vip), icon: 'fa-crown' },
-      { key: 'high_loss', labelKey: 'high_loss_customers', descKey: 'high_loss_desc', rows: rows.filter((r) => r.highLoss), icon: 'fa-triangle-exclamation' }
+      ['active', t('active_in_range'), rows.filter((r) => r.activeInRange), 'fa-heart-pulse'],
+      ['repeat', t('repeat'), rows.filter((r) => r.repeat), 'fa-repeat'],
+      ['multi_names', t('multi_name_filter'), rows.filter((r) => r.hasMultipleNames), 'fa-id-card'],
+      ['no_phone', t('no_phone_filter'), rows.filter((r) => !r.hasValidPhone), 'fa-phone-slash'],
+      ['online', t('online'), rows.filter((r) => r.preferredSource === 'online'), 'fa-globe'],
+      ['walk_in', t('walk_in'), rows.filter((r) => r.preferredSource === 'walk_in'), 'fa-store'],
+      ['inactive', t('inactive'), rows.filter((r) => r.inactive), 'fa-user-clock']
     ];
-    return items.map((item) => ({ ...item, count: item.rows.length, percent: pct(item.rows.length, total) }));
+    return items.map(([key, label, list, icon]) => ({ key, label, count: list.length, percent: pct(list.length, rows.length), icon, rows: list }));
   }
 
   function buildLoyalty(rows) {
-    const levels = {
+    return {
       gold: rows.filter((r) => r.level === 'gold'),
       silver: rows.filter((r) => r.level === 'silver'),
       bronze: rows.filter((r) => r.level === 'bronze'),
-      one_time: rows.filter((r) => r.level === 'one_time')
+      one_time: rows.filter((r) => r.level === 'one_time'),
+      topRepeat: rows.slice().sort((a, b) => b.totalRequests - a.totalRequests || b.rawCustomerCount - a.rawCustomerCount).slice(0, 12),
+      followup: rows.filter((r) => r.inactive && r.repeat).slice(0, 12)
     };
-    const topRepeat = rows.slice().sort((a, b) => b.repeatScore - a.repeatScore).slice(0, 12);
-    const comeback = rows.filter((r) => r.repeat && r.daysSinceLast !== null && r.daysSinceLast >= 30 && !r.highLoss).sort((a, b) => b.totalRequests - a.totalRequests).slice(0, 12);
-    return { levels, topRepeat, comeback };
   }
 
-  function buildSummary(rows, filtered, segments) {
-    const total = rows.length;
-    const repeatCount = rows.filter((r) => r.repeat).length;
-    const inactiveCount = rows.filter((r) => r.inactive).length;
-    const onlineCount = rows.filter((r) => r.preferredSource === 'online').length;
-    const localCount = rows.filter((r) => r.preferredSource === 'walk_in').length;
-    const notesCount = rows.filter((r) => String(r.notes || '').trim()).length;
-    const vipCount = rows.filter((r) => r.vip).length;
-    const highLossCount = rows.filter((r) => r.highLoss).length;
-    const latest = rows.slice().sort((a, b) => new Date(b.lastSeen || 0) - new Date(a.lastSeen || 0))[0] || null;
-    const topSource = topKey(countBy(rows, 'preferredSource')) || 'other';
-    const topZone = topKey(countBy(rows, 'preferredZone')) || t('unknown');
-    return { total, filtered: filtered.length, repeatCount, repeatRate: pct(repeatCount, total), inactiveCount, onlineCount, localCount, notesCount, vipCount, highLossCount, latest, topSource, topZone, segments };
+  function shellHtml(data) {
+    const business = data.business || getBusinessProfile() || {};
+    const stats = data.stats || {};
+    const today = countVisitedInRange(data.customers || [], 'today');
+    const last7 = countVisitedInRange(data.customers || [], 'last7');
+    const last30 = countVisitedInRange(data.customers || [], 'last30');
+    const last90 = countVisitedInRange(data.customers || [], 'last90');
+    return `
+      <div class="eqc-page" id="eqCustomers" dir="${isAr() ? 'rtl' : 'ltr'}">
+        <section class="eqc-hero">
+          <div>
+            <h2>${esc(t('title'))}</h2>
+            <p>${esc(t('subtitle'))}</p>
+            <div class="eqc-chip-row" style="margin-top:14px;">
+              <button class="eqc-btn primary" onclick="EQRestaurantCustomers.refresh()"><i class="fas fa-sync-alt"></i>${esc(t('refresh'))}</button>
+              <span class="eqc-badge info">${esc(business.name || '')}</span>
+              <span class="eqc-badge wait">${esc(business.support_ref || '')}</span>
+            </div>
+            <div class="eqc-chip-row" style="margin-top:14px;">
+              <span class="eqc-badge muted">${esc(t('customers_today'))}: ${esc(today)}</span>
+              <span class="eqc-badge muted">${esc(t('customers_7'))}: ${esc(last7)}</span>
+              <span class="eqc-badge muted">${esc(t('customers_30'))}: ${esc(last30)}</span>
+              <span class="eqc-badge muted">${esc(t('customers_90'))}: ${esc(last90)}</span>
+            </div>
+          </div>
+          <div class="eqc-health">
+            <div class="eqc-health-num">${esc(stats.uniqueCustomersByPhone)}</div>
+            <div class="eqc-health-label">${esc(t('unique_customers'))}</div>
+            <div class="eqc-health-note">${esc(t('customer_love_note'))}</div>
+          </div>
+        </section>
+
+        <section class="eqc-toolbar">
+          <div>
+            <div class="eqc-sub" style="margin-bottom:8px;">${esc(t('range'))}</div>
+            <div class="eqc-chip-row">
+              ${rangeButton('today')}${rangeButton('last7')}${rangeButton('last30')}${rangeButton('last90')}${rangeButton('all')}
+            </div>
+          </div>
+          <div class="eqc-chip-row" style="align-items:flex-end;">
+            <input id="eqcSearchInput" class="eqc-search" value="${esc(EQC.search)}" placeholder="${esc(t('search_placeholder'))}" oninput="EQRestaurantCustomers.setSearch(this.value)">
+            <button class="eqc-btn light" onclick="EQRestaurantCustomers.reset()"><i class="fas fa-rotate-left"></i>${esc(t('reset'))}</button>
+          </div>
+        </section>
+
+        <nav class="eqc-tabs">
+          ${tabButton('overview', 'overview', 'fa-chart-pie')}
+          ${tabButton('list', 'list', 'fa-list')}
+          ${tabButton('profile', 'profile', 'fa-id-card')}
+          ${tabButton('segments', 'segments', 'fa-lightbulb')}
+          ${tabButton('loyalty', 'loyalty', 'fa-trophy')}
+          ${tabButton('export', 'export', 'fa-file-excel')}
+        </nav>
+
+        <div id="eqcContent"></div>
+      </div>
+    `;
   }
 
-  function countBy(rows, key) {
-    return rows.reduce((out, row) => {
-      const value = row[key] || 'unknown';
-      out[value] = (out[value] || 0) + 1;
-      return out;
-    }, {});
+  function rangeButton(key) {
+    const label = key === 'all' ? t('all_time') : t(key);
+    return `<button class="eqc-chip ${EQC.range === key ? 'active' : ''}" onclick="EQRestaurantCustomers.setRange('${key}')">${esc(label)}</button>`;
   }
 
-  function renderCustomers(data, view) {
-    const body = `<div class="eqc-page" id="eqCustomers" data-view="${esc(view)}" dir="${lang() === 'ar' ? 'rtl' : 'ltr'}">${heroHtml(data)}${toolbarHtml(data)}${tabsHtml(view)}${viewBodyHtml(data, view)}</div>`;
-    openPanel(t('title'), t('subtitle'), body);
+  function tabButton(key, labelKey, icon) {
+    return `<button class="eqc-tab ${EQC.view === key ? 'active' : ''}" onclick="EQRestaurantCustomers.setView('${key}')"><i class="fas ${icon}"></i>${esc(t(labelKey))}</button>`;
   }
 
-  function heroHtml(data) {
-    const business = data.business?.name || data.business?.business_name || 'EASY-Q';
-    const updated = EQC.loadedAt ? fmtDateTime(EQC.loadedAt) : '—';
-    return `<section class="eqc-hero"><div style="position:relative;z-index:1;"><h2>${esc(t('title'))}</h2><p>${esc(t('subtitle'))}</p><div class="eqc-hero-actions"><button class="eqc-btn primary" onclick="EQRestaurantCustomers.refresh()"><i class="fas fa-sync-alt"></i>${esc(t('refresh_now'))}</button></div><div class="eqc-chip-row" style="margin-top:12px;"><span class="eqc-badge info">${esc(business)}</span><span class="eqc-badge wait">${esc(t('range'))}: ${esc(rangeLabel(EQC.range))}</span><span class="eqc-badge muted">${esc(t('last_update'))}: ${esc(updated)}</span></div></div><div class="eqc-health-card"><div class="eqc-health-title">${esc(t('quick_read'))}</div><div class="eqc-health-value"><span>${esc(data.summary.total)}</span><span style="font-size:16px;opacity:.82;">${esc(t('unique_phone_customers'))}</span></div><p style="margin-top:10px;">${esc(t('repeat_rate'))}: ${esc(data.summary.repeatRate)}% — ${esc(t('top_source'))}: ${esc(t(data.summary.topSource))}</p></div></section>`;
+  function kpi(icon, title, value, sub, mini) {
+    return `<div class="eqc-card soft"><div class="eqc-title"><i class="fas ${icon}"></i>${esc(title)}</div><div class="eqc-num">${esc(value)}</div><div class="eqc-sub">${esc(sub || '')}</div>${mini ? `<div class="eqc-small-grid">${mini.map(([a,b])=>`<div class="eqc-small"><div class="eqc-small-num">${esc(b)}</div><div class="eqc-small-label">${esc(a)}</div></div>`).join('')}</div>` : ''}</div>`;
   }
 
-  function toolbarHtml() {
-    return `<div class="eqc-toolbar"><div><div class="eqc-card-sub" style="margin-bottom:8px;">${esc(t('range'))}</div><div class="eqc-chip-row"><button class="eqc-chip ${EQC.range==='today'?'active':''}" onclick="EQRestaurantCustomers.setRange('today')">${esc(t('today'))}</button><button class="eqc-chip ${EQC.range==='last7'?'active':''}" onclick="EQRestaurantCustomers.setRange('last7')">${esc(t('last7'))}</button><button class="eqc-chip ${EQC.range==='last30'?'active':''}" onclick="EQRestaurantCustomers.setRange('last30')">${esc(t('last30'))}</button><button class="eqc-chip ${EQC.range==='last90'?'active':''}" onclick="EQRestaurantCustomers.setRange('last90')">${esc(t('last90'))}</button><button class="eqc-chip ${EQC.range==='all'?'active':''}" onclick="EQRestaurantCustomers.setRange('all')">${esc(t('all_time'))}</button></div></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;"><input class="eqc-search" value="${esc(EQC.search)}" placeholder="${esc(t('search_placeholder'))}" oninput="EQRestaurantCustomers.setSearch(this.value)"><button class="eqc-mini-btn" onclick="EQRestaurantCustomers.resetFilters()"><i class="fas fa-rotate-left"></i>${esc(t('reset_filters'))}</button></div></div>`;
+  function renderContent() {
+    const wrap = $('eqcContent');
+    if (!wrap || !EQC.data) return;
+    const data = EQC.data;
+    data.filtered = filterCustomers(data.customers || []);
+    data.segments = buildSegments(data.customers || []);
+    data.loyalty = buildLoyalty(data.customers || []);
+
+    if (EQC.view === 'list') wrap.innerHTML = listHtml(data);
+    else if (EQC.view === 'profile') wrap.innerHTML = profileHtml(data);
+    else if (EQC.view === 'segments') wrap.innerHTML = segmentsHtml(data);
+    else if (EQC.view === 'loyalty') wrap.innerHTML = loyaltyHtml(data);
+    else if (EQC.view === 'export') wrap.innerHTML = exportHtml(data);
+    else wrap.innerHTML = overviewHtml(data);
   }
 
-  function tabsHtml(view) {
-    const tabs = [
-      ['overview', 'overview', 'fa-chart-pie'],
-      ['list', 'list', 'fa-list'],
-      ['profile', 'profile', 'fa-id-card'],
-      ['segments', 'segments', 'fa-tags'],
-      ['loyalty', 'loyalty', 'fa-gem'],
-      ['export', 'export', 'fa-download']
-    ];
-    return `<div class="eqc-tabs">${tabs.map(([key,label,icon])=>`<button class="eqc-tab ${view===key?'active':''}" onclick="EQRestaurantCustomers.setView('${key}')"><i class="fas ${icon}"></i>${esc(t(label))}</button>`).join('')}</div>`;
-  }
-
-  function viewBodyHtml(data, view) {
-    if (view === 'list') return listViewHtml(data);
-    if (view === 'profile') return profileViewHtml(data);
-    if (view === 'segments') return segmentsViewHtml(data);
-    if (view === 'loyalty') return loyaltyViewHtml(data);
-    if (view === 'export') return exportViewHtml(data);
-    return overviewViewHtml(data);
-  }
-
-  function kpiCard(icon, title, value, label, miniItems) {
-    return `<div class="eqc-card soft"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas ${esc(icon)}"></i>${esc(title)}</div><div class="eqc-card-sub">${esc(label)}</div></div></div><div class="eqc-kpi-value">${esc(value)}</div><div class="eqc-mini-row">${(miniItems||[]).map(([labelText,num])=>`<div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(num)}</div><div class="eqc-mini-label">${esc(labelText)}</div></div>`).join('')}</div></div>`;
-  }
-
-  function progressCard(icon, title, value, label, percentValue) {
-    return `<div class="eqc-card soft"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas ${esc(icon)}"></i>${esc(title)}</div><div class="eqc-card-sub">${esc(label)}</div></div></div><div class="eqc-kpi-value">${esc(value)}</div><div class="eqc-progress"><span style="width:${pct(percentValue,100)}%"></span></div><div class="eqc-kpi-label">${pct(percentValue,100)}%</div></div>`;
-  }
-
-  function overviewViewHtml(data) {
-    return `<div class="eqc-grid">${kpiCard('fa-users', t('total_customers'), data.summary.total, t('period_note'), [[t('new_customers'), getSegment(data, 'new').count], [t('repeat_customers'), data.summary.repeatCount]])}${kpiCard('fa-repeat', t('repeat_customers'), data.summary.repeatCount, t('repeat_rate'), [[t('vip_potential'), data.summary.vipCount], [t('inactive_customers'), data.summary.inactiveCount]])}${progressCard('fa-heart-pulse', t('repeat_rate'), `${data.summary.repeatRate}%`, t('loyalty_title'), data.summary.repeatRate)}${kpiCard('fa-globe', t('top_source'), t(data.summary.topSource), t('source'), [[t('online_customers'), data.summary.onlineCount], [t('local_customers'), data.summary.localCount]])}<div class="eqc-card wide"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-lightbulb"></i>${esc(t('insights'))}</div><div class="eqc-card-sub">${esc(t('quick_read'))}</div></div></div>${insightsHtml(data)}</div><div class="eqc-card wide"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-users-viewfinder"></i>${esc(t('segment_summary'))}</div><div class="eqc-card-sub">${esc(t('segments'))}</div></div></div>${segmentBarsHtml(data.segments)}</div><div class="eqc-card full"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-clock-rotate-left"></i>${esc(t('latest_customer'))}</div><div class="eqc-card-sub">${esc(t('list'))}</div></div></div><div id="eqcCustomerCardsWrap">${customerCardsHtml(data.filtered.slice(0,8))}</div></div></div>`;
-  }
-
-  function getSegment(data, key) {
-    return data.segments.find((s) => s.key === key) || { count: 0, percent: 0 };
-  }
-
-  function insightsHtml(data) {
-    const rows = [
-      `${t('repeat_rate')}: ${data.summary.repeatRate}%`,
-      `${t('top_source')}: ${t(data.summary.topSource)}`,
-      `${t('top_zone')}: ${data.summary.topZone}`,
-      `${t('high_loss_customers')}: ${data.summary.highLossCount}`,
-      `${t('customers_with_notes')}: ${data.summary.notesCount}`
-    ];
-    return `<div class="eqc-list">${rows.map((text)=>`<div class="eqc-list-item"><div class="eqc-icon-box"><i class="fas fa-circle-info"></i></div><div><div class="eqc-list-title">${esc(text)}</div><div class="eqc-list-sub">${esc(t('period_note'))}</div></div><span class="eqc-badge wait">${esc(t('details'))}</span></div>`).join('')}</div>`;
-  }
-
-  function listViewHtml(data) {
-    return `<div class="eqc-grid"><div class="eqc-card full"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-filter"></i>${esc(t('filter_segment'))}</div><div class="eqc-card-sub">${esc(t('period_note'))}</div></div></div>${filtersHtml()}</div><div class="eqc-card full"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-list"></i>${esc(t('list'))}</div><div class="eqc-card-sub" id="eqcCustomersListCount">${esc(data.filtered.length)} / ${esc(data.customers.length)} ${esc(t('unique_phone_customers'))}</div></div></div><div id="eqcCustomersListWrap">${customersTableHtml(data.filtered)}</div></div></div>`;
+  function overviewHtml(data) {
+    const ranged = rangeCustomers(data.customers || []);
+    const today = countVisitedInRange(data.customers || [], 'today');
+    const last7 = countVisitedInRange(data.customers || [], 'last7');
+    const last30 = countVisitedInRange(data.customers || [], 'last30');
+    const last90 = countVisitedInRange(data.customers || [], 'last90');
+    const topRepeat = (data.loyalty.topRepeat || []).filter((c) => c.totalRequests > 0).slice(0, 8);
+    return `<div class="eqc-grid">
+      ${kpi('fa-calendar-day', t('customers_today'), today, t('visits_history'))}
+      ${kpi('fa-calendar-week', t('customers_7'), last7, t('visits_history'))}
+      ${kpi('fa-calendar-days', t('customers_30'), last30, t('visits_history'))}
+      ${kpi('fa-clock-rotate-left', t('customers_90'), last90, t('visits_history'))}
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-store"></i>${esc(t('source_summary'))}</div><div class="eqc-sub">${esc(t('customer_love_note'))}</div>${barsHtml(sourceSummary(ranged).slice(0,6), 1)}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-location-dot"></i>${esc(t('zone_summary'))}</div><div class="eqc-sub">${esc(rangeLabel(EQC.range))}</div>${barsHtml(zoneSummary(ranged), 1)}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-trophy"></i>${esc(t('top_repeat'))}</div><div class="eqc-sub">${esc(t('loyalty_hint'))}</div>${miniCustomers(topRepeat)}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-list"></i>${esc(t('list'))}</div><div class="eqc-sub">${esc(t('showing'))}: ${esc(Math.min(8, data.filtered.length))} ${esc(t('of'))} ${esc(data.filtered.length)}</div>${customersTable(data.filtered.slice(0,8), true)}</div>
+    </div>`;
   }
 
   function filtersHtml() {
-    const segmentOptions = ['all','new','repeat','vip','high_loss','inactive'];
-    const sourceOptions = ['all','walk_in','online','restored','other'];
-    const statusOptions = ['all','active','inactive'];
-    return `<div class="eqc-chip-row"><span class="eqc-card-sub">${esc(t('filter_segment'))}</span>${segmentOptions.map((key)=>`<button class="eqc-chip ${EQC.segment===key?'active':''}" onclick="EQRestaurantCustomers.setSegment('${key}')">${esc(t(key))}</button>`).join('')}</div><div class="eqc-chip-row" style="margin-top:10px;"><span class="eqc-card-sub">${esc(t('filter_source'))}</span>${sourceOptions.map((key)=>`<button class="eqc-chip ${EQC.source===key?'active':''}" onclick="EQRestaurantCustomers.setSource('${key}')">${esc(t(key))}</button>`).join('')}</div><div class="eqc-chip-row" style="margin-top:10px;"><span class="eqc-card-sub">${esc(t('filter_status'))}</span>${statusOptions.map((key)=>`<button class="eqc-chip ${EQC.status===key?'active':''}" onclick="EQRestaurantCustomers.setStatus('${key}')">${esc(t(key))}</button>`).join('')}</div>`;
-  }
-
-  function customersTableHtml(rows) {
-    if (!rows.length) return `<div class="eqc-empty">${esc(t('no_customers'))}</div>`;
-    return `<div class="eqc-table-wrap"><table class="eqc-table"><thead><tr><th>${esc(t('last_name'))}</th><th>${esc(t('phone'))}</th><th>${esc(t('used_names'))}</th><th>${esc(t('linked_records'))}</th><th>${esc(t('visits'))}</th><th>${esc(t('last_visit'))}</th><th>${esc(t('preferred_source'))}</th><th>${esc(t('preferred_zone'))}</th><th>${esc(t('actions'))}</th></tr></thead><tbody>${rows.map((r)=>`<tr><td>${esc(r.name)}</td><td dir="ltr">${esc(displayPhone(r.phone))}</td><td>${esc((r.namesUsed || []).slice(0,3).join('، ') || '—')}</td><td>${esc(r.customerIds?.length || r.rawCustomerCount || 0)}</td><td>${esc(r.totalRequests)}</td><td>${esc(fmtDate(r.lastSeen))}</td><td>${esc(t(r.preferredSource))}</td><td>${esc(r.preferredZone)}</td><td><button class="eqc-mini-btn" onclick="EQRestaurantCustomers.openProfile('${esc(r.key)}')">${esc(t('open_profile'))}</button></td></tr>`).join('')}</tbody></table></div>`;
-  }
-
-  function customerCardsHtml(rows) {
-    if (!rows.length) return `<div class="eqc-empty">${esc(t('no_customers'))}</div>`;
-    return `<div class="eqc-list">${rows.map((r)=>`<div class="eqc-list-item"><div class="eqc-icon-box"><i class="fas fa-user"></i></div><div><div class="eqc-list-title">${esc(r.name)} — <span dir="ltr">${esc(displayPhone(r.phone))}</span></div><div class="eqc-list-sub">${esc(t('visits'))}: ${esc(r.totalRequests)} / ${esc(t('last_visit'))}: ${esc(fmtDate(r.lastSeen))} / ${esc(t('preferred_source'))}: ${esc(t(r.preferredSource))}</div></div><button class="eqc-mini-btn" onclick="EQRestaurantCustomers.openProfile('${esc(r.key)}')">${esc(t('profile'))}</button></div>`).join('')}</div>`;
-  }
-
-  function profileViewHtml(data) {
-    const customer = data.customers.find((r) => r.key === EQC.selectedCustomerKey) || data.filtered[0] || data.customers[0] || null;
-    if (!customer) return `<div class="eqc-grid"><div class="eqc-card full"><div class="eqc-empty">${esc(t('profile_hint'))}</div></div></div>`;
-    EQC.selectedCustomerKey = customer.key;
-    return `
-      <div class="eqc-grid">
-        <div class="eqc-card full">
-          <div class="eqc-card-head">
-            <div>
-              <div class="eqc-card-title"><i class="fas fa-id-card"></i>${esc(t('customer_profile'))}</div>
-              <div class="eqc-card-sub">${esc(customer.name)} — <span dir="ltr">${esc(displayPhone(customer.phone))}</span></div>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="eqc-mini-btn" onclick="EQRestaurantCustomers.setView('list')">
-                <i class="fas fa-arrow-right"></i>${esc(t('back_to_list'))}
-              </button>
-              <button class="eqc-mini-btn" onclick="EQRestaurantCustomers.closeProfile()">
-                <i class="fas fa-times"></i>${esc(t('close_profile'))}
-              </button>
-            </div>
-          </div>
-          <div class="eqc-profile-layout">
-            <div>${customerProfileMain(customer)}</div>
-            <div>${customerProfileHistory(customer)}</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function initials(name) {
-    const s = String(name || '').trim();
-    if (!s) return 'EQ';
-    return s.slice(0, 2).toUpperCase();
-  }
-
-  function customerProfileMain(c) {
-    const names = (c.namesUsed || []).filter(Boolean);
-    const ids = (c.customerIds || []).filter(Boolean);
-    const customerIdList = ids.length ? ids.map((id) => `<span class="eqc-badge muted" style="direction:ltr;max-width:100%;overflow:hidden;text-overflow:ellipsis;">${esc(id)}</span>`).join('') : `<span class="eqc-badge muted">—</span>`;
-    const nameList = names.length ? names.map((name) => `<span class="eqc-badge wait">${esc(name)}</span>`).join('') : `<span class="eqc-badge muted">—</span>`;
-
-    return `
-      <div class="eqc-card" style="box-shadow:none;background:linear-gradient(180deg,#FFFFFF 0%,#F8FAFF 100%);">
-        <div class="eqc-card-head">
-          <div style="display:flex;gap:12px;align-items:center;min-width:0;">
-            <div class="eqc-profile-avatar">${esc(initials(c.name))}</div>
-            <div style="min-width:0;">
-              <div class="eqc-card-title" style="font-size:18px;">${esc(c.name)}</div>
-              <div class="eqc-card-sub" dir="ltr">${esc(displayPhone(c.phone) || t('no_phone_customer'))}</div>
-            </div>
-          </div>
-          <span class="eqc-badge ${c.vip?'ok':c.highLoss?'bad':c.inactive?'warn':'wait'}">${esc(c.vip?t('vip'):c.highLoss?t('high_loss'):c.inactive?t('inactive'):t('active'))}</span>
-        </div>
-        <div class="eqc-note">${esc(t('latest_name_hint'))}</div>
-      </div>
-
-      <div class="eqc-mini-row" style="margin-top:12px;">
-        <div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(c.totalRequests)}</div><div class="eqc-mini-label">${esc(t('visits'))}</div></div>
-        <div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(fmtDate(c.firstSeen))}</div><div class="eqc-mini-label">${esc(t('first_visit'))}</div></div>
-        <div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(fmtDate(c.lastSeen))}</div><div class="eqc-mini-label">${esc(t('last_visit'))}</div></div>
-        <div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(c.avgParty || '—')}</div><div class="eqc-mini-label">${esc(t('avg_party_size'))}</div></div>
-      </div>
-
-      <div class="eqc-card" style="box-shadow:none;margin-top:12px;">
-        <div class="eqc-card-title"><i class="fas fa-fingerprint"></i>${esc(t('identity_section'))}</div>
-        <div class="eqc-list" style="margin-top:12px;">
-          <div class="eqc-list-item"><div class="eqc-icon-box"><i class="fas fa-user-tag"></i></div><div><div class="eqc-list-title">${esc(t('last_name'))}</div><div class="eqc-list-sub">${esc(c.name)}</div></div><span class="eqc-badge wait">${esc(t('profile'))}</span></div>
-          <div class="eqc-list-item"><div class="eqc-icon-box"><i class="fas fa-signature"></i></div><div><div class="eqc-list-title">${esc(t('used_names'))}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">${nameList}</div></div><span class="eqc-badge info">${esc(names.length)}</span></div>
-          <div class="eqc-list-item"><div class="eqc-icon-box"><i class="fas fa-id-badge"></i></div><div><div class="eqc-list-title">${esc(t('linked_customer_ids'))}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">${customerIdList}</div></div><span class="eqc-badge muted">${esc(ids.length)}</span></div>
-        </div>
-      </div>
-
-      <div class="eqc-card" style="box-shadow:none;margin-top:12px;">
-        <div class="eqc-card-title"><i class="fas fa-chart-line"></i>${esc(t('profile_summary'))}</div>
-        <div class="eqc-mini-row">
-          <div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(t(c.preferredSource))}</div><div class="eqc-mini-label">${esc(t('preferred_source'))}</div></div>
-          <div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(c.preferredZone)}</div><div class="eqc-mini-label">${esc(t('preferred_zone'))}</div></div>
-          <div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(c.lossRate)}%</div><div class="eqc-mini-label">${esc(t('loss_rate'))}</div></div>
-          <div class="eqc-mini-stat"><div class="eqc-mini-num">${esc(c.rawCustomerCount || ids.length || 0)}</div><div class="eqc-mini-label">${esc(t('raw_customer_records'))}</div></div>
-        </div>
-      </div>
-
-      <div style="margin-top:12px;">${customerAlerts(c)}</div>
-
-      <div class="eqc-card" style="box-shadow:none;margin-top:12px;">
-        <div class="eqc-card-title"><i class="fas fa-note-sticky"></i>${esc(t('private_notes'))}</div>
-        <div class="eqc-note" style="margin-top:8px;">${esc(c.notes || t('no_notes'))}</div>
-      </div>
-
-      <div class="eqc-card" style="box-shadow:none;margin-top:12px;">
-        <div class="eqc-card-title"><i class="fas fa-chart-pie"></i>${esc(t('source_mix'))}</div>
-        ${barsHtml(Object.entries(c.sourceCounts).map(([key,value])=>({label:t(key),value})), t('requests'), 100)}
-      </div>
-
-      <div class="eqc-card" style="box-shadow:none;margin-top:12px;">
-        <div class="eqc-card-title"><i class="fas fa-map-location-dot"></i>${esc(t('zone_mix'))}</div>
-        ${barsHtml(Object.entries(c.zoneCounts).map(([key,value])=>({label:key,value})), t('requests'), 130)}
-      </div>
-    `;
-  }
-
-  function customerAlerts(c) {
-    const alerts = [];
-    if (c.vip) alerts.push(['ok','fa-crown',t('vip_alert')]);
-    if (c.highLoss) alerts.push(['bad','fa-triangle-exclamation',t('loss_alert')]);
-    if (c.inactive) alerts.push(['warn','fa-user-clock',t('inactive_alert')]);
-    if (c.preferredSource === 'online') alerts.push(['wait','fa-globe',t('online_alert')]);
-    if (c.preferredSource === 'walk_in') alerts.push(['wait','fa-store',t('local_alert')]);
-    if (!alerts.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
-    return `<div class="eqc-list">${alerts.map(([type,icon,text])=>`<div class="eqc-alert ${type==='wait'?'':type}"><i class="fas ${icon}"></i><div class="eqc-list-title">${esc(text)}</div></div>`).join('')}</div>`;
-  }
-
-  function customerProfileHistory(c) {
-    const rows = c.requests.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
-    if (!rows.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
-    return `<div class="eqc-card-title"><i class="fas fa-clock-rotate-left"></i>${esc(t('requests_by_phone'))}</div><div class="eqc-table-wrap" style="margin-top:12px;"><table class="eqc-table" style="min-width:720px;"><thead><tr><th>${esc(t('booking_code'))}</th><th>${esc(t('created_at'))}</th><th>${esc(t('request_source'))}</th><th>${esc(t('zone'))}</th><th>${esc(t('party_size'))}</th><th>${esc(t('status'))}</th></tr></thead><tbody>${rows.map((r)=>`<tr><td>${esc(r.booking_code || '—')}</td><td>${esc(fmtDateTime(r.created_at))}</td><td>${esc(sourceLabel(r.request_source))}</td><td>${esc(r.zone_name || t('unknown'))}</td><td>${esc(r.requested_party_size || 1)}</td><td><span class="eqc-badge ${statusClass(r.status)}">${esc(statusLabel(r.status))}</span></td></tr>`).join('')}</tbody></table></div>`;
-  }
-
-  function segmentsViewHtml(data) {
-    return `<div class="eqc-grid"><div class="eqc-card wide"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-tags"></i>${esc(t('segment_summary'))}</div><div class="eqc-card-sub">${esc(t('description'))}</div></div></div>${segmentBarsHtml(data.segments)}</div><div class="eqc-card wide"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-table-list"></i>${esc(t('segment_table'))}</div><div class="eqc-card-sub">${esc(t('percent'))}</div></div></div>${segmentsTableHtml(data.segments)}</div><div class="eqc-card full"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-users"></i>${esc(t('customers'))}</div><div class="eqc-card-sub">${esc(t('filter_segment'))}</div></div></div>${customerCardsHtml(data.filtered.slice(0,12))}</div></div>`;
-  }
-
-  function segmentBarsHtml(segments) {
-    return barsHtml(segments.map((s)=>({label:t(s.labelKey),value:s.count})), t('customers'), 140);
-  }
-
-  function segmentsTableHtml(segments) {
-    return `<div class="eqc-table-wrap"><table class="eqc-table"><thead><tr><th>${esc(t('segment_name'))}</th><th>${esc(t('count'))}</th><th>${esc(t('percent'))}</th><th>${esc(t('description'))}</th></tr></thead><tbody>${segments.map((s)=>`<tr><td>${esc(t(s.labelKey))}</td><td>${esc(s.count)}</td><td>${esc(s.percent)}%</td><td>${esc(t(s.descKey))}</td></tr>`).join('')}</tbody></table></div>`;
-  }
-
-  function loyaltyViewHtml(data) {
-    const levels = data.loyalty.levels;
-    const total = data.customers.length;
-    return `<div class="eqc-grid"><div class="eqc-card soft"><div class="eqc-card-title"><i class="fas fa-crown"></i>${esc(t('gold'))}</div><div class="eqc-kpi-value">${esc(levels.gold.length)}</div><div class="eqc-kpi-label">${esc(t('gold_desc'))}</div></div><div class="eqc-card soft"><div class="eqc-card-title"><i class="fas fa-medal"></i>${esc(t('silver'))}</div><div class="eqc-kpi-value">${esc(levels.silver.length)}</div><div class="eqc-kpi-label">${esc(t('silver_desc'))}</div></div><div class="eqc-card soft"><div class="eqc-card-title"><i class="fas fa-award"></i>${esc(t('bronze'))}</div><div class="eqc-kpi-value">${esc(levels.bronze.length)}</div><div class="eqc-kpi-label">${esc(t('bronze_desc'))}</div></div><div class="eqc-card soft"><div class="eqc-card-title"><i class="fas fa-user"></i>${esc(t('one_time'))}</div><div class="eqc-kpi-value">${esc(levels.one_time.length)}</div><div class="eqc-kpi-label">${esc(t('one_time_desc'))}</div></div><div class="eqc-card wide"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-repeat"></i>${esc(t('top_repeat'))}</div><div class="eqc-card-sub">${esc(t('loyalty_subtitle'))}</div></div></div>${customerCardsHtml(data.loyalty.topRepeat)}</div><div class="eqc-card wide"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-phone"></i>${esc(t('comeback_candidates'))}</div><div class="eqc-card-sub">${esc(t('inactive_customers'))}</div></div></div>${customerCardsHtml(data.loyalty.comeback)}</div><div class="eqc-card full"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-chart-simple"></i>${esc(t('loyalty_levels'))}</div><div class="eqc-card-sub">${esc(t('loyalty_subtitle'))}</div></div></div>${barsHtml([{label:t('gold'),value:levels.gold.length},{label:t('silver'),value:levels.silver.length},{label:t('bronze'),value:levels.bronze.length},{label:t('one_time'),value:levels.one_time.length}], t('customers'), 120)}</div></div>`;
-  }
-
-  function exportViewHtml(data) {
-    return `<div class="eqc-grid"><div class="eqc-card wide"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-download"></i>${esc(t('export_title'))}</div><div class="eqc-card-sub">${esc(t('export_subtitle'))}</div></div></div><div class="eqc-export-actions"><button class="eqc-btn primary" onclick="EQRestaurantCustomers.downloadExcel('filtered')"><i class="fas fa-file-excel"></i>${esc(t('export_filtered'))}</button><button class="eqc-btn ghost" onclick="EQRestaurantCustomers.downloadExcel('all')"><i class="fas fa-file-excel"></i>${esc(t('export_all'))}</button><button class="eqc-btn ghost" onclick="EQRestaurantCustomers.copySummary()"><i class="fas fa-copy"></i>${esc(t('copy_summary'))}</button></div><div class="eqc-note" style="margin-top:12px;">${esc(t('export_note'))}</div></div><div class="eqc-card wide"><div class="eqc-card-head"><div><div class="eqc-card-title"><i class="fas fa-eye"></i>${esc(t('quick_read'))}</div><div class="eqc-card-sub">${esc(t('last_update'))}: ${esc(EQC.loadedAt ? fmtDateTime(EQC.loadedAt) : '—')}</div></div></div>${insightsHtml(data)}</div></div>`;
-  }
-
-  function barsHtml(items, unitLabel, labelWidth) {
-    if (!items || !items.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
-    const max = Math.max(1, ...items.map((i)=>n(i.value)));
-    return `<div class="eqc-bars">${items.map((item)=>`<div class="eqc-bar-row" style="grid-template-columns:${labelWidth||130}px minmax(0,1fr) 64px;"><div title="${esc(item.label)}">${esc(item.label)}</div><div class="eqc-bar-track"><div class="eqc-bar-fill" style="width:${pct(item.value,max)}%"></div></div><div>${esc(item.value)} ${unitLabel?esc(unitLabel):''}</div></div>`).join('')}</div>`;
-  }
-
-  function makeCsv(rows) {
-    return rows.map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-  }
-
-  function excelCell(value) {
-    return esc(value ?? '');
-  }
-
-  function customersExportRows(mode) {
-    const data = EQC.lastData;
-    if (!data) return [];
-    const rows = mode === 'all' ? data.customers : data.filtered;
-    const exportRows = [[t('last_name'), t('phone'), t('whatsapp'), t('used_names'), t('linked_customer_ids'), t('visits'), t('first_visit'), t('last_visit'), t('preferred_source'), t('preferred_zone'), t('avg_party_size'), t('loss_count'), t('loss_rate'), t('status')]];
-    rows.forEach((r) => exportRows.push([
-      r.name,
-      displayPhone(r.phone),
-      displayPhone(r.whatsapp),
-      r.totalRequests,
-      fmtDate(r.firstSeen),
-      fmtDate(r.lastSeen),
-      t(r.preferredSource),
-      r.preferredZone,
-      r.avgParty,
-      r.lossCount,
-      `${r.lossRate}%`,
-      r.vip ? t('vip') : r.highLoss ? t('high_loss') : r.inactive ? t('inactive') : t('active')
-    ]));
-    return exportRows;
-  }
-
-  function downloadExcel(mode) {
-    const data = EQC.lastData;
-    if (!data) return;
-
-    const rows = customersExportRows(mode);
-    const direction = lang() === 'ar' ? 'rtl' : 'ltr';
-    const textAlign = lang() === 'ar' ? 'right' : 'left';
-    const businessName = data.business?.name || data.business?.business_name || 'EASY-Q';
-
-    const tableRows = rows.map((row, index) => `
-      <tr>
-        ${row.map((cell) => index === 0
-          ? `<th style="border:1px solid #d9e2f3;background:#0E146D;color:#ffffff;padding:8px;text-align:${textAlign};">${excelCell(cell)}</th>`
-          : `<td style="border:1px solid #d9e2f3;padding:8px;text-align:${textAlign};mso-number-format:'\@';">${excelCell(cell)}</td>`
-        ).join('')}
-      </tr>
-    `).join('');
-
-    const html = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-          <meta charset="UTF-8">
-          <!--[if gte mso 9]>
-          <xml>
-            <x:ExcelWorkbook>
-              <x:ExcelWorksheets>
-                <x:ExcelWorksheet>
-                  <x:Name>Customers</x:Name>
-                  <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-                </x:ExcelWorksheet>
-              </x:ExcelWorksheets>
-            </x:ExcelWorkbook>
-          </xml>
-          <![endif]-->
-        </head>
-        <body style="font-family:Arial, sans-serif;direction:${direction};text-align:${textAlign};">
-          <h2 style="margin:0 0 6px;color:#0E146D;">${excelCell(businessName)}</h2>
-          <div style="margin-bottom:12px;font-weight:bold;color:#64748B;">${excelCell(t('export_title'))} - ${excelCell(rangeLabel(EQC.range))}</div>
-          <table style="border-collapse:collapse;width:100%;direction:${direction};">
-            ${tableRows}
-          </table>
-        </body>
-      </html>
-    `;
-
-    const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const name = `easy-q-customers-${EQC.range}-${lang()}.xls`;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-  }
-
-  function downloadCsv(mode) {
-    const rows = customersExportRows(mode);
-    if (!rows.length) return;
-    const blob = new Blob(['\uFEFF' + makeCsv(rows)], { type: 'text/csv;charset=utf-8' });
-    const name = `easy-q-customers-${EQC.range}-${lang()}.csv`;
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
-  }
-
-  async function copySummary() {
-    const data = EQC.lastData;
-    if (!data) return;
-    const text = [
-      `${t('title')} - EASY-Q`,
-      `${t('range')}: ${rangeLabel(EQC.range)}`,
-      `${t('total_customers')}: ${data.summary.total}`,
-      `${t('repeat_customers')}: ${data.summary.repeatCount}`,
-      `${t('repeat_rate')}: ${data.summary.repeatRate}%`,
-      `${t('top_source')}: ${t(data.summary.topSource)}`,
-      `${t('top_zone')}: ${data.summary.topZone}`
-    ].join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
-      alert(t('summary_copied'));
-    } catch (_) {
-      window.prompt(t('copy_summary'), text);
-    }
-  }
-
-  async function openCustomers(view = 'overview', force = false) {
-    const views = ['overview', 'list', 'profile', 'segments', 'loyalty', 'export'];
-    EQC.activeView = views.includes(view) ? view : 'overview';
-    setActiveSidebar(sidebarViewFor(EQC.activeView));
-    if (!canOpenCustomers()) {
-      openPanel(t('title'), t('no_permission'), errorHtml(t('no_permission')));
-      return;
-    }
-    openPanel(t('title'), t('subtitle'), loadingHtml());
-    try {
-      let data = EQC.lastData;
-      if (!data || force || EQC.lastRange !== EQC.range) data = await loadCustomersData();
-      else {
-        data.filtered = applyFilters(data.customers);
-        data.summary = buildSummary(data.customers, data.filtered, data.segments);
-      }
-      renderCustomers(data, EQC.activeView);
-    } catch (err) {
-      console.error('[EASY-Q Customers] open failed:', err);
-      openPanel(t('title'), t('load_error'), errorHtml(err.message || t('load_error')));
-    }
-  }
-
-  function sidebarViewFor(view) {
-    if (view === 'profile') return 'profiles';
-    if (view === 'segments') return 'segments';
-    if (view === 'loyalty') return 'loyalty';
-    return 'list';
-  }
-
-  function bindSidebarButtons() {
-    const map = [
-      ['customers-list', 'list'],
-      ['customers-profiles', 'profile'],
-      ['customers-segments', 'segments'],
-      ['customers-loyalty', 'loyalty']
+    const filters = [
+      ['all', t('all')],
+      ['active', t('active_in_range')],
+      ['with_requests', t('with_requests')],
+      ['no_requests', t('no_requests')],
+      ['repeat', t('repeat')],
+      ['multi_names', t('multi_name_filter')],
+      ['no_phone', t('no_phone_filter')],
+      ['online', t('online')],
+      ['walk_in', t('walk_in')],
+      ['inactive', t('inactive')]
     ];
-    map.forEach(([dataView, targetView]) => {
-      const btn = document.querySelector(`.sub-menu-item[data-view="${dataView}"]`);
-      if (btn && btn.dataset.eqcBound !== 'true') {
-        btn.dataset.eqcBound = 'true';
-        btn.addEventListener('click', function (event) {
-          event.preventDefault();
-          event.stopPropagation();
-          openCustomers(targetView, true);
-        });
+    return `<div class="eqc-chip-row">${filters.map(([key,label])=>`<button class="eqc-chip ${EQC.filter===key?'active':''}" onclick="EQRestaurantCustomers.setFilter('${key}')">${esc(label)}</button>`).join('')}</div>`;
+  }
+
+  function listHtml(data) {
+    const rows = data.filtered || [];
+    const pages = Math.max(1, Math.ceil(rows.length / EQC.pageSize));
+    if (EQC.page > pages) EQC.page = pages;
+    const start = (EQC.page - 1) * EQC.pageSize;
+    const pageRows = rows.slice(start, start + EQC.pageSize);
+    return `<div class="eqc-grid">
+      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-filter"></i>${esc(t('list'))}</div><div class="eqc-sub">${esc(t('showing'))}: ${esc(rows.length)} ${esc(t('of'))} ${esc(data.customers.length)}</div><div style="margin-top:12px;">${filtersHtml()}</div></div>
+      <div class="eqc-card full"><div class="eqc-chip-row" style="justify-content:space-between;margin-bottom:12px;"><div class="eqc-sub">${esc(t('showing'))} ${esc(start + 1)}-${esc(start + pageRows.length)} ${esc(t('of'))} ${esc(rows.length)}</div><div class="eqc-chip-row"><button class="eqc-btn light" onclick="EQRestaurantCustomers.prevPage()">‹</button><span class="eqc-badge muted">${esc(EQC.page)} / ${esc(pages)}</span><button class="eqc-btn light" onclick="EQRestaurantCustomers.nextPage()">›</button></div></div>${customersTable(pageRows, true)}</div>
+    </div>`;
+  }
+
+  function customersTable(rows, showActions) {
+    if (!rows.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
+    return `<div class="eqc-table-wrap"><table class="eqc-table"><thead><tr>
+      <th>${esc(t('latest_name'))}</th><th>${esc(t('phone'))}</th><th>${esc(t('used_names'))}</th><th>${esc(t('visits'))}</th><th>${esc(t('period_visits'))}</th><th>${esc(t('last_seen'))}</th><th>${esc(t('top_source'))}</th><th>${esc(t('top_zone'))}</th>${showActions ? `<th>${esc(t('actions'))}</th>` : ''}
+    </tr></thead><tbody>${rows.map((c)=>`<tr>
+      <td><b>${esc(c.repeatWithin30 ? '🏆 ' : '')}${esc(c.name)}</b><div class="eqc-sub">${esc(c.repeatWithin30 ? t('cup_candidate') : (c.hasMultipleNames ? t('multi_name_filter') : ''))}</div></td>
+      <td class="eqc-phone">${esc(c.cleanPhone || t('no_phone'))}</td>
+      <td>${esc((c.namesUsed || []).slice(0, 4).join('، '))}${(c.namesUsed || []).length > 4 ? '...' : ''}</td>
+      <td>${esc(c.totalRequests)}</td>
+      <td>${esc(c.periodRequests)}</td>
+      <td>${esc(fmtDate(c.lastSeen))}</td>
+      <td><span class="eqc-badge info">${esc(t(c.preferredSource))}</span></td>
+      <td>${esc(c.preferredZone || t('unknown'))}</td>
+      ${showActions ? `<td><button class="eqc-btn light" onclick="EQRestaurantCustomers.openProfile('${esc(c.key)}')"><i class="fas fa-id-card"></i>${esc(t('open_profile'))}</button></td>` : ''}
+    </tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function profileHtml(data) {
+    const c = data.customers.find((x) => x.key === EQC.selectedKey) || data.filtered[0] || data.customers[0];
+    if (!c) return `<div class="eqc-card full"><div class="eqc-empty">${esc(t('no_data'))}</div></div>`;
+    EQC.selectedKey = c.key;
+    return `<div class="eqc-profile" style="margin-top:14px;">
+      <div class="eqc-card">
+        <div class="eqc-chip-row" style="justify-content:space-between;margin-bottom:12px;">
+          <button class="eqc-btn light" onclick="EQRestaurantCustomers.setView('list')"><i class="fas fa-arrow-right"></i>${esc(t('back_to_list'))}</button>
+          <button class="eqc-btn danger" onclick="EQRestaurantCustomers.setView('list')"><i class="fas fa-times"></i>${esc(t('close_profile'))}</button>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <div class="eqc-avatar">${esc(c.repeatWithin30 ? '🏆' : String(c.name || 'ع').slice(0,1))}</div>
+          <div style="min-width:0;"><div class="eqc-title" style="font-size:18px;">${esc(c.name)}</div><div class="eqc-phone">${esc(c.cleanPhone || t('no_phone'))}</div></div>
+        </div>
+        <div class="eqc-small-grid">
+          <div class="eqc-small"><div class="eqc-small-num">${esc(c.totalRequests)}</div><div class="eqc-small-label">${esc(t('visits'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num">${esc(c.periodRequests)}</div><div class="eqc-small-label">${esc(t('period_visits'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num">${esc(fmtDate(c.firstSeen))}</div><div class="eqc-small-label">${esc(t('first_seen'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num">${esc(fmtDate(c.lastSeen))}</div><div class="eqc-small-label">${esc(t('last_seen'))}</div></div>
+        </div>
+        <div style="margin-top:12px;">${profileAlerts(c)}</div>
+        <div style="margin-top:12px;"><button class="eqc-btn dark" onclick="EQRestaurantCustomers.copy('${esc(c.cleanPhone || '')}')"><i class="fas fa-copy"></i>${esc(t('copy_phone'))}</button></div>
+      </div>
+      <div class="eqc-card">
+        <div class="eqc-title"><i class="fas fa-id-card"></i>${esc(t('identity'))}</div>
+        ${infoLine(t('latest_name'), c.name)}
+        ${infoLine(t('used_names'), (c.namesUsed || []).join('، '))}
+        ${infoLine(t('top_source'), t(c.preferredSource))}
+        ${infoLine(t('top_zone'), c.preferredZone)}
+        ${infoLine(t('avg_party'), c.avgParty || '—')}
+        ${infoLine(t('notes'), c.notes || '—')}
+      </div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-store"></i>${esc(t('source_summary'))}</div>${barsHtml(Object.entries(c.sourceCounts || {}).map(([label,value])=>({label:t(label),value})), c.totalRequests || 1)}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-location-dot"></i>${esc(t('zone_summary'))}</div>${barsHtml(Object.entries(c.zoneCounts || {}).map(([label,value])=>({label,value})), c.totalRequests || 1)}</div>
+      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-clock-rotate-left"></i>${esc(t('requests_linked'))}</div><div class="eqc-sub">${esc(t('visits'))}: ${esc(c.totalRequests)}</div>${visitsTable(c.requests || [])}</div>
+    </div>`;
+  }
+
+  function profileAlerts(c) {
+    const alerts = [];
+    if (c.repeatWithin30) alerts.push(['ok','fa-trophy',t('cup_candidate')]);
+    if (c.hasMultipleNames) alerts.push(['warn','fa-id-card',t('multi_name_filter')]);
+    if (c.inactive) alerts.push(['warn','fa-user-clock',t('inactive')]);
+    if (!c.hasValidPhone) alerts.push(['bad','fa-phone-slash',t('no_phone')]);
+    if (!alerts.length) alerts.push(['ok','fa-check',t('active_in_range')]);
+    return `<div class="eqc-list">${alerts.map(([cls,icon,text])=>`<div class="eqc-alert ${cls}"><i class="fas ${icon}"></i><div class="eqc-item-title">${esc(text)}</div></div>`).join('')}</div>`;
+  }
+
+  function infoLine(label, value, isIds) {
+    return `<div style="margin-top:12px;"><div class="eqc-sub">${esc(label)}</div><div class="${isIds ? 'eqc-ids' : ''}" style="font-weight:900;line-height:1.7;">${esc(value || '—')}</div></div>`;
+  }
+
+  function visitsTable(rows) {
+    if (!rows.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
+    return `<div class="eqc-table-wrap" style="margin-top:12px;"><table class="eqc-table" style="min-width:760px;"><thead><tr><th>${esc(t('booking_code'))}</th><th>${esc(t('date'))}</th><th>${esc(t('source'))}</th><th>${esc(t('zone'))}</th><th>${esc(t('party'))}</th><th>${esc(t('status'))}</th></tr></thead><tbody>${rows.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map((r)=>`<tr><td>${esc(r.booking_code || '—')}</td><td>${esc(fmtDate(r.created_at))}</td><td>${esc(sourceLabel(r.request_source))}</td><td>${esc(r.zone_name || t('unknown'))}</td><td>${esc(r.requested_party_size || 1)}</td><td><span class="eqc-badge muted">${esc(t(r.status || 'unknown'))}</span></td></tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function segmentsHtml(data) {
+    const ranged = rangeCustomers(data.customers || []);
+    const topRepeat = (data.loyalty.topRepeat || []).filter((c) => c.totalRequests > 0).slice(0, 10);
+    const noVisits = (data.customers || []).filter((c) => c.totalRequests === 0).slice(0, 8);
+    return `<div class="eqc-grid">
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-store"></i>${esc(t('source_summary'))}</div><div class="eqc-sub">${esc(t('customer_love_note'))}</div>${barsHtml(sourceSummary(ranged).slice(0,8), 1)}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-location-dot"></i>${esc(t('zone_summary'))}</div><div class="eqc-sub">${esc(rangeLabel(EQC.range))}</div>${barsHtml(zoneSummary(ranged), 1)}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-trophy"></i>${esc(t('top_repeat'))}</div>${miniCustomers(topRepeat)}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-user-clock"></i>${esc(t('no_requests'))}</div><div class="eqc-sub">${esc(t('customer_love_note'))}</div>${miniCustomers(noVisits)}</div>
+      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-filter"></i>${esc(t('list'))}</div><div style="margin-top:12px;">${filtersHtml()}</div></div>
+      <div class="eqc-card full">${customersTable(data.filtered.slice(0,50), true)}</div>
+    </div>`;
+  }
+
+  function loyaltyHtml(data) {
+    const l = data.loyalty;
+    const recent = (data.customers || []).filter((c) => c.repeatWithin30).sort((a,b)=>new Date(b.lastSeen||0)-new Date(a.lastSeen||0));
+    return `<div class="eqc-grid">
+      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-trophy"></i>${esc(t('loyalty'))}</div><div class="eqc-sub" style="font-size:13px;color:#334155;">${esc(t('loyalty_cup_note'))}</div><div class="eqc-sub" style="margin-top:8px;">${esc(t('no_auto_points'))}</div></div>
+      ${kpi('fa-trophy', t('cup_candidate'), recent.length, t('loyalty_hint'))}
+      ${kpi('fa-repeat', t('top_repeat'), l.topRepeat.filter((c)=>c.totalRequests>0).length, t('visits_history'))}
+      ${kpi('fa-calendar-check', t('customers_30'), countVisitedInRange(data.customers || [], 'last30'), t('visits_history'))}
+      ${kpi('fa-user', t('one_time'), l.one_time.length, t('visits_history'))}
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-trophy"></i>${esc(t('cup_candidate'))}</div>${miniCustomers(recent.slice(0,12))}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-repeat"></i>${esc(t('top_repeat'))}</div>${miniCustomers(l.topRepeat.filter((c)=>c.totalRequests>0).slice(0,12))}</div>
+    </div>`;
+  }
+
+  function exportHtml(data) {
+    return `<div class="eqc-grid">
+      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-file-excel"></i>${esc(t('export'))}</div><div class="eqc-sub">${esc(t('showing'))}: ${esc(data.filtered.length)} ${esc(t('of'))} ${esc(data.customers.length)} — ${esc(rangeLabel(EQC.range))}</div><div class="eqc-chip-row" style="margin-top:14px;"><button class="eqc-btn dark" onclick="EQRestaurantCustomers.exportExcel('filtered')"><i class="fas fa-file-excel"></i>${esc(t('export_current'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.exportExcel('all')"><i class="fas fa-database"></i>${esc(t('export_all'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.print('filtered')"><i class="fas fa-print"></i>${esc(t('print_current'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.print('all')"><i class="fas fa-print"></i>${esc(t('print_all'))}</button></div></div>
+      <div class="eqc-card full">${customersTable(data.filtered.slice(0,30), true)}</div>
+    </div>`;
+  }
+
+  function miniCustomers(rows) {
+    if (!rows.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
+    return `<div class="eqc-list" style="margin-top:12px;">${rows.map((c)=>`<div class="eqc-item"><div class="eqc-icon"><i class="fas ${c.repeatWithin30 ? 'fa-trophy' : 'fa-user'}"></i></div><div><div class="eqc-item-title">${esc(c.repeatWithin30 ? '🏆 ' : '')}${esc(c.name)}</div><div class="eqc-item-sub">${esc(c.cleanPhone || t('no_phone'))} — ${esc(t('visits'))}: ${esc(c.totalRequests)} — ${esc(t('top_source'))}: ${esc(t(c.preferredSource))}</div></div><button class="eqc-mini" onclick="EQRestaurantCustomers.openProfile('${esc(c.key)}')">${esc(t('open_profile'))}</button></div>`).join('')}</div>`;
+  }
+
+  function barsHtml(items, total) {
+    const max = Math.max(1, ...items.map((x) => n(x.value)));
+    if (!items.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
+    return `<div class="eqc-bars" style="margin-top:12px;">${items.map((x)=>`<div class="eqc-bar"><div>${esc(x.label)}</div><div class="eqc-track"><div class="eqc-fill" style="width:${Math.max(4, Math.round((n(x.value)/max)*100))}%"></div></div><div>${esc(x.value)}</div></div>`).join('')}</div>`;
+  }
+
+  function updateShellButtons() {
+    $$('.eqc-chip').forEach((btn) => {
+      const onclick = btn.getAttribute('onclick') || '';
+      if (onclick.includes('setRange')) {
+        btn.classList.toggle('active', onclick.includes(`'${EQC.range}'`));
+      }
+    });
+    $$('.eqc-tab').forEach((btn) => {
+      const onclick = btn.getAttribute('onclick') || '';
+      if (onclick.includes('setView')) {
+        btn.classList.toggle('active', onclick.includes(`'${EQC.view}'`));
       }
     });
   }
 
-  function boot() {
-    ensureStyles();
-    bindSidebarButtons();
-    setTimeout(bindSidebarButtons, 600);
-    setTimeout(bindSidebarButtons, 1600);
+  async function openCustomers(view = 'overview', force = false) {
+    if (!canOpen()) {
+      openPanel(t('title'), t('subtitle'), errorHtml('لا توجد صلاحية لفتح قسم العملاء'));
+      return;
+    }
+
+    EQC.view = view || EQC.view;
+    setActiveSidebar(EQC.view);
+    openPanel(t('title'), t('subtitle'), loadingHtml());
+
+    try {
+      const data = await loadData(force);
+      openPanel(t('title'), t('subtitle'), shellHtml(data));
+      renderContent();
+    } catch (err) {
+      console.error('[EASY-Q Customers] open failed:', err);
+      EQC.lastError = err.message || String(err);
+      openPanel(t('title'), t('subtitle'), errorHtml(EQC.lastError));
+    }
+  }
+
+  function bindSidebar() {
+    const map = {
+      'customers-list': 'list',
+      'customers-profiles': 'profile',
+      'customers-segments': 'segments',
+      'customers-loyalty': 'loyalty'
+    };
+    Object.entries(map).forEach(([view, target]) => {
+      const item = document.querySelector(`.sub-menu-item[data-view="${view}"]`);
+      if (!item || item.dataset.eqcBound === '1') return;
+      item.dataset.eqcBound = '1';
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openCustomers(target, false);
+      });
+    });
+  }
+
+  function makeExcel(rows) {
+    const headers = [
+      t('latest_name'), t('phone'), t('used_names'),
+      t('visits'), t('period_visits'), t('first_seen'), t('last_seen'),
+      t('top_source'), t('top_zone'), t('avg_party'), t('notes')
+    ];
+    const trs = rows.map((c) => [
+      c.name,
+      c.cleanPhone || '',
+      (c.namesUsed || []).join('، '),
+      c.totalRequests,
+      c.periodRequests,
+      fmtDate(c.firstSeen),
+      fmtDate(c.lastSeen),
+      t(c.preferredSource),
+      c.preferredZone,
+      c.avgParty || '',
+      c.notes || ''
+    ]);
+    const html = `<!doctype html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse;width:100%;direction:${isAr()?'rtl':'ltr'}}th,td{border:1px solid #ddd;padding:8px;text-align:${isAr()?'right':'left'}}th{background:#0E146D;color:white}.ltr{direction:ltr;text-align:left}</style></head><body><table><thead><tr>${headers.map((h)=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${trs.map((row)=>`<tr>${row.map((v,i)=>`<td${i===1?' class="ltr"':''}>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;
+    const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `easyq-customers-${EQC.range}-${new Date().toISOString().slice(0,10)}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function printRows(rows) {
+    const title = `${t('title')} - ${rangeLabel(EQC.range)}`;
+    const body = `<!doctype html><html><head><meta charset="UTF-8"><title>${esc(title)}</title><style>body{font-family:Arial,Tahoma,sans-serif;direction:${isAr()?'rtl':'ltr'};padding:22px;color:#111827}h2{margin:0 0 8px}.sub{color:#64748B;margin-bottom:16px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:${isAr()?'right':'left'}}th{background:#0E146D;color:white}.ltr{direction:ltr;text-align:left}@media print{button{display:none}}</style></head><body><button onclick="window.print()" style="padding:10px 14px;margin-bottom:14px;cursor:pointer;">${esc(t('print_current'))}</button><h2>${esc(title)}</h2><div class="sub">${esc(t('unique_customers'))}: ${esc((EQC.data?.stats?.uniqueCustomersByPhone)||rows.length)} — ${esc(t('showing'))}: ${esc(rows.length)}</div><table><thead><tr><th>${esc(t('latest_name'))}</th><th>${esc(t('phone'))}</th><th>${esc(t('used_names'))}</th><th>${esc(t('visits'))}</th><th>${esc(t('last_seen'))}</th><th>${esc(t('top_source'))}</th><th>${esc(t('top_zone'))}</th></tr></thead><tbody>${rows.map((c)=>`<tr><td>${esc(c.name)}</td><td class="ltr">${esc(c.cleanPhone||'')}</td><td>${esc((c.namesUsed||[]).join('، '))}</td><td>${esc(c.totalRequests)}</td><td>${esc(fmtDate(c.lastSeen))}</td><td>${esc(t(c.preferredSource))}</td><td>${esc(c.preferredZone||'')}</td></tr>`).join('')}</tbody></table></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.open();
+    w.document.write(body);
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (_) {} }, 300);
   }
 
   window.EQRestaurantCustomers = {
     open: openCustomers,
-    refresh() { return openCustomers(EQC.activeView, true); },
-    setView(view) { return openCustomers(view, false); },
+    refresh() {
+      EQC.data = null;
+      return openCustomers(EQC.view, true);
+    },
     setRange(range) {
       EQC.range = ['today','last7','last30','last90','all'].includes(range) ? range : 'last30';
-      EQC.lastData = null;
-      EQC.lastRange = null;
-      return openCustomers(EQC.activeView, true);
+      EQC.page = 1;
+      EQC.data = null;
+      return openCustomers(EQC.view, true);
+    },
+    setView(view) {
+      EQC.view = view || 'overview';
+      updateShellButtons();
+      setActiveSidebar(EQC.view);
+      renderContent();
     },
     setSearch(value) {
       EQC.search = value || '';
-      if (!EQC.lastData) return;
-
-      EQC.lastData.filtered = applyFilters(EQC.lastData.customers);
-      EQC.lastData.summary = buildSummary(EQC.lastData.customers, EQC.lastData.filtered, EQC.lastData.segments);
-
-      const listWrap = $('eqcCustomersListWrap');
-      if (listWrap) listWrap.innerHTML = customersTableHtml(EQC.lastData.filtered);
-
-      const countEl = $('eqcCustomersListCount');
-      if (countEl) countEl.textContent = `${EQC.lastData.filtered.length} / ${EQC.lastData.customers.length} ${t('unique_phone_customers')}`;
-
-      const cardsWrap = $('eqcCustomerCardsWrap');
-      if (cardsWrap) cardsWrap.innerHTML = customerCardsHtml(EQC.lastData.filtered.slice(0, 8));
+      EQC.page = 1;
+      if (EQC.view !== 'list') EQC.view = 'list';
+      updateShellButtons();
+      renderContent();
+      const input = $('eqcSearchInput');
+      if (input && document.activeElement !== input) {
+        input.focus();
+        const len = input.value.length;
+        try { input.setSelectionRange(len, len); } catch (_) {}
+      }
     },
-    setSegment(value) { EQC.segment = value || 'all'; return openCustomers(EQC.activeView, false); },
-    setSource(value) { EQC.source = value || 'all'; return openCustomers(EQC.activeView, false); },
-    setStatus(value) { EQC.status = value || 'all'; return openCustomers(EQC.activeView, false); },
-    resetFilters() { EQC.search = ''; EQC.segment = 'all'; EQC.source = 'all'; EQC.status = 'all'; return openCustomers(EQC.activeView, false); },
-    openProfile(key) { EQC.selectedCustomerKey = key; return openCustomers('profile', false); },
-    closeProfile() {
-      EQC.selectedCustomerKey = null;
-      if (typeof window.closeFullPagePanel === 'function') window.closeFullPagePanel();
-      else return openCustomers('list', false);
+    setFilter(filter) {
+      EQC.filter = filter || 'all';
+      EQC.page = 1;
+      if (EQC.view !== 'list') EQC.view = 'list';
+      updateShellButtons();
+      renderContent();
     },
-    downloadExcel,
-    downloadCSV: downloadCsv,
-    copySummary,
-    boot
+    reset() {
+      EQC.search = '';
+      EQC.filter = 'all';
+      EQC.page = 1;
+      const input = $('eqcSearchInput');
+      if (input) input.value = '';
+      renderContent();
+    },
+    nextPage() {
+      const total = (EQC.data ? filterCustomers(EQC.data.customers).length : 0);
+      const pages = Math.max(1, Math.ceil(total / EQC.pageSize));
+      EQC.page = Math.min(pages, EQC.page + 1);
+      renderContent();
+    },
+    prevPage() {
+      EQC.page = Math.max(1, EQC.page - 1);
+      renderContent();
+    },
+    openProfile(key) {
+      EQC.selectedKey = key;
+      EQC.view = 'profile';
+      updateShellButtons();
+      renderContent();
+    },
+    exportExcel(mode) {
+      if (!EQC.data) return;
+      const rows = mode === 'all' ? EQC.data.customers : filterCustomers(EQC.data.customers);
+      makeExcel(rows);
+    },
+    print(mode) {
+      if (!EQC.data) return;
+      const rows = mode === 'all' ? EQC.data.customers : filterCustomers(EQC.data.customers);
+      printRows(rows);
+    },
+    shouldShowCupForPhone(phone) {
+      if (!EQC.data) return false;
+      const clean = normalizePhone(phone || '');
+      const c = (EQC.data.customers || []).find((x) => x.cleanPhone === clean);
+      return !!(c && c.repeatWithin30);
+    },
+    copy(text) {
+      const value = String(text || '').trim();
+      if (!value) return;
+      navigator.clipboard?.writeText(value).then(() => {
+        if (typeof window.showSuccessNotification === 'function') window.showSuccessNotification(t('copied'));
+      }).catch(() => {});
+    },
+    diagnostics() {
+      return EQC.data;
+    }
   };
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+  document.addEventListener('DOMContentLoaded', () => {
+    bindSidebar();
+    setTimeout(bindSidebar, 700);
+    setTimeout(bindSidebar, 1800);
+  });
+
+  window.addEventListener('load', () => setTimeout(bindSidebar, 600));
 })();
