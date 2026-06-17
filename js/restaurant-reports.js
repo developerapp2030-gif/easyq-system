@@ -10,6 +10,7 @@
   const EQR = {
     activeView: 'summary',
     range: 'today',
+    lastRange: null,
     loadedAt: null,
     lastData: null,
     exportLang: 'ar'
@@ -846,6 +847,7 @@
 
     const result = buildReportModel({ business, requests, assignments, tables, statusLogs, waitingNow, expiredNow, rangeStart: start, rangeEnd: end });
     EQR.loadedAt = new Date();
+    EQR.lastRange = EQR.range;
     EQR.lastData = result;
     return result;
   }
@@ -1795,7 +1797,13 @@
     openPanel(t('reports_title'), t('loading_indicators'), loadingHtml());
     try {
       let data = EQR.lastData;
-      if (!data || force) data = await loadReportData();
+
+      const rangeChanged = EQR.lastRange !== EQR.range;
+
+      if (!data || force || rangeChanged) {
+        data = await loadReportData();
+      }
+
       renderReports(data, EQR.activeView);
     } catch (err) {
       console.error('[EASY-Q Reports] open failed:', err);
@@ -1853,6 +1861,8 @@
     },
     setRange(range) {
       EQR.range = ['today', 'last7', 'last30'].includes(range) ? range : 'today';
+      EQR.lastData = null;
+      EQR.lastRange = null;
       return openReports(EQR.activeView, true);
     },
     setExportLang(langCode) {
