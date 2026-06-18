@@ -120,6 +120,7 @@ const PERMISSION_KEYS = [
     { key: 'add_walkin', ar: 'إضافة عميل داخلي', en: 'Add Walk-in Customer' },
     { key: 'edit_requests', ar: 'تعديل طلبات العملاء', en: 'Edit Customer Requests' },
     { key: 'assign_tables', ar: 'تعيين العملاء على الطاولات', en: 'Assign Tables' },
+    { key: 'reward_repeat_customer', ar: 'مكافأة عميل متكرر الزيارة', en: 'Reward Repeat Customer' },
 
     // الإدارة
     { key: 'manage_users', ar: 'إدارة الموظفين', en: 'Manage Staff' },

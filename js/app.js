@@ -509,13 +509,21 @@ async function enrichWaitingDataWithRepeatVisits() {
         ...row,
         repeat_visit_30_days: false,
         repeat_visit_count_30_days: 0,
-        repeat_last_visit_at: null
+        repeat_last_visit_at: null,
+        repeat_last_reward_at: null
       }));
       return;
     }
 
     const sinceDate = new Date(Date.now() - (30 * 24 * 60 * 60 * 1000)).toISOString();
 
+    /*
+      نحسب فقط الزيارات المؤكدة:
+      occupied / cleaning / completed
+
+      لا نحسب:
+      waiting / offered / reserved / cancelled / expired / no_show
+    */
     const { data, error } = await supabase
       .from('table_requests')
       .select(`
@@ -523,20 +531,55 @@ async function enrichWaitingDataWithRepeatVisits() {
         customer_id,
         customer_phone_snapshot,
         created_at,
+        status,
         customers (
           phone,
           whatsapp_number
         )
       `)
       .eq('business_id', businessId)
-      .gte('created_at', sinceDate);
+      .gte('created_at', sinceDate)
+      .in('status', ['occupied', 'cleaning', 'completed']);
 
     if (error) {
-      console.warn('تعذر فحص تكرار زيارات العملاء خلال 30 يوم:', error);
+      console.warn('تعذر فحص الزيارات المؤكدة للعملاء خلال 30 يوم:', error);
       return;
     }
 
-    const visitsByPhone = new Map();
+    /*
+      آخر مكافأة:
+      أي زيارة مؤكدة قبل آخر مكافأة لا تدخل في العد الجديد.
+    */
+    const rewardsByPhone = new Map();
+
+    const { data: rewardsData, error: rewardsError } = await supabase
+      .from('customer_rewards')
+      .select('phone_snapshot, rewarded_at')
+      .eq('business_id', businessId)
+      .gte('rewarded_at', sinceDate)
+      .order('rewarded_at', { ascending: false });
+
+    if (rewardsError) {
+      console.warn('تعذر جلب سجل مكافآت العملاء:', rewardsError);
+    }
+
+    (rewardsData || []).forEach((reward) => {
+      const rewardPhone = easyqNormalizePhoneForRepeatVisit(reward.phone_snapshot || '');
+
+      if (!rewardPhone || !uniqueWaitingPhones.includes(rewardPhone)) return;
+
+      const rewardAt = new Date(reward.rewarded_at || '').getTime();
+
+      if (!Number.isFinite(rewardAt) || rewardAt <= 0) return;
+
+      const oldRewardAt = rewardsByPhone.get(rewardPhone) || 0;
+
+      if (rewardAt > oldRewardAt) {
+        rewardsByPhone.set(rewardPhone, rewardAt);
+      }
+    });
+
+    const confirmedVisitsByPhone = new Map();
 
     (data || []).forEach((visit) => {
       const visitPhone = easyqNormalizePhoneForRepeatVisit(
@@ -548,31 +591,39 @@ async function enrichWaitingDataWithRepeatVisits() {
 
       if (!visitPhone || !uniqueWaitingPhones.includes(visitPhone)) return;
 
-      if (!visitsByPhone.has(visitPhone)) {
-        visitsByPhone.set(visitPhone, []);
+      if (!confirmedVisitsByPhone.has(visitPhone)) {
+        confirmedVisitsByPhone.set(visitPhone, []);
       }
 
-      visitsByPhone.get(visitPhone).push(visit);
+      confirmedVisitsByPhone.get(visitPhone).push(visit);
     });
 
     waitingData = waitingData.map((row) => {
       const currentPhone = easyqNormalizePhoneForRepeatVisit(easyqGetWaitingCustomerPhone(row));
       const currentRequestId = String(row.request_id || row.id || '');
-      const visits = visitsByPhone.get(currentPhone) || [];
+      const visits = confirmedVisitsByPhone.get(currentPhone) || [];
+      const lastRewardAt = rewardsByPhone.get(currentPhone) || 0;
 
-      const previousVisits = visits.filter((visit) => {
-        return String(visit.id || '') !== currentRequestId;
+      const previousConfirmedVisits = visits.filter((visit) => {
+        const visitTime = new Date(visit.created_at || '').getTime();
+
+        return (
+          String(visit.id || '') !== currentRequestId &&
+          Number.isFinite(visitTime) &&
+          visitTime > lastRewardAt
+        );
       });
 
-      previousVisits.sort((a, b) => {
+      previousConfirmedVisits.sort((a, b) => {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
 
       return {
         ...row,
-        repeat_visit_30_days: previousVisits.length > 0,
-        repeat_visit_count_30_days: previousVisits.length,
-        repeat_last_visit_at: previousVisits[0]?.created_at || null
+        repeat_visit_30_days: previousConfirmedVisits.length > 0,
+        repeat_visit_count_30_days: previousConfirmedVisits.length,
+        repeat_last_visit_at: previousConfirmedVisits[0]?.created_at || null,
+        repeat_last_reward_at: lastRewardAt ? new Date(lastRewardAt).toISOString() : null
       };
     });
 

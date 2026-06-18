@@ -204,89 +204,132 @@ async function assignRequestToTable(reqId, partySize, row) {
 // ============================================================
 
 async function assignNextCustomer() {
-  const businessId = currentUser?.business_id;
-
-  if (!businessId) {
-    alert("لا يمكن التعيين: لم يتم العثور على مطعم المستخدم الحالي");
+  if (window.easyqAssignNextBusy === true) {
     return;
   }
 
-  const waitingList = filteredWaitingData()
-    .filter(w => w.business_id === businessId);
+  window.easyqAssignNextBusy = true;
 
-  let targetRequest = null;
+  const assignBtn = document.querySelector('.assign-auto-btn');
+  const oldBtnHtml = assignBtn ? assignBtn.innerHTML : '';
+  const oldBtnTitle = assignBtn ? assignBtn.getAttribute('title') : '';
+  const oldBtnOpacity = assignBtn ? assignBtn.style.opacity : '';
+  const oldBtnCursor = assignBtn ? assignBtn.style.cursor : '';
+  const oldBtnPointerEvents = assignBtn ? assignBtn.style.pointerEvents : '';
 
-  if (settings.ready_mode === "queue_priority") {
-    targetRequest = waitingList.find(w => hasMatchingAvailableTable(w));
-  } else {
-    targetRequest = waitingList[0];
+  if (assignBtn) {
+    assignBtn.disabled = true;
+    assignBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    assignBtn.setAttribute('title', 'جاري التعيين...');
+    assignBtn.style.opacity = '0.65';
+    assignBtn.style.cursor = 'not-allowed';
+    assignBtn.style.pointerEvents = 'none';
   }
 
-  if (!targetRequest) {
-    alert("لا يوجد عميل جاهز للتعيين");
-    return;
-  }
+  try {
+    const businessId = currentUser?.business_id;
 
-  if (targetRequest.business_id !== businessId) {
-    alert("لا يمكن التعيين: هذا الطلب لا يتبع المطعم الحالي");
-    return;
-  }
+    if (!businessId) {
+      alert("لا يمكن التعيين: لم يتم العثور على مطعم المستخدم الحالي");
+      return;
+    }
 
-  const { data: tables, error: tablesError } = await supabase
-    .from("dashboard_tables_full")
-    .select("*")
-    .eq("business_id", businessId);
+    const waitingList = filteredWaitingData()
+      .filter(w => w.business_id === businessId);
 
-  if (tablesError) {
-    console.error("❌ خطأ في جلب طاولات المطعم:", tablesError);
-    alert("فشل جلب طاولات المطعم الحالي");
-    return;
-  }
+    let targetRequest = null;
 
-  let availableTables = (tables || []).filter(t =>
-    t.business_id === businessId &&
-    t.status === "available" &&
-    Number(t.floor_number) === Number(currentFloor) &&
-    Number(t.capacity) >= Number(targetRequest.requested_party_size)
-  );
+    if (settings.ready_mode === "queue_priority") {
+      targetRequest = waitingList.find(w => hasMatchingAvailableTable(w));
+    } else {
+      targetRequest = waitingList[0];
+    }
 
-  let bestTable = null;
+    if (!targetRequest) {
+      alert("لا يوجد عميل جاهز للتعيين");
+      return;
+    }
 
-  if (targetRequest.zone_name && targetRequest.zone_name !== "") {
-    let zoneTables = availableTables.filter(t => t.zone_name === targetRequest.zone_name);
-    if (zoneTables.length > 0) {
-      zoneTables.sort((a, b) => Number(a.capacity) - Number(b.capacity));
-      bestTable = zoneTables[0];
+    if (targetRequest.business_id !== businessId) {
+      alert("لا يمكن التعيين: هذا الطلب لا يتبع المطعم الحالي");
+      return;
+    }
+
+    const { data: tables, error: tablesError } = await supabase
+      .from("dashboard_tables_full")
+      .select("*")
+      .eq("business_id", businessId);
+
+    if (tablesError) {
+      console.error("❌ خطأ في جلب طاولات المطعم:", tablesError);
+      alert("فشل جلب طاولات المطعم الحالي");
+      return;
+    }
+
+    let availableTables = (tables || []).filter(t =>
+      t.business_id === businessId &&
+      t.status === "available" &&
+      Number(t.floor_number) === Number(currentFloor) &&
+      Number(t.capacity) >= Number(targetRequest.requested_party_size)
+    );
+
+    let bestTable = null;
+
+    if (targetRequest.zone_name && targetRequest.zone_name !== "") {
+      let zoneTables = availableTables.filter(t => t.zone_name === targetRequest.zone_name);
+
+      if (zoneTables.length > 0) {
+        zoneTables.sort((a, b) => Number(a.capacity) - Number(b.capacity));
+        bestTable = zoneTables[0];
+      }
+    }
+
+    if (!bestTable && availableTables.length > 0) {
+      availableTables.sort((a, b) => Number(a.capacity) - Number(b.capacity));
+      bestTable = availableTables[0];
+    }
+
+    if (!bestTable) {
+      alert("لا توجد طاولة مناسبة في المطعم الحالي");
+      return;
+    }
+
+    console.log("✅ الطلب المختار:", {
+      request_id: targetRequest.request_id,
+      request_business_id: targetRequest.business_id,
+      customer: targetRequest.customer_name
+    });
+
+    console.log("✅ الطاولة المختارة:", {
+      table_id: bestTable.id,
+      table_name: bestTable.table_name,
+      table_business_id: bestTable.business_id
+    });
+
+    await assignRequestToTable(
+      targetRequest.request_id,
+      targetRequest.requested_party_size,
+      bestTable
+    );
+
+  } finally {
+    window.easyqAssignNextBusy = false;
+
+    if (assignBtn) {
+      assignBtn.disabled = false;
+      assignBtn.innerHTML = oldBtnHtml || '<i class="fas fa-arrow-left"></i>';
+
+      if (oldBtnTitle) {
+        assignBtn.setAttribute('title', oldBtnTitle);
+      } else {
+        assignBtn.setAttribute('title', 'تعيين تلقائي');
+      }
+
+      assignBtn.style.opacity = oldBtnOpacity;
+      assignBtn.style.cursor = oldBtnCursor;
+      assignBtn.style.pointerEvents = oldBtnPointerEvents;
     }
   }
-
-  if (!bestTable && availableTables.length > 0) {
-    availableTables.sort((a, b) => Number(a.capacity) - Number(b.capacity));
-    bestTable = availableTables[0];
-  }
-
-  if (!bestTable) {
-    alert("لا توجد طاولة مناسبة في المطعم الحالي");
-    return;
-  }
-
-  console.log("✅ الطلب المختار:", {
-    request_id: targetRequest.request_id,
-    request_business_id: targetRequest.business_id,
-    customer: targetRequest.customer_name
-  });
-
-  console.log("✅ الطاولة المختارة:", {
-    table_id: bestTable.id,
-    table_name: bestTable.table_name,
-    table_business_id: bestTable.business_id
-  });
-
-  await assignRequestToTable(
-    targetRequest.request_id,
-    targetRequest.requested_party_size,
-    bestTable
-  );
 }
 
 // ============================================================

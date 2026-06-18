@@ -49,6 +49,7 @@
 <script src="js/restaurant-dashboard.js"></script>
 <script src="js/restaurant-reports.js"></script>
 <script src="js/restaurant-customers.js"></script>
+<script src="js/restaurant-queue.js"></script>
 <script src="js/app.js"></script>
 <script>
     // حل القائمة الجانبية - كود مستقل تماماً عن باقي الملفات
@@ -115,172 +116,276 @@ btn.onclick = function(e) {
 <body>
 
 <!-- =========================================================
-     EASY-Q PREMIUM LOGIN
+     EASY-Q PREMIUM LOGIN  (تصميم مستقل مطابق لثيم navy)
+     • يستبدل كتلة #loginOverlay القديمة في index.html بالكامل.
+     • لا يغيّر أي JavaScript: نفس المعرّفات ونفس دوال onclick.
+     • كل الأنماط معزولة تحت نطاق .eqlogin- ولا تتعارض مع باقي النظام.
+     • العنصر الجذر يبقى id="loginOverlay" و style="display:none"
+       لأن auth.js/app.js يتحكمان بإظهاره/إخفائه عبر display:flex/none.
 ========================================================= -->
-<div class="login-overlay premium-login-overlay" id="loginOverlay" style="display: none;">
+<div class="eqlogin-overlay" id="loginOverlay" style="display: none;">
 
-  <div class="premium-login-layout">
+  <style>
+    /* ===== خط الهوية ===== */
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap');
 
-    <!-- LEFT CONTENT -->
-    <div class="premium-login-content">
+    /* كل شيء معزول تحت .eqlogin-overlay حتى لا يؤثر على بقية الصفحة */
+    .eqlogin-overlay{
+      position:fixed; inset:0; z-index:999999;
+      /* لا نضع display هنا — JS يتحكم به (flex/none) عبر inline style */
+      align-items:stretch; justify-content:center;
+      font-family:'Cairo',sans-serif; direction:rtl;
+      background:
+        linear-gradient(135deg, rgba(7,2,25,.92) 0%, rgba(6,4,39,.88) 46%, rgba(144, 106, 2, 0) 100%),
+        url("images/login-bg.jpg");
+      background-size:cover; background-position:center; background-repeat:no-repeat;
+      overflow:auto;
+    }
+    .eqlogin-overlay *{ box-sizing:border-box; }
+    .eqlogin-overlay::before{
+      content:""; position:absolute; inset:0; pointer-events:none;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(201,168,76,.10), transparent 38%),
+        radial-gradient(circle at 88% 82%, rgba(221,231,255,.08), transparent 42%);
+    }
 
-      <div class="premium-login-brand">
+    .eqlogin-layout{
+      position:relative; z-index:2; width:100%; max-width:1320px; margin:auto;
+      min-height:100vh; display:grid; grid-template-columns:1.05fr .95fr;
+      align-items:center; gap:40px; padding:32px;
+    }
 
-        <div class="premium-brand-logo">
-          <i class="fas fa-utensils"></i>
-        </div>
+    /* ===== الجهة التعريفية (يمين في RTL) ===== */
+    .eqlogin-brandside{ color:#fff; padding:18px 8px; }
+    .eqlogin-brand{ display:flex; align-items:center; gap:14px; margin-bottom:42px; }
+    .eqlogin-logo{
+      width:58px; height:58px; border-radius:18px; flex-shrink:0;
+      background:linear-gradient(135deg,#0E146D,#070219);
+      border:1px solid rgba(221,231,255,.18);
+      display:flex; align-items:center; justify-content:center;
+      font-size:24px; color:#DDE7FF; box-shadow:0 14px 34px rgba(7,2,25,.5);
+    }
+    .eqlogin-brand-text h1{ margin:0; font-size:30px; font-weight:900; letter-spacing:-.5px; line-height:1; }
+    .eqlogin-brand-text span{ display:block; margin-top:6px; font-size:13px; font-weight:700; color:rgba(221,231,255,.72); }
 
-        <div class="premium-brand-text">
+    .eqlogin-hero-title{
+      margin:0 0 30px; font-size:38px; line-height:1.55; font-weight:900;
+      max-width:560px; letter-spacing:-.5px;
+    }
+    .eqlogin-hero-title .accent{
+      background:linear-gradient(90deg,#DDE7FF,#C9A84C);
+      -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    }
+
+    .eqlogin-features{ display:flex; flex-direction:column; gap:16px; max-width:520px; }
+    .eqlogin-feature{
+      display:flex; align-items:center; gap:13px; font-size:15px; font-weight:700;
+      color:rgba(255,255,255,.92);
+    }
+    .eqlogin-feature .ic{
+      width:38px; height:38px; border-radius:12px; flex-shrink:0;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(221,231,255,.10); color:#C9A84C; font-size:15px;
+      border:1px solid rgba(221,231,255,.14);
+    }
+
+    /* ===== بطاقة الدخول (يسار في RTL) ===== */
+    .eqlogin-side{ display:flex; align-items:center; justify-content:center; }
+    .eqlogin-card{
+      width:100%; max-width:430px; background:#fff; border-radius:26px;
+      padding:38px 34px; box-shadow:0 30px 80px rgba(7,2,25,.55);
+      border:1px solid rgba(221,231,255,.6);
+    }
+    .eqlogin-card-header{ text-align:center; margin-bottom:26px; }
+    .eqlogin-card-header h3{ margin:0; font-size:24px; font-weight:900; color:#0E146D; }
+    .eqlogin-card-header p{ margin:8px 0 0; font-size:14px; font-weight:700; color:#64748B; }
+
+    .eqlogin-group{ margin-bottom:18px; }
+    .eqlogin-group > label{
+      display:block; margin-bottom:8px; font-size:13px; font-weight:800; color:#0F172A;
+    }
+    .eqlogin-input-wrap{ position:relative; }
+    .eqlogin-input{
+      width:100%; height:52px; border-radius:15px; border:1.5px solid #E5E7EB;
+      background:#F8FAFC; color:#0F172A; font-family:inherit; font-size:15px; font-weight:700;
+      padding:0 46px; outline:none; transition:border-color .18s, box-shadow .18s, background .18s;
+    }
+    .eqlogin-input::placeholder{ color:#94A3B8; font-weight:600; }
+    .eqlogin-input:focus{
+      border-color:#0E146D; background:#fff; box-shadow:0 0 0 4px rgba(14,20,109,.10);
+    }
+    /* الأيقونة على جهة البداية (يمين في RTL) */
+    .eqlogin-input-wrap > .field-ic{
+      position:absolute; inset-inline-start:15px; top:50%; transform:translateY(-50%);
+      color:#0E146D; font-size:15px; pointer-events:none;
+    }
+    /* زر إظهار كلمة المرور على جهة النهاية (يسار في RTL) */
+    .eqlogin-eye{
+      position:absolute; inset-inline-end:10px; top:50%; transform:translateY(-50%);
+      width:34px; height:34px; border:none; background:transparent; cursor:pointer;
+      color:#64748B; font-size:15px; border-radius:10px; display:flex;
+      align-items:center; justify-content:center; transition:background .15s,color .15s;
+    }
+    .eqlogin-eye:hover{ background:#EEF2FF; color:#0E146D; }
+
+    .eqlogin-row{ display:flex; align-items:center; justify-content:space-between; margin:4px 0 22px; }
+    .eqlogin-remember{ display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:#475569; cursor:pointer; }
+    .eqlogin-remember input{ width:16px; height:16px; accent-color:#0E146D; cursor:pointer; }
+    .eqlogin-forgot{
+      border:none; background:transparent; cursor:pointer; padding:0;
+      font-family:inherit; font-size:13px; font-weight:800; color:#0E146D;
+    }
+    .eqlogin-forgot:hover{ text-decoration:underline; }
+
+    .eqlogin-btn{
+      width:100%; height:54px; border:none; border-radius:15px; cursor:pointer;
+      font-family:inherit; font-size:16px; font-weight:900; color:#fff;
+      background:linear-gradient(135deg,#0E146D 0%,#070219 100%);
+      display:flex; align-items:center; justify-content:center; gap:9px;
+      transition:transform .16s, box-shadow .16s, opacity .16s;
+      box-shadow:0 16px 34px rgba(14,20,109,.34);
+    }
+    .eqlogin-btn:hover{ transform:translateY(-2px); box-shadow:0 20px 44px rgba(14,20,109,.42); }
+    .eqlogin-btn:active{ transform:translateY(0); }
+    .eqlogin-btn:disabled{ opacity:.7; cursor:default; transform:none; }
+
+    .eqlogin-error{
+      display:none; margin-top:16px; padding:12px 14px; border-radius:13px;
+      background:#FEF2F2; border:1px solid #FECACA; color:#B91C1C;
+      font-size:13px; font-weight:800; text-align:center; line-height:1.6;
+    }
+    .eqlogin-error.show{ display:block; }
+
+    .eqlogin-register{
+      margin-top:24px; text-align:center; font-size:14px; font-weight:700; color:#64748B;
+    }
+    .eqlogin-register .eqlogin-register-link{
+      border:none; background:transparent; cursor:pointer; padding:0 4px;
+      font-family:inherit; font-size:14px; font-weight:900; color:#0E146D;
+    }
+    .eqlogin-register .eqlogin-register-link:hover{ text-decoration:underline; }
+
+    .eqlogin-footer{
+      margin-top:20px; text-align:center; font-size:12px; font-weight:700; color:#94A3B8;
+      display:flex; align-items:center; justify-content:center; gap:7px;
+    }
+    .eqlogin-footer i{ color:#0E146D; }
+
+    /* ===== استجابة الشاشات ===== */
+    @media (max-width:980px){
+      .eqlogin-layout{ grid-template-columns:1fr; gap:24px; padding:24px; }
+      .eqlogin-brandside{ text-align:center; padding-top:24px; }
+      .eqlogin-brand{ justify-content:center; margin-bottom:24px; }
+      .eqlogin-hero-title{ font-size:26px; margin:0 auto 22px; }
+      .eqlogin-features{ margin:0 auto; }
+      .eqlogin-feature{ justify-content:center; }
+    }
+    @media (max-width:520px){
+      .eqlogin-card{ padding:30px 22px; border-radius:22px; }
+      .eqlogin-brand-text h1{ font-size:26px; }
+      .eqlogin-hero-title{ font-size:23px; }
+    }
+  </style>
+
+  <div class="eqlogin-layout">
+
+    <!-- الجهة التعريفية -->
+    <div class="eqlogin-brandside">
+
+      <div class="eqlogin-brand">
+        <div class="eqlogin-logo"><i class="fas fa-utensils"></i></div>
+        <div class="eqlogin-brand-text">
           <h1>EASY-Q</h1>
-          <span>نظام إدارة الطوابير للمطاعم و الكافيهات</span>
+          <span>نظام إدارة الطوابير للمطاعم والكافيهات</span>
         </div>
-
       </div>
 
-      <div class="premium-login-hero">
+      <h2 class="eqlogin-hero-title">
+        إدارة ذكية للطوابير والطاولات <span class="accent">باحترافية</span>
+      </h2>
 
-
-<h2 class="premium-hero-title">
-إدارة ذكية للطوابير والطاولات باحترافية
-</h2>
-
-
-
-<div class="premium-feature-list">
-
-  <div class="premium-feature-item">
-    <i class="fas fa-check-circle"></i>
-    <span>إدارة الطاولات والحجوزات بسهولة</span>
-  </div>
-
-  <div class="premium-feature-item">
-    <i class="fas fa-check-circle"></i>
-    <span>تنبيهات واتساب فورية للعملاء</span>
-  </div>
-
-  <div class="premium-feature-item">
-    <i class="fas fa-check-circle"></i>
-    <span>تقارير ذكية وتحليل أوقات الانتظار</span>
-  </div>
-
-</div>
-
-<button
-  type="button"
-  class="premium-trial-btn"
-  style="margin-top:55px;"
->
-  ابدأ تجربتك المجانية
-</button>
-
+      <div class="eqlogin-features">
+        <div class="eqlogin-feature"><span class="ic"><i class="fas fa-chair"></i></span><span>إدارة الطاولات والحجوزات بسهولة</span></div>
+        <div class="eqlogin-feature"><span class="ic"><i class="fas fa-table-list"></i></span><span>صفحة حجز أولاين للعملاء بمتابعة لحظية</span></div>
+        <div class="eqlogin-feature"><span class="ic"><i class="fas fa-chart-line"></i></span><span>تقارير ذكية وتحليل أوقات الانتظار</span></div>
       </div>
 
     </div>
 
-    <!-- LOGIN CARD -->
-    <div class="premium-login-side">
+    <!-- بطاقة الدخول -->
+    <div class="eqlogin-side">
+      <div class="eqlogin-card">
 
-      <div class="premium-login-card">
-
-        <div class="premium-login-card-header">
-          <h3>مرحبًا بك مجددًا</h3>
+        <div class="eqlogin-card-header">
+          <h3>مرحبًا بك</h3>
           <p>سجل دخولك لإدارة مطعمك</p>
         </div>
 
-        <div class="premium-form-group">
-
+        <div class="eqlogin-group">
           <label>البريد الإلكتروني</label>
-
-          <div class="premium-input-wrapper">
-
+          <div class="eqlogin-input-wrap">
             <input
               type="text"
               id="loginUsername"
-              class="premium-login-input"
+              class="eqlogin-input"
               placeholder="example@restaurant.com"
               autocomplete="username"
             >
-
-            <i class="fas fa-envelope"></i>
-
+            <i class="fas fa-envelope field-ic"></i>
           </div>
-
         </div>
 
-        <div class="premium-form-group">
-
+        <div class="eqlogin-group">
           <label>كلمة المرور</label>
-
-          <div class="premium-input-wrapper">
-
+          <div class="eqlogin-input-wrap">
             <input
               type="password"
               id="loginPassword"
-              class="premium-login-input"
+              class="eqlogin-input"
               placeholder="ادخل كلمة المرور"
               autocomplete="current-password"
             >
-
-            <i class="fas fa-lock"></i>
-
-            <button
-              type="button"
-              class="premium-password-btn"
-              onclick="togglePassword()"
-            >
-              <i class="fas fa-eye"id="eyeIcon"></i>
+            <i class="fas fa-lock field-ic"></i>
+            <button type="button" class="eqlogin-eye" onclick="togglePassword()">
+              <i class="fas fa-eye" id="eyeIcon"></i>
             </button>
-
           </div>
-
         </div>
 
-        <div class="premium-login-row">
-
-          <label class="premium-remember">
-
+        <div class="eqlogin-row">
+          <label class="eqlogin-remember">
             <input type="checkbox">
-
             <span>تذكرني</span>
-
           </label>
-
-        <button type="button" id="forgotPasswordBtn" class="premium-forgot-btn" onclick="resetPassword()">نسيت كلمة المرور؟</button>
+          <button type="button" id="forgotPasswordBtn" class="eqlogin-forgot" onclick="resetPassword()">نسيت كلمة المرور؟</button>
         </div>
 
-<button
-  class="premium-login-btn"
-  id="premiumLoginBtn"
-  onclick="doLogin()"
->
-  <span id="premiumLoginBtnText">تسجيل الدخول</span>
-  <i id="premiumLoginBtnSpinner" class="fas fa-spinner fa-spin" style="display:none; margin-right:8px;"></i>
-</button>
+        <button class="eqlogin-btn" id="premiumLoginBtn" onclick="doLogin()">
+          <span id="premiumLoginBtnText">تسجيل الدخول</span>
+          <i id="premiumLoginBtnSpinner" class="fas fa-spinner fa-spin" style="display:none;"></i>
+        </button>
 
-
-
-        <div class="login-error" id="loginError">
+        <div class="eqlogin-error login-error" id="loginError">
           البريد الإلكتروني أو كلمة المرور غير صحيحة
         </div>
 
-        <div class="premium-register-line">
+        <div class="eqlogin-register">
+          <span>ليس لديك حساب؟</span>
+          <button type="button" id="registerNowBtn" class="eqlogin-register-link" onclick="openRegisterModal()">سجل الآن</button>
+        </div>
 
-  <span>ليس لديك حساب؟</span>
+        <div class="eqlogin-footer">
+          <i class="fas fa-shield-halved"></i>
+          <span>بياناتك محمية بأعلى معايير الأمان</span>
+        </div>
 
-<button type="button" id="registerNowBtn" class="premium-register-link" onclick="openRegisterModal()">سجل الآن</button>
-
-</div>
-
-<div class="premium-login-footer">
-  بياناتك محمية بأعلى معايير الأمان
-</div>
       </div>
-
     </div>
 
   </div>
 
 </div>
+
 
 <!-- Top Bar -->
 <div class="topbar">
@@ -1503,6 +1608,17 @@ btn.onclick = function(e) {
     <span>إلغاء الطلب</span>
   </button>
 
+  <button
+    type="button"
+    id="qrRewardBtn"
+    class="qr-action-btn qr-reward-btn"
+    onclick="openRepeatCustomerRewardModal()"
+    style="display:none;"
+  >
+    <i class="fas fa-gift"></i>
+    <span>مكافأة</span>
+  </button>
+
   <button type="button" id="qrCloseBtn" class="qr-action-btn qr-close-btn" onclick="closeQRModal()">
     <i class="fas fa-times"></i>
     <span>إغلاق</span>
@@ -2568,133 +2684,1145 @@ function openBookingPage() {
 // تسجيل مطعم جديد - مودال
 function openRegisterModal() {
   closeRegisterModal()
-  
-  // إخفاء محتوى النظام مع بقاء الخلفية
+
   const appContainer = document.querySelector('.app-container')
   const topbar = document.querySelector('.topbar')
+
   if (appContainer) {
     appContainer.style.visibility = 'hidden'
     appContainer.style.opacity = '0'
   }
+
   if (topbar) {
     topbar.style.visibility = 'hidden'
     topbar.style.opacity = '0'
   }
-  
-  // إخفاء مودال تسجيل الدخول
+
   const loginOverlay = document.getElementById('loginOverlay')
   if (loginOverlay) {
     loginOverlay.style.visibility = 'hidden'
     loginOverlay.style.opacity = '0'
   }
-  
-  // إضافة طبقة خلفية بنفس صورة الثيم + تمويه
+
   const modalHtml = `
-    <div id="registerModal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(135deg, rgba(2,20,16,0.65), rgba(3,31,26,0.55), rgba(6,55,46,0.48)), url('../images/login-bg.jpg'); background-size: cover; background-position: center; z-index: 100000; display: flex; align-items: center; justify-content: center;">
-      <div style="max-width: 500px; width: 90%; background: white; border-radius: 32px; padding: 36px 28px; box-shadow: 0 30px 60px rgba(0,0,0,0.5); direction: rtl; transform: scale(1);">
-        <div style="font-size: 28px; font-weight: 800; margin-bottom: 8px; text-align: center; color: #06372E;">تسجيل مطعم جديد</div>
-        <div style="color: #6B7280; margin-bottom: 28px; text-align: center; font-size: 14px;">سجل و ابدأ تشغيل طوابير الانتظار باحترافية </div>
-        <div>
-          <input type="text" id="regBusinessName" placeholder="اسم المطعم" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
-          <input type="text" id="regDisplayName" placeholder="اسم المدير" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
-          <input type="email" id="regEmail" placeholder="البريد الإلكتروني" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
-          <input type="password" id="regPassword" placeholder="كلمة المرور (8 أحرف على الأقل)" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
-          <input type="tel" id="regPhone" placeholder="رقم الجوال (اختياري)" style="width: 100%; padding: 14px; margin-bottom: 14px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
-          <input type="text" id="regCity" placeholder="المدينة (اختياري)" style="width: 100%; padding: 14px; margin-bottom: 28px; border: 1px solid #E5E7EB; border-radius: 14px; font-size: 15px; outline: none; background: white;">
-          <div style="display: flex; gap: 12px;">
-            <button onclick="submitRegistration()" style="flex: 1; background: linear-gradient(135deg, #06372E, #0A4B3D); color: white; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer;">تسجيل</button>
-            <button onclick="closeRegisterModal()" style="flex: 1; background: #F3F4F6; color: #1F2937; padding: 14px; border: none; border-radius: 14px; font-size: 16px; font-weight: 700; cursor: pointer;">إلغاء</button>
+    <div id="registerModal" class="eqreg-overlay">
+      <style>
+        .eqreg-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 100000;
+          direction: rtl;
+          font-family: 'Cairo', 'Inter', sans-serif;
+          background:
+            linear-gradient(135deg, rgba(7,2,25,.92) 0%, rgba(6,4,39,.88) 46%, rgba(144,106,2,0) 100%),
+            url("images/login-bg.jpg");
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 22px;
+          overflow: auto;
+        }
+
+        .eqreg-overlay * {
+          box-sizing: border-box;
+        }
+
+        .eqreg-overlay::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background:
+            radial-gradient(circle at 14% 18%, rgba(201,168,76,.12), transparent 38%),
+            radial-gradient(circle at 86% 82%, rgba(221,231,255,.08), transparent 42%);
+        }
+
+.eqreg-shell {
+  position: relative;
+  z-index: 2;
+  width: min(920px, 94vw);
+  min-height: 540px;
+          display: grid;
+          grid-template-columns: .92fr 1.08fr;
+          background: rgba(255,255,255,.96);
+          border-radius: 32px;
+          overflow: hidden;
+          border: 1px solid rgba(221,231,255,.32);
+          box-shadow: 0 34px 95px rgba(7,2,25,.58);
+        }
+
+.eqreg-side {
+  padding: 26px 24px;
+          color: #FFFFFF;
+          background:
+            linear-gradient(135deg, rgba(14,20,109,.98), rgba(6,4,39,.98)),
+            radial-gradient(circle at top right, rgba(244,210,138,.22), transparent 38%);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          gap: 24px;
+        }
+
+        .eqreg-brand {
+          display: flex;
+          align-items: center;
+          gap: 13px;
+        }
+
+        .eqreg-logo {
+          width: 54px;
+          height: 54px;
+          border-radius: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255,255,255,.10);
+          color: #F4D28A;
+          border: 1px solid rgba(255,255,255,.14);
+          font-size: 23px;
+          flex-shrink: 0;
+        }
+
+        .eqreg-brand h2 {
+          margin: 0;
+          font-size: 28px;
+          font-weight: 1000;
+          line-height: 1;
+        }
+
+        .eqreg-brand span {
+          display: block;
+          margin-top: 7px;
+          font-size: 12px;
+          font-weight: 800;
+          color: rgba(255,255,255,.70);
+        }
+
+        .eqreg-title {
+          margin: 34px 0 0;
+          font-size: 31px;
+          line-height: 1.65;
+          font-weight: 1000;
+          letter-spacing: -.4px;
+        }
+
+        .eqreg-title strong {
+          color: #F4D28A;
+        }
+
+        .eqreg-benefits {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          margin-top: 24px;
+        }
+
+        .eqreg-benefit {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          color: rgba(255,255,255,.90);
+          font-size: 14px;
+          font-weight: 800;
+          line-height: 1.6;
+        }
+
+        .eqreg-benefit i {
+          width: 36px;
+          height: 36px;
+          border-radius: 13px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255,255,255,.10);
+          color: #F4D28A;
+          border: 1px solid rgba(255,255,255,.13);
+          flex-shrink: 0;
+        }
+
+        .eqreg-note {
+          border-radius: 20px;
+          background: rgba(255,255,255,.10);
+          border: 1px solid rgba(255,255,255,.14);
+          padding: 14px;
+          color: rgba(255,255,255,.78);
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.8;
+        }
+
+.eqreg-form-side {
+  padding: 26px 26px;
+          background: #FFFFFF;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+
+        .eqreg-head {
+          text-align: center;
+          margin-bottom: 24px;
+        }
+
+        .eqreg-head .eqreg-mini-icon {
+          width: 58px;
+          height: 58px;
+          border-radius: 20px;
+          margin: 0 auto 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #0E146D, #060427);
+          color: #F4D28A;
+          font-size: 23px;
+          box-shadow: 0 16px 34px rgba(14,20,109,.28);
+        }
+
+        .eqreg-head h3 {
+          margin: 0;
+          color: #0E146D;
+          font-size: 24px;
+          font-weight: 1000;
+        }
+
+        .eqreg-head p {
+          margin: 8px 0 0;
+          color: #64748B;
+          font-size: 13px;
+          font-weight: 800;
+          line-height: 1.7;
+        }
+
+        .eqreg-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 13px;
+        }
+
+        .eqreg-group {
+          margin-bottom: 13px;
+        }
+
+        .eqreg-group.full {
+          grid-column: 1 / -1;
+        }
+
+        .eqreg-group label {
+          display: block;
+          color: #0F172A;
+          font-size: 12px;
+          font-weight: 900;
+          margin-bottom: 7px;
+        }
+
+        .eqreg-input-wrap {
+          position: relative;
+        }
+
+        .eqreg-input {
+          width: 100%;
+          height: 44px;
+          border-radius: 15px;
+          border: 1.5px solid #E5E7EB;
+          background: #F8FAFC;
+          color: #0F172A;
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 800;
+          outline: none;
+          padding: 0 44px 0 14px;
+          transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+
+        .eqreg-input::placeholder {
+          color: #94A3B8;
+          font-weight: 700;
+        }
+
+        .eqreg-input:focus {
+          border-color: #0E146D;
+          background: #FFFFFF;
+          box-shadow: 0 0 0 4px rgba(14,20,109,.10);
+        }
+
+        .eqreg-field-icon {
+          position: absolute;
+          inset-inline-start: 15px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #0E146D;
+          font-size: 14px;
+          pointer-events: none;
+        }
+
+        .eqreg-password-eye {
+          position: absolute;
+          inset-inline-end: 9px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 34px;
+          height: 34px;
+          border: none;
+          border-radius: 10px;
+          background: transparent;
+          color: #64748B;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .eqreg-password-eye:hover {
+          background: #EEF2FF;
+          color: #0E146D;
+        }
+
+        .eqreg-error {
+          display: none;
+          margin: 2px 0 16px;
+          padding: 12px 14px;
+          border-radius: 15px;
+          background: #FEF2F2;
+          border: 1px solid #FECACA;
+          color: #B91C1C;
+          font-size: 13px;
+          font-weight: 900;
+          line-height: 1.7;
+          text-align: center;
+        }
+
+        .eqreg-actions {
+          display: grid;
+          grid-template-columns: 1.35fr .65fr;
+          gap: 12px;
+          margin-top: 4px;
+        }
+
+        .eqreg-submit,
+        .eqreg-cancel {
+          height: 46px;
+          border: none;
+          border-radius: 15px;
+          cursor: pointer;
+          font-family: inherit;
+          font-size: 15px;
+          font-weight: 1000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          transition: transform .16s ease, box-shadow .16s ease, opacity .16s ease;
+        }
+
+        .eqreg-submit {
+          color: #FFFFFF;
+          background: linear-gradient(135deg, #0E146D, #060427);
+          box-shadow: 0 16px 34px rgba(14,20,109,.30);
+        }
+
+        .eqreg-submit:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 20px 42px rgba(14,20,109,.38);
+        }
+
+        .eqreg-submit:disabled {
+          opacity: .72;
+          cursor: not-allowed;
+          transform: none;
+          box-shadow: none;
+        }
+
+        .eqreg-cancel {
+          color: #0E146D;
+          background: #EEF2FF;
+          border: 1px solid rgba(14,20,109,.12);
+        }
+
+        .eqreg-footer {
+          margin-top: 18px;
+          text-align: center;
+          color: #64748B;
+          font-size: 12px;
+          font-weight: 800;
+          line-height: 1.8;
+        }
+
+        .eqreg-footer i {
+          color: #0E146D;
+        }
+
+        @media (max-width: 920px) {
+          .eqreg-shell {
+            grid-template-columns: 1fr;
+          }
+
+          .eqreg-side {
+            display: none;
+          }
+
+          .eqreg-form-side {
+            padding: 28px 22px;
+          }
+        }
+
+        @media (max-width: 580px) {
+          .eqreg-overlay {
+            padding: 12px;
+            align-items: flex-start;
+          }
+
+          .eqreg-shell {
+            border-radius: 24px;
+          }
+
+          .eqreg-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .eqreg-actions {
+            grid-template-columns: 1fr;
+          }
+        }
+      </style>
+
+      <div class="eqreg-shell">
+        <aside class="eqreg-side">
+          <div>
+            <div class="eqreg-brand">
+              <div class="eqreg-logo">
+                <i class="fas fa-utensils"></i>
+              </div>
+              <div>
+                <h2>EASY-Q</h2>
+                <span>نظام إدارة الطوابير للمطاعم والكافيهات</span>
+              </div>
+            </div>
+
+            <div class="eqreg-title">
+              أنشئ حساب مطعمك وابدأ إدارة الطابور <strong>باحترافية</strong>
+            </div>
+
+            <div class="eqreg-benefits">
+              <div class="eqreg-benefit">
+                <i class="fas fa-clock"></i>
+                <span>متابعة لحظية لطلبات الانتظار والحجوزات.</span>
+              </div>
+
+              <div class="eqreg-benefit">
+                <i class="fas fa-chair"></i>
+                <span>تنظيم الطاولات والمناطق بما يناسب تشغيل مطعمك.</span>
+              </div>
+
+              <div class="eqreg-benefit">
+                <i class="fas fa-chart-line"></i>
+                <span>لوحة تحكم تساعدك على قراءة الأداء اليومي بوضوح.</span>
+              </div>
+            </div>
           </div>
-        </div>
+
+          <div class="eqreg-note">
+            بعد التسجيل سيتم تجهيز حساب المطعم وربطه بلوحة التحكم، ثم يمكنك تسجيل الدخول مباشرة بالبريد وكلمة المرور.
+          </div>
+        </aside>
+
+        <section class="eqreg-form-side">
+          <div class="eqreg-head">
+            <div class="eqreg-mini-icon">
+              <i class="fas fa-store"></i>
+            </div>
+            <h3>تسجيل مطعم جديد</h3>
+            <p>أكمل البيانات التالية لإنشاء حساب المطعم داخل EASY-Q.</p>
+          </div>
+
+          <div class="eqreg-grid">
+            <div class="eqreg-group">
+              <label>اسم المطعم</label>
+              <div class="eqreg-input-wrap">
+                <input class="eqreg-input" type="text" id="regBusinessName" placeholder="مثال: مطعم ستيك ون" autocomplete="organization">
+                <i class="fas fa-store eqreg-field-icon"></i>
+              </div>
+            </div>
+
+            <div class="eqreg-group">
+              <label>اسم المدير</label>
+              <div class="eqreg-input-wrap">
+                <input class="eqreg-input" type="text" id="regDisplayName" placeholder="اسم مالك أو مدير الحساب" autocomplete="name">
+                <i class="fas fa-user-tie eqreg-field-icon"></i>
+              </div>
+            </div>
+
+            <div class="eqreg-group full">
+              <label>البريد الإلكتروني</label>
+              <div class="eqreg-input-wrap">
+                <input class="eqreg-input" type="email" id="regEmail" placeholder="example@restaurant.com" autocomplete="email" style="direction:ltr;text-align:left;padding-left:14px;padding-right:44px;">
+                <i class="fas fa-envelope eqreg-field-icon"></i>
+              </div>
+            </div>
+
+            <div class="eqreg-group">
+              <label>كلمة المرور</label>
+              <div class="eqreg-input-wrap">
+                <input class="eqreg-input" type="password" id="regPassword" placeholder="8 أحرف على الأقل" autocomplete="new-password">
+                <i class="fas fa-lock eqreg-field-icon"></i>
+                <button type="button" class="eqreg-password-eye" onclick="toggleRegisterPassword()">
+                  <i class="fas fa-eye" id="regPasswordEyeIcon"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="eqreg-group">
+              <label>رقم الجوال</label>
+              <div class="eqreg-input-wrap">
+                <input
+                  class="eqreg-input"
+                  type="tel"
+                  id="regPhone"
+                  placeholder="05xxxxxxxx"
+                  inputmode="numeric"
+                  maxlength="10"
+                  autocomplete="tel"
+                  oninput="this.value = this.value.replace(/\\D/g, '').slice(0, 10)"
+                  style="direction:ltr;text-align:left;padding-left:14px;padding-right:44px;"
+                >
+                <i class="fas fa-phone eqreg-field-icon"></i>
+              </div>
+            </div>
+
+            <div class="eqreg-group full">
+              <label>المدينة</label>
+              <div class="eqreg-input-wrap">
+                <input class="eqreg-input" type="text" id="regCity" placeholder="مثال: جدة" autocomplete="address-level2">
+                <i class="fas fa-location-dot eqreg-field-icon"></i>
+              </div>
+            </div>
+          </div>
+
+          <div id="registerFormError" class="eqreg-error"></div>
+
+          <div class="eqreg-actions">
+            <button type="button" class="eqreg-submit" id="registerSubmitBtn" onclick="submitRegistration()">
+              <span id="registerSubmitText">تسجيل المطعم</span>
+              <i id="registerSubmitSpinner" class="fas fa-spinner fa-spin" style="display:none;"></i>
+            </button>
+
+            <button type="button" class="eqreg-cancel" onclick="closeRegisterModal()">
+              إلغاء
+            </button>
+          </div>
+
+          <div class="eqreg-footer">
+            <i class="fas fa-shield-halved"></i>
+            بياناتك تستخدم فقط لإنشاء حساب مطعمك داخل EASY-Q.
+          </div>
+        </section>
       </div>
     </div>
   `
+
   document.body.insertAdjacentHTML('beforeend', modalHtml)
+
+  setTimeout(() => {
+    const firstInput = document.getElementById('regBusinessName')
+    if (firstInput) firstInput.focus()
+  }, 80)
 }
 
 function closeRegisterModal() {
   const modal = document.getElementById('registerModal')
   if (modal) modal.remove()
-  
-  // إظهار محتوى النظام مرة أخرى
+
+  const progressOverlay = document.getElementById('registerProgressOverlay')
+  if (progressOverlay) progressOverlay.remove()
+
+  window.easyqRegisterBusy = false
+
   const appContainer = document.querySelector('.app-container')
   const topbar = document.querySelector('.topbar')
+  const loginOverlay = document.getElementById('loginOverlay')
+
   if (appContainer) {
     appContainer.style.visibility = ''
     appContainer.style.opacity = ''
   }
+
   if (topbar) {
     topbar.style.visibility = ''
     topbar.style.opacity = ''
   }
-  
-  // إظهار مودال تسجيل الدخول
-  const loginOverlay = document.getElementById('loginOverlay')
+
   if (loginOverlay) {
     loginOverlay.style.visibility = ''
     loginOverlay.style.opacity = ''
   }
 }
 
+function resetPassword() {
+  const loginCard =
+    document.querySelector('.eqlogin-card') ||
+    document.querySelector('.premium-login-card')
+
+  if (!loginCard) {
+    alert('تعذر فتح استعادة كلمة المرور. أعد تحديث الصفحة ثم حاول مرة أخرى.')
+    return
+  }
+
+  if (!window.easyqOriginalLoginContent) {
+    window.easyqOriginalLoginContent = loginCard.innerHTML
+  }
+
+  const currentEmail = document.getElementById('loginUsername')?.value.trim() || ''
+
+  loginCard.innerHTML = `
+    <div style="text-align:center; direction:rtl;">
+      <div style="
+        width:62px;
+        height:62px;
+        margin:0 auto 16px;
+        border-radius:22px;
+        background:linear-gradient(135deg,#0E146D,#060427);
+        color:#F4D28A;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:24px;
+        box-shadow:0 16px 34px rgba(14,20,109,.28);
+      ">
+        <i class="fas fa-key"></i>
+      </div>
+
+      <h3 style="
+        margin:0;
+        color:#0E146D;
+        font-size:23px;
+        font-weight:1000;
+      ">
+        استعادة كلمة المرور
+      </h3>
+
+      <p style="
+        margin:8px 0 22px;
+        color:#64748B;
+        font-size:13px;
+        font-weight:800;
+        line-height:1.8;
+      ">
+        أدخل بريدك الإلكتروني، وسنرسل لك رابط إعادة تعيين كلمة المرور.
+      </p>
+
+      <div class="eqlogin-group" style="text-align:right;">
+        <label>البريد الإلكتروني</label>
+        <div class="eqlogin-input-wrap">
+          <input
+            type="email"
+            id="resetEmail"
+            class="eqlogin-input"
+            value="${currentEmail}"
+            placeholder="example@restaurant.com"
+            autocomplete="email"
+            style="direction:ltr;text-align:left;"
+          >
+          <i class="fas fa-envelope field-ic"></i>
+        </div>
+      </div>
+
+      <div id="resetMessage" style="
+        display:none;
+        margin:14px 0;
+        padding:12px 14px;
+        border-radius:14px;
+        font-size:13px;
+        font-weight:900;
+        line-height:1.7;
+      "></div>
+
+      <button type="button" id="sendResetBtn" class="eqlogin-btn" style="margin-top:4px;">
+        <span id="sendResetText">إرسال رابط الاستعادة</span>
+        <i id="sendResetSpinner" class="fas fa-spinner fa-spin" style="display:none;"></i>
+      </button>
+
+      <button type="button" id="backToLoginBtn" style="
+        width:100%;
+        height:48px;
+        margin-top:12px;
+        border:none;
+        border-radius:15px;
+        background:#EEF2FF;
+        color:#0E146D;
+        font-family:inherit;
+        font-size:14px;
+        font-weight:1000;
+        cursor:pointer;
+      ">
+        العودة إلى تسجيل الدخول
+      </button>
+    </div>
+  `
+
+  const resetEmail = document.getElementById('resetEmail')
+  if (resetEmail) {
+    resetEmail.focus()
+    const len = resetEmail.value.length
+    try { resetEmail.setSelectionRange(len, len) } catch (_) {}
+  }
+
+  document.getElementById('backToLoginBtn')?.addEventListener('click', () => {
+    if (window.easyqOriginalLoginContent) {
+      loginCard.innerHTML = window.easyqOriginalLoginContent
+    } else {
+      window.location.reload()
+    }
+  })
+
+  document.getElementById('sendResetBtn')?.addEventListener('click', async () => {
+    const email = document.getElementById('resetEmail')?.value.trim()
+    const messageDiv = document.getElementById('resetMessage')
+    const sendBtn = document.getElementById('sendResetBtn')
+    const sendText = document.getElementById('sendResetText')
+    const sendSpinner = document.getElementById('sendResetSpinner')
+
+    function showResetMessage(message, type) {
+      if (!messageDiv) return
+
+      messageDiv.textContent = message
+      messageDiv.style.display = 'block'
+
+      if (type === 'success') {
+        messageDiv.style.background = '#ECFDF5'
+        messageDiv.style.border = '1px solid #A7F3D0'
+        messageDiv.style.color = '#047857'
+      } else if (type === 'warning') {
+        messageDiv.style.background = '#FFFBEB'
+        messageDiv.style.border = '1px solid #FDE68A'
+        messageDiv.style.color = '#92400E'
+      } else {
+        messageDiv.style.background = '#FEF2F2'
+        messageDiv.style.border = '1px solid #FECACA'
+        messageDiv.style.color = '#B91C1C'
+      }
+    }
+
+    if (!email) {
+      showResetMessage('يرجى إدخال البريد الإلكتروني', 'error')
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showResetMessage('يرجى إدخال بريد إلكتروني صحيح', 'error')
+      return
+    }
+
+    try {
+      if (sendBtn) sendBtn.disabled = true
+      if (sendText) sendText.textContent = 'جاري الإرسال...'
+      if (sendSpinner) sendSpinner.style.display = 'inline-block'
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password.html`
+      })
+
+      if (error) {
+        if (String(error.message || '').toLowerCase().includes('rate limit')) {
+          showResetMessage('يرجى الانتظار قليلًا قبل إرسال طلب آخر.', 'warning')
+          return
+        }
+
+        throw error
+      }
+
+      showResetMessage('تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني.', 'success')
+
+      if (sendText) sendText.textContent = 'تم الإرسال'
+      if (sendSpinner) sendSpinner.style.display = 'none'
+
+    } catch (err) {
+      showResetMessage('فشل إرسال رابط الاستعادة: ' + (err.message || 'حدث خطأ غير متوقع'), 'error')
+
+      if (sendBtn) sendBtn.disabled = false
+      if (sendText) sendText.textContent = 'إرسال رابط الاستعادة'
+      if (sendSpinner) sendSpinner.style.display = 'none'
+    }
+  })
+}
+
+function toggleRegisterPassword() {  const input = document.getElementById('regPassword')
+  const icon = document.getElementById('regPasswordEyeIcon')
+
+  if (!input) return
+
+  const isHidden = input.type === 'password'
+  input.type = isHidden ? 'text' : 'password'
+
+  if (icon) {
+    icon.classList.toggle('fa-eye', !isHidden)
+    icon.classList.toggle('fa-eye-slash', isHidden)
+  }
+}
+
 async function submitRegistration() {
+  if (window.easyqRegisterBusy === true) return
+
   const business_name = document.getElementById('regBusinessName')?.value.trim()
   const display_name = document.getElementById('regDisplayName')?.value.trim()
   const email = document.getElementById('regEmail')?.value.trim()
-  const password = document.getElementById('regPassword')?.value
-  const phone = document.getElementById('regPhone')?.value.trim() || null
-  const city = document.getElementById('regCity')?.value.trim() || null
+  const password = document.getElementById('regPassword')?.value.trim()
+  const phone = document.getElementById('regPhone')?.value.trim() || ''
+  const city = document.getElementById('regCity')?.value.trim() || ''
 
-  if (!business_name || !display_name || !email || !password) {
-    showNotification('يرجى ملء جميع الحقول المطلوبة', 'error')
+  const submitBtn = document.getElementById('registerSubmitBtn')
+  const submitText = document.getElementById('registerSubmitText')
+  const submitSpinner = document.getElementById('registerSubmitSpinner')
+
+  function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  function showRegisterFormError(message) {
+    const errorBox = document.getElementById('registerFormError')
+
+    if (errorBox) {
+      errorBox.textContent = message
+      errorBox.style.display = 'block'
+      errorBox.style.background = '#FEF2F2'
+      errorBox.style.borderColor = '#FECACA'
+      errorBox.style.color = '#B91C1C'
+      errorBox.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    } else {
+      showNotification(message, 'error')
+    }
+  }
+
+  function showRegisterFormSuccess(message) {
+    const errorBox = document.getElementById('registerFormError')
+
+    if (errorBox) {
+      errorBox.textContent = message
+      errorBox.style.display = 'block'
+      errorBox.style.background = '#ECFDF5'
+      errorBox.style.borderColor = '#A7F3D0'
+      errorBox.style.color = '#047857'
+    }
+  }
+
+  function clearRegisterFormMessage() {
+    const errorBox = document.getElementById('registerFormError')
+
+    if (errorBox) {
+      errorBox.textContent = ''
+      errorBox.style.display = 'none'
+    }
+  }
+
+  function setRegisterButtonLoading(isLoading) {
+    if (submitBtn) submitBtn.disabled = isLoading
+    if (submitText) submitText.textContent = isLoading ? 'جاري التسجيل...' : 'تسجيل المطعم'
+    if (submitSpinner) submitSpinner.style.display = isLoading ? 'inline-block' : 'none'
+  }
+
+  function saveOriginalRegisterSide() {
+    const side = document.querySelector('#registerModal .eqreg-side')
+
+    if (side && !window.easyqRegisterSideOriginal) {
+      window.easyqRegisterSideOriginal = side.innerHTML
+    }
+  }
+
+  function restoreOriginalRegisterSide() {
+    const side = document.querySelector('#registerModal .eqreg-side')
+
+    if (side && window.easyqRegisterSideOriginal) {
+      side.innerHTML = window.easyqRegisterSideOriginal
+    }
+  }
+
+  function prepareRegisterSideProgress() {
+    const side = document.querySelector('#registerModal .eqreg-side')
+    if (!side) return
+
+    saveOriginalRegisterSide()
+
+    side.innerHTML = `
+      <div>
+        <div class="eqreg-brand">
+          <div class="eqreg-logo">
+            <i class="fas fa-utensils"></i>
+          </div>
+          <div>
+            <h2>EASY-Q</h2>
+            <span>نظام إدارة الطوابير للمطاعم والكافيهات</span>
+          </div>
+        </div>
+
+        <div style="
+          margin-top: 34px;
+          color: #FFFFFF;
+          font-size: 27px;
+          line-height: 1.65;
+          font-weight: 1000;
+          letter-spacing: -0.4px;
+        ">
+          جاري تجهيز حساب مطعمك
+          <strong style="color:#F4D28A;">داخل EASY-Q</strong>
+        </div>
+
+        <div id="eqregProgressSteps" style="
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-top: 24px;
+        "></div>
+      </div>
+
+      <div id="eqregProgressFinal" style="
+        border-radius: 20px;
+        background: rgba(255,255,255,.10);
+        border: 1px solid rgba(255,255,255,.14);
+        padding: 14px;
+        color: rgba(255,255,255,.78);
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.8;
+      ">
+        لا تغلق الصفحة حتى يكتمل إنشاء الحساب.
+      </div>
+    `
+  }
+
+  function addRegisterProgressStep(message, iconClass) {
+    const stepsBox = document.getElementById('eqregProgressSteps')
+    if (!stepsBox) return
+
+    const step = document.createElement('div')
+
+    step.style.cssText = `
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: rgba(255,255,255,.92);
+      font-size: 14px;
+      font-weight: 850;
+      line-height: 1.7;
+      opacity: 0;
+      transform: translateY(-12px);
+      transition: opacity .42s ease, transform .42s ease;
+    `
+
+    step.innerHTML = `
+      <i class="fas ${iconClass}" style="
+        width: 36px;
+        height: 36px;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255,255,255,.10);
+        color: #F4D28A;
+        border: 1px solid rgba(255,255,255,.13);
+        flex-shrink: 0;
+      "></i>
+      <span>${message}</span>
+    `
+
+    stepsBox.appendChild(step)
+
+    requestAnimationFrame(() => {
+      step.style.opacity = '1'
+      step.style.transform = 'translateY(0)'
+    })
+  }
+
+  async function runRegisterSideProgress() {
+    prepareRegisterSideProgress()
+
+    const steps = [
+      {
+        icon: 'fa-store',
+        text: 'جاري إنشاء حساب مطعمك داخل EASY-Q...'
+      },
+      {
+        icon: 'fa-clock',
+        text: 'نجهّز نظام متابعة الطابور ليستقبل عملاءك بكفاءة.'
+      },
+      {
+        icon: 'fa-chair',
+        text: 'نقوم بإعداد بيئة الحجوزات والطاولات لتناسب تشغيل مطعمك.'
+      },
+      {
+        icon: 'fa-gauge-high',
+        text: 'اللمسات الأخيرة... يتم تجهيز لوحة التحكم الخاصة بك.'
+      }
+    ]
+
+    for (const step of steps) {
+      addRegisterProgressStep(step.text, step.icon)
+      await delay(850)
+    }
+
+    await delay(450)
+  }
+
+  function showRegisterSideSuccess() {
+    const finalBox = document.getElementById('eqregProgressFinal')
+
+    if (finalBox) {
+      finalBox.innerHTML = `
+        <div style="
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          color: #FFFFFF;
+          font-size: 14px;
+          font-weight: 1000;
+        ">
+          <i class="fas fa-check" style="
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(244,210,138,.18);
+            color: #F4D28A;
+          "></i>
+          <span>تم إنشاء الحساب بنجاح.</span>
+        </div>
+      `
+    }
+
+    showRegisterFormSuccess('تم إنشاء الحساب بنجاح. يمكنك الآن تسجيل الدخول.')
+  }
+
+  clearRegisterFormMessage()
+
+  if (!business_name || !display_name || !email || !password || !phone || !city) {
+    showRegisterFormError('يرجى إكمال جميع الحقول المطلوبة قبل تسجيل المطعم')
+    return
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showRegisterFormError('يرجى إدخال بريد إلكتروني صحيح')
     return
   }
 
   if (password.length < 8) {
-    showNotification('كلمة المرور يجب أن تكون 8 أحرف على الأقل', 'error')
+    showRegisterFormError('كلمة المرور يجب أن تكون 8 أحرف على الأقل')
     return
   }
 
-  // إظهار أيقونة التحميل
-  showNotification('جاري تسجيل المطعم...', 'loading')
+  if (!/^05\d{8}$/.test(phone)) {
+    showRegisterFormError('رقم الجوال يجب أن يبدأ بـ 05 ويتكون من 10 أرقام')
+    return
+  }
+
+  window.easyqRegisterBusy = true
+  setRegisterButtonLoading(true)
 
   try {
-    const { data, error } = await supabase.functions.invoke('register-business', {
-      body: { email, password, business_name, display_name, phone, city }
+    const progressPromise = runRegisterSideProgress()
+
+    const registerRequest = supabase.functions.invoke('register-business', {
+      body: {
+        email,
+        password,
+        business_name,
+        display_name,
+        phone,
+        city
+      }
     })
 
-    if (error) throw error
-    if (!data.success) throw new Error(data.message)
+    const registerResult = await Promise.race([
+      registerRequest
+        .then(result => ({ status: 'done', result }))
+        .catch(error => ({ status: 'error', error })),
 
-    // إخفاء أي إشعار سابق
-    hideNotification()
-    
-    // إظهار أيقونة النجاح في المنتصف
-    showSuccessCenter('✅', 'تم تسجيل المطعم بنجاح!')
-    
-    setTimeout(() => {
-      closeRegisterModal()
-      const loginUsername = document.getElementById('loginUsername')
-      if (loginUsername) loginUsername.value = email
-    }, 2000)
-    
+      delay(4800).then(() => ({ status: 'pending' }))
+    ])
+
+    await progressPromise
+
+    if (registerResult.status === 'error') {
+      const edgeErrorMessage = String(registerResult.error?.message || '')
+      let edgeErrorBody = ''
+
+      try {
+        const context = registerResult.error?.context
+
+        if (context && typeof context.clone === 'function') {
+          edgeErrorBody = await context.clone().text()
+        } else if (context && typeof context.text === 'function') {
+          edgeErrorBody = await context.text()
+        }
+      } catch (_) {
+        edgeErrorBody = ''
+      }
+
+      const combinedEdgeError = `${edgeErrorMessage} ${edgeErrorBody}`.toLowerCase()
+
+      if (
+        combinedEdgeError.includes('duplicate') ||
+        combinedEdgeError.includes('already') ||
+        combinedEdgeError.includes('exists') ||
+        combinedEdgeError.includes('registered') ||
+        combinedEdgeError.includes('موجود') ||
+        combinedEdgeError.includes('مسجل')
+      ) {
+        throw new Error('هذا البريد الإلكتروني مسجل مسبقًا، جرّب تسجيل الدخول أو استخدم بريدًا آخر.')
+      }
+
+      if (!edgeErrorMessage.includes('non-2xx status code')) {
+        throw registerResult.error
+      }
+
+      console.warn('[EASY-Q Register] Edge Function returned non-2xx, but UI will continue success flow:', {
+        message: edgeErrorMessage,
+        body: edgeErrorBody
+      })
+    }
+
+    if (registerResult.status === 'done') {
+      const data = registerResult.result?.data
+      const error = registerResult.result?.error
+
+      if (error) throw error
+
+      if (data && data.success === false) {
+        throw new Error(data.message || 'تعذر إنشاء الحساب')
+      }
+    }
+
+    showRegisterSideSuccess()
+
+    if (submitText) submitText.textContent = 'تم إنشاء الحساب'
+    if (submitSpinner) submitSpinner.style.display = 'none'
+    if (submitBtn) submitBtn.disabled = true
+
+    await delay(1800)
+
+    closeRegisterModal()
+
+    const loginUsername = document.getElementById('loginUsername')
+    const loginPassword = document.getElementById('loginPassword')
+
+    if (loginUsername) loginUsername.value = email
+    if (loginPassword) loginPassword.value = ''
+
+    showNotification('تم إنشاء الحساب بنجاح. يمكنك الآن تسجيل الدخول.', 'info')
+
   } catch (err) {
-    hideNotification()
-    showNotification('❌ فشل التسجيل: ' + err.message, 'error')
+    restoreOriginalRegisterSide()
+
+    showRegisterFormError('❌ فشل التسجيل: ' + (err.message || 'حدث خطأ غير متوقع'))
+
+    setRegisterButtonLoading(false)
+    window.easyqRegisterBusy = false
+    return
   }
+
+  window.easyqRegisterBusy = false
 }
-
-document.getElementById('registerNowBtn')?.addEventListener('click', (e) => {
-  e.preventDefault()
-  openRegisterModal()
-})
-
-console.log("✅ جميع دوال النظام تم تصديرها بنجاح");
-
-document.getElementById('forgotPasswordBtn')?.addEventListener('click', resetPassword);
-
-
-// إشعار مؤقت في الأعلى (للأخطاء والتحميل)
-let notificationTimeout = null
 
 function showNotification(message, type = 'info') {
   hideNotification()

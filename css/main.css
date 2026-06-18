@@ -3692,3 +3692,28 @@ html[dir="ltr"] .qr-info-row {
 .qr-cancel-btn:hover {
   background: #991B1B !important;
 }
+
+/* ============================================================
+   QR MODAL ACTION BUTTONS FONT SIZE
+   تنسيق حجم خط أزرار مودل QR
+============================================================ */
+
+.qr-modal-actions .qr-action-btn {
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  min-height: 34px !important;
+  padding: 7px 10px !important;
+  gap: 5px !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+}
+
+.qr-modal-actions .qr-action-btn span {
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  line-height: 1.1 !important;
+}
+
+.qr-modal-actions .qr-action-btn i {
+  font-size: 11px !important;
+}

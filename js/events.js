@@ -50,6 +50,12 @@ function closeStatusModal() {
 function showQRModal(bookingCode, customerName, queuePosition, status, phone = '', requestId = '', repeatVisitCount = 0) {
     const trackUrl = `${window.location.origin}/booking.html?code=${bookingCode}`;
     window.currentQRRequestId = requestId || '';
+    window.currentQRRewardContext = {
+  requestId: requestId || '',
+  customerName: customerName || 'ضيف',
+  bookingCode: bookingCode || '',
+  repeatVisitCount: Number(repeatVisitCount || 0)
+};
     const cleanPhone = String(phone || '').replace(/\D/g, '');
 const whatsappPhone =
   cleanPhone.startsWith('966')
@@ -83,6 +89,16 @@ new QRCode(qrContainer, {
     
 const qrCustomerNameEl = document.getElementById('qrCustomerName');
 const repeatVisitNumber = Number(repeatVisitCount || 0);
+const qrRewardBtn = document.getElementById('qrRewardBtn');
+
+if (qrRewardBtn) {
+  const canRewardRepeatCustomer =
+    repeatVisitNumber > 0 &&
+    typeof canDo === 'function' &&
+    canDo('reward_repeat_customer');
+
+  qrRewardBtn.style.display = canRewardRepeatCustomer ? 'inline-flex' : 'none';
+}
 
 if (qrCustomerNameEl) {
   // إزالة تنبيه سابق عند فتح المودل أكثر من مرة
@@ -2792,3 +2808,233 @@ document.addEventListener('click', function (e) {
 
   clearSelection();
 });
+
+function ensureRepeatCustomerRewardModal() {
+  let modal = document.getElementById('repeatCustomerRewardModal');
+
+  if (modal) return modal;
+
+  modal = document.createElement('div');
+  modal.id = 'repeatCustomerRewardModal';
+  modal.className = 'modal-backdrop';
+
+  modal.innerHTML = `
+    <div class="modal-content" style="
+      max-width: 430px;
+      width: calc(100% - 28px);
+      background:#FFFFFF;
+      border-radius:20px;
+      overflow:hidden;
+      border:1px solid rgba(226,232,240,0.95);
+      box-shadow:0 24px 70px rgba(15,23,42,0.28);
+    ">
+      <div style="
+        padding:16px;
+        background:linear-gradient(135deg, #DCFCE7 0%, #F8FAFC 100%);
+        border-bottom:1px solid #E5E7EB;
+      ">
+        <h3 style="
+          margin:0;
+          color:#064E3B;
+          font-size:18px;
+          font-weight:1000;
+          display:flex;
+          align-items:center;
+          gap:8px;
+        ">
+          <i class="fas fa-gift"></i>
+          مكافأة عميل متكرر
+        </h3>
+
+        <p id="repeatRewardCustomerInfo" style="
+          margin:8px 0 0;
+          color:#475569;
+          font-size:13px;
+          line-height:1.7;
+          font-weight:700;
+        "></p>
+      </div>
+
+      <div style="padding:16px; display:grid; gap:12px;">
+        <div>
+          <label style="
+            display:block;
+            margin-bottom:6px;
+            color:#334155;
+            font-size:13px;
+            font-weight:900;
+          ">نوع المكافأة</label>
+
+          <select id="repeatRewardType" style="
+            width:100%;
+            min-height:42px;
+            border:1px solid #CBD5E1;
+            border-radius:12px;
+            padding:8px 10px;
+            font-family:inherit;
+            font-weight:800;
+            outline:none;
+            background:#FFFFFF;
+          ">
+            <option value="hospitality">ضيافة</option>
+            <option value="discount">خصم</option>
+            <option value="upgrade">ترقية / أولوية</option>
+            <option value="note">ملاحظة فقط</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="
+            display:block;
+            margin-bottom:6px;
+            color:#334155;
+            font-size:13px;
+            font-weight:900;
+          ">ملاحظة اختيارية</label>
+
+          <textarea id="repeatRewardNote" rows="3" placeholder="مثال: تم تقديم قهوة مجانية للعميل" style="
+            width:100%;
+            border:1px solid #CBD5E1;
+            border-radius:12px;
+            padding:10px;
+            font-family:inherit;
+            font-size:13px;
+            resize:none;
+            outline:none;
+          "></textarea>
+        </div>
+
+        <div style="
+          display:flex;
+          gap:8px;
+          justify-content:flex-end;
+          flex-wrap:wrap;
+          margin-top:4px;
+        ">
+          <button type="button" onclick="closeRepeatCustomerRewardModal()" style="
+            border:none;
+            border-radius:12px;
+            padding:10px 14px;
+            background:#E5E7EB;
+            color:#111827;
+            font-weight:900;
+            cursor:pointer;
+          ">
+            إلغاء
+          </button>
+
+          <button type="button" id="repeatRewardSaveBtn" onclick="submitRepeatCustomerReward()" style="
+            border:none;
+            border-radius:12px;
+            padding:10px 16px;
+            background:#16A34A;
+            color:#FFFFFF;
+            font-weight:1000;
+            cursor:pointer;
+            display:inline-flex;
+            align-items:center;
+            gap:7px;
+          ">
+            <i class="fas fa-save"></i>
+            حفظ المكافأة
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function openRepeatCustomerRewardModal() {
+  const ctx = window.currentQRRewardContext || {};
+
+  if (!ctx.requestId) {
+    showAlert('لا يمكن تحديد طلب العميل');
+    return;
+  }
+
+  if (!canDo('reward_repeat_customer')) {
+    showAlert('ليس لديك صلاحية مكافأة عميل متكرر الزيارة');
+    return;
+  }
+
+  if (!Number(ctx.repeatVisitCount || 0)) {
+    showAlert('هذا العميل لا يظهر كعميل متكرر حاليًا');
+    return;
+  }
+
+  const modal = ensureRepeatCustomerRewardModal();
+
+  const info = document.getElementById('repeatRewardCustomerInfo');
+  if (info) {
+    info.textContent = `${ctx.customerName || 'ضيف'} زارنا ${ctx.repeatVisitCount} مرات خلال 30 يوم.`;
+  }
+
+  const typeEl = document.getElementById('repeatRewardType');
+  const noteEl = document.getElementById('repeatRewardNote');
+
+  if (typeEl) typeEl.value = 'hospitality';
+  if (noteEl) noteEl.value = '';
+
+  modal.classList.add('show');
+}
+
+function closeRepeatCustomerRewardModal() {
+  const modal = document.getElementById('repeatCustomerRewardModal');
+  if (modal) modal.classList.remove('show');
+}
+
+async function submitRepeatCustomerReward() {
+  const ctx = window.currentQRRewardContext || {};
+  const saveBtn = document.getElementById('repeatRewardSaveBtn');
+
+  if (!ctx.requestId) {
+    showAlert('لا يمكن تحديد طلب العميل');
+    return;
+  }
+
+  if (!canDo('reward_repeat_customer')) {
+    showAlert('ليس لديك صلاحية مكافأة عميل متكرر الزيارة');
+    return;
+  }
+
+  const rewardType = document.getElementById('repeatRewardType')?.value || 'hospitality';
+  const rewardNote = document.getElementById('repeatRewardNote')?.value || '';
+
+  const oldBtnHtml = saveBtn ? saveBtn.innerHTML : '';
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+  }
+
+  const { data, error } = await supabase.rpc('reward_repeat_customer', {
+    p_request_id: ctx.requestId,
+    p_reward_type: rewardType,
+    p_reward_note: rewardNote,
+    p_repeat_visit_count: Number(ctx.repeatVisitCount || 0)
+  });
+
+  if (error) {
+    console.error('Reward repeat customer error:', error);
+
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = oldBtnHtml;
+    }
+
+    showAlert(error.message || 'فشل تسجيل المكافأة');
+    return;
+  }
+
+  closeRepeatCustomerRewardModal();
+  closeQRModal();
+
+  showSuccessNotification(data?.message || 'تم تسجيل مكافأة العميل بنجاح');
+
+  if (typeof loadAll === 'function') {
+    await loadAll();
+  }
+}

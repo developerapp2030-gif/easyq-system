@@ -626,30 +626,47 @@ if (w.zone_name && w.zone_name !== "") {
 }
     
     const queueNum = w.queue_position || "?";
-        const customerNameText = String(w.customer_name || "ضيف").trim() || "ضيف";
-    const customerNameDir = /[\u0600-\u06FF]/.test(customerNameText) ? 'rtl' : 'ltr';
+const customerNameText = String(w.customer_name || "ضيف").trim() || "ضيف";
 
-    const safeCustomerNameText = customerNameText
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-       const repeatVisitCount = Number(w.repeat_visit_count_30_days || 0);
-    const repeatCupHtml = repeatVisitCount > 0
-      ? `<span
-          title="زارنا ${repeatVisitCount} مرات خلال 30 يوم"
-          style="
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            font-size:15px;
-            line-height:1;
-            margin-inline-end:4px;
-            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12));
-          "
-        >🏆</span>`
-      : ''; 
+const customerNameShort = customerNameText.length > 18
+  ? customerNameText.slice(0, 18) + "..."
+  : customerNameText;
+
+const safeCustomerNameText = customerNameShort
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#039;");
+const repeatVisitCount = Number(w.repeat_visit_count_30_days || 0);
+
+// لا نعرض الكأس داخل بطاقة الطابور حتى لا يزاحم الاسم والجوال.
+// التنبيه التفصيلي يبقى كما هو داخل مودل QR.
+const repeatCupHtml = '';
+
+const queueBadgeTitle = repeatVisitCount > 0
+  ? `زارنا ${repeatVisitCount} مرات خلال 30 يوم`
+  : 'رقم الطابور';
+
+const queueBadgeStyle = repeatVisitCount > 0
+  ? `
+    background: linear-gradient(135deg, #DCFCE7 0%, #179546 100%) !important;
+    color: #040404 !important;
+    border: 1px solid rgba(22, 163, 74, 0.45) !important;
+    box-shadow: 0 0 0 0px rgba(34, 197, 94, 0.14), 0 8px 18px rgba(34, 197, 94, 0.20) !important;
+    font-weight: 1000 !important;
+  `
+  : '';
+
+const queueBadgeHtml = `
+  <span
+    class="queue-number-badge"
+    title="${queueBadgeTitle}"
+    style="${queueBadgeStyle}"
+  >
+    ${queueNum}
+  </span>
+`;
     
     let sourceLabel = "";
     let sourceIcon = "";
@@ -682,11 +699,11 @@ if (w.zone_name && w.zone_name !== "") {
           <span class="source-badge"><i class="${iconClass} ${sourceIcon}"></i> ${sourceLabel}</span>
                     <span class="customer-name-part" style="display:inline-flex; align-items:center; gap:4px;">
             ${repeatCupHtml}
-            <span>${(w.customer_name || "ضيف").substring(0, 18)}${phoneDisplay ? ` - ${phoneDisplay}` : ""}</span>
+            <span>${safeCustomerNameText}${phoneDisplay ? ` - ${phoneDisplay}` : ""}</span>
           </span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <span class="queue-number-badge">${queueNum}</span>
+          ${queueBadgeHtml}
         </div>
       </div>
       <hr class="waiting-divider">

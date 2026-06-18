@@ -141,7 +141,26 @@
       completed: 'مكتمل',
       cancelled: 'ملغي',
       expired: 'منتهي',
-      no_show: 'لم يحضر'
+      no_show: 'لم يحضر',
+      total_requests: 'إجمالي الطلبات',
+      confirmed_visits: 'زيارات مؤكدة',
+      unconfirmed_visits: 'غير مكتملة',
+      no_show_visits: 'لم يحضر / ملغي',
+      pending_visits: 'حجوزات مفتوحة',
+      confirmed_after_last_reward: 'زيارات مؤكدة بعد آخر مكافأة',
+      reward_history: 'سجل المكافآت',
+      rewards_count: 'عدد المكافآت',
+      last_reward: 'آخر مكافأة',
+      reward_customer: 'العميل',
+      rewarded_by: 'الموظف',
+      reward_type: 'نوع المكافأة',
+      reward_note: 'ملاحظة المكافأة',
+      rewarded_at: 'تاريخ المكافأة',
+      rewarded_after: 'تمت بعد',
+      visits_after_reward: 'زيارات بعد المكافأة',
+      actual_visits_note: 'الزيارات المؤكدة هي التي وصلت إلى مشغول أو تنظيف أو مكتمل فقط.',
+      reward_empty: 'لا توجد مكافآت مسجلة لهذا العميل بعد',
+      export_clean_note: 'التصدير يعرض آخر اسم ورقم الجوال الدولي فقط بدون معرفات أو كل الأسماء المستخدمة.'
     },
     en: {
       title: 'Customers',
@@ -257,7 +276,26 @@
       completed: 'Completed',
       cancelled: 'Cancelled',
       expired: 'Expired',
-      no_show: 'No Show'
+      no_show: 'No Show',
+      total_requests: 'Total Requests',
+      confirmed_visits: 'Confirmed Visits',
+      unconfirmed_visits: 'Incomplete',
+      no_show_visits: 'No-show / Cancelled',
+      pending_visits: 'Open Bookings',
+      confirmed_after_last_reward: 'Confirmed After Last Reward',
+      reward_history: 'Reward History',
+      rewards_count: 'Rewards Count',
+      last_reward: 'Last Reward',
+      reward_customer: 'Customer',
+      rewarded_by: 'Employee',
+      reward_type: 'Reward Type',
+      reward_note: 'Reward Note',
+      rewarded_at: 'Rewarded At',
+      rewarded_after: 'Rewarded After',
+      visits_after_reward: 'Visits After Reward',
+      actual_visits_note: 'Confirmed visits are only occupied, cleaning, or completed visits.',
+      reward_empty: 'No rewards recorded for this customer yet',
+      export_clean_note: 'Export shows latest name and international phone only, without IDs or all used names.'
     }
   };
 
@@ -347,6 +385,36 @@
 
   function sourceLabel(source) {
     return t(sourceKey(source));
+  }
+
+  function isConfirmedVisitStatus(status) {
+    return ['occupied', 'cleaning', 'completed'].includes(String(status || '').toLowerCase());
+  }
+
+  function isNoShowLikeStatus(status) {
+    return ['cancelled', 'expired', 'no_show'].includes(String(status || '').toLowerCase());
+  }
+
+  function isPendingLikeStatus(status) {
+    return ['waiting', 'offered', 'reserved'].includes(String(status || '').toLowerCase());
+  }
+
+  function rewardTypeLabel(type) {
+    const key = String(type || 'hospitality').toLowerCase();
+    const map = {
+      hospitality: isAr() ? 'ضيافة' : 'Hospitality',
+      discount: isAr() ? 'خصم' : 'Discount',
+      upgrade: isAr() ? 'ترقية / أولوية' : 'Upgrade / Priority',
+      note: isAr() ? 'ملاحظة فقط' : 'Note Only'
+    };
+    return map[key] || type || (isAr() ? 'غير محدد' : 'Unknown');
+  }
+
+  function requestStatusGroup(status) {
+    if (isConfirmedVisitStatus(status)) return 'confirmed';
+    if (isNoShowLikeStatus(status)) return 'no_show';
+    if (isPendingLikeStatus(status)) return 'pending';
+    return 'unconfirmed';
   }
 
   function topFromObject(obj) {
@@ -476,7 +544,57 @@
       .order('created_at', { ascending: false })
     );
 
-    return buildDirectPayload(customers, requests, businessId);
+    let rewards = [];
+    try {
+      rewards = await fetchAllRows(() => window.supabase
+        .from('customer_rewards')
+        .select('id,business_id,customer_id,request_id,phone_snapshot,customer_name_snapshot,reward_type,reward_note,repeat_visit_count,rewarded_by,rewarded_by_auth,rewarded_at,created_at')
+        .eq('business_id', businessId)
+        .order('rewarded_at', { ascending: false })
+      );
+
+      const rewardUserIds = [...new Set(
+        rewards
+          .map((reward) => reward.rewarded_by)
+          .filter((id) => id && String(id).trim())
+      )];
+
+      if (rewardUserIds.length > 0) {
+        try {
+          const rewardUsers = await fetchAllRows(() => window.supabase
+            .from('app_users')
+            .select('id,auth_id,display_name,username')
+            .in('id', rewardUserIds)
+          );
+
+          const rewardUsersMap = new Map();
+          (rewardUsers || []).forEach((user) => {
+            const displayName = user.display_name || user.username || '—';
+            if (user.id) rewardUsersMap.set(String(user.id), displayName);
+            if (user.auth_id) rewardUsersMap.set(String(user.auth_id), displayName);
+          });
+
+          rewards = rewards.map((reward) => ({
+            ...reward,
+            rewarded_by_name:
+              rewardUsersMap.get(String(reward.rewarded_by || '')) ||
+              rewardUsersMap.get(String(reward.rewarded_by_auth || '')) ||
+              '—'
+          }));
+        } catch (rewardUsersErr) {
+          console.warn('[EASY-Q Customers] تعذر تحميل أسماء الموظفين للمكافآت:', rewardUsersErr);
+          rewards = rewards.map((reward) => ({
+            ...reward,
+            rewarded_by_name: '—'
+          }));
+        }
+      }
+    } catch (rewardErr) {
+      console.warn('[EASY-Q Customers] تعذر تحميل سجل المكافآت:', rewardErr);
+      rewards = [];
+    }
+
+    return buildDirectPayload(customers, requests, rewards, businessId);
   }
 
   async function loadData(force = false) {
@@ -491,13 +609,46 @@
     EQC.lastError = null;
 
     try {
-      let data;
+      /*
+        مهم:
+        النسخة القديمة التي كانت تظهر 250+ عميل كانت تعتمد على RPC لأنه يجلب قاعدة العملاء كاملة.
+        التحميل المباشر وحده قد يرجع عددًا أقل حسب RLS أو صلاحيات الجدول.
+        لذلك نستخدم تحميلًا هجينًا:
+        1) RPC للحصول على قاعدة العملاء الكاملة.
+        2) Direct Fetch لإضافة الزيارات المؤكدة والمكافآت والتصدير المطوّر.
+        3) إذا كان Direct أقل من RPC، نحافظ على قاعدة RPC ونركب عليها بيانات Direct المتاحة.
+      */
+      let rpcData = null;
+      let directData = null;
+      let rpcError = null;
+      let directError = null;
+
       try {
-        data = await tryRpcLoad(businessId);
-      } catch (rpcErr) {
-        console.warn('[EASY-Q Customers] RPC failed, falling back to direct fetch:', rpcErr);
-        data = await directLoad(businessId);
-        data.rpcError = rpcErr.message || String(rpcErr);
+        rpcData = await tryRpcLoad(businessId);
+      } catch (err) {
+        rpcError = err;
+        console.warn('[EASY-Q Customers] RPC load failed:', err);
+      }
+
+      try {
+        directData = await directLoad(businessId);
+      } catch (err) {
+        directError = err;
+        console.warn('[EASY-Q Customers] Direct load failed:', err);
+      }
+
+      let data = null;
+
+      if (rpcData && directData) {
+        data = mergeRpcBaseWithDirectDetails(rpcData, directData, businessId);
+      } else if (directData) {
+        data = directData;
+        data.rpcError = rpcError?.message || null;
+      } else if (rpcData) {
+        data = rpcData;
+        data.directError = directError?.message || null;
+      } else {
+        throw directError || rpcError || new Error('تعذر تحميل بيانات العملاء');
       }
 
       data.businessId = businessId;
@@ -505,6 +656,16 @@
       data.loadedAt = new Date().toISOString();
       EQC.data = data;
       EQC.loadedAt = new Date();
+
+      console.log('[EASY-Q Customers] Customers load:', {
+        source: data.source,
+        customers: data.customers?.length || 0,
+        uniqueCustomersByPhone: data.stats?.uniqueCustomersByPhone,
+        rpcCustomers: rpcData?.customers?.length || 0,
+        directCustomers: directData?.customers?.length || 0,
+        businessId
+      });
+
       return data;
     } finally {
       EQC.loading = false;
@@ -530,6 +691,108 @@
     };
   }
 
+  function mergeRpcBaseWithDirectDetails(rpcData, directData, businessId) {
+    const rpcCustomers = Array.isArray(rpcData?.customers) ? rpcData.customers : [];
+    const directCustomers = Array.isArray(directData?.customers) ? directData.customers : [];
+
+    const directByKey = new Map();
+    const directByPhone = new Map();
+
+    directCustomers.forEach((customer) => {
+      if (customer?.key) directByKey.set(customer.key, customer);
+      if (customer?.cleanPhone) directByPhone.set(customer.cleanPhone, customer);
+    });
+
+    const usedDirectKeys = new Set();
+
+    const mergedCustomers = rpcCustomers.map((rpcCustomer) => {
+      const directCustomer =
+        directByKey.get(rpcCustomer.key) ||
+        directByPhone.get(rpcCustomer.cleanPhone || normalizePhone(rpcCustomer.phone || '')) ||
+        null;
+
+      if (directCustomer) {
+        usedDirectKeys.add(directCustomer.key);
+        return {
+          ...rpcCustomer,
+          ...directCustomer,
+          key: rpcCustomer.key || directCustomer.key,
+          cleanPhone: directCustomer.cleanPhone || rpcCustomer.cleanPhone,
+          phone: directCustomer.cleanPhone || directCustomer.phone || rpcCustomer.phone,
+          name: directCustomer.name || rpcCustomer.name,
+          namesUsed: directCustomer.namesUsed?.length ? directCustomer.namesUsed : (rpcCustomer.namesUsed || []),
+          customerIds: directCustomer.customerIds?.length ? directCustomer.customerIds : (rpcCustomer.customerIds || [])
+        };
+      }
+
+      const totalRequests = n(rpcCustomer.totalRequests ?? rpcCustomer.total_requests ?? 0);
+      const confirmedVisitsCount = n(rpcCustomer.confirmedVisitsCount ?? rpcCustomer.confirmed_visits_count ?? 0);
+      const unconfirmedVisitsCount = n(rpcCustomer.unconfirmedVisitsCount ?? rpcCustomer.unconfirmed_visits_count ?? Math.max(0, totalRequests - confirmedVisitsCount));
+
+      return {
+        ...rpcCustomer,
+        totalRequests,
+        confirmedVisitsCount,
+        unconfirmedVisitsCount,
+        noShowVisitsCount: n(rpcCustomer.noShowVisitsCount ?? rpcCustomer.no_show_visits_count ?? 0),
+        pendingVisitsCount: n(rpcCustomer.pendingVisitsCount ?? rpcCustomer.pending_visits_count ?? 0),
+        rewardsCount: n(rpcCustomer.rewardsCount ?? rpcCustomer.rewards_count ?? 0),
+        rewardHistory: Array.isArray(rpcCustomer.rewardHistory) ? rpcCustomer.rewardHistory : [],
+        lastRewardAt: rpcCustomer.lastRewardAt || rpcCustomer.last_reward_at || null,
+        confirmedVisitsAfterLastReward: n(rpcCustomer.confirmedVisitsAfterLastReward ?? rpcCustomer.confirmed_visits_after_last_reward ?? 0),
+        confirmedVisitsLast30: n(rpcCustomer.confirmedVisitsLast30 ?? rpcCustomer.confirmed_visits_last30 ?? 0),
+        confirmedActiveInRange: !!rpcCustomer.confirmedActiveInRange,
+        periodConfirmedVisits: n(rpcCustomer.periodConfirmedVisits ?? rpcCustomer.period_confirmed_visits ?? 0)
+      };
+    });
+
+    directCustomers.forEach((customer) => {
+      if (!customer?.key || usedDirectKeys.has(customer.key)) return;
+      mergedCustomers.push(customer);
+    });
+
+    const stats = {
+      ...(directData?.stats || {}),
+      ...(rpcData?.stats || {})
+    };
+
+    const validPhones = mergedCustomers
+      .map((customer) => customer.cleanPhone || normalizePhone(customer.phone || ''))
+      .filter((phone) => phone && phone.length >= 9);
+
+    stats.uniqueCustomersByPhone = Math.max(
+      n(rpcData?.stats?.uniqueCustomersByPhone),
+      n(directData?.stats?.uniqueCustomersByPhone),
+      new Set(validPhones).size
+    );
+
+    stats.visibleCustomerGroups = mergedCustomers.length;
+    stats.listRowsIncludingNoPhone = mergedCustomers.length;
+    stats.multiNameCustomers = mergedCustomers.filter((c) => c.hasMultipleNames).length;
+    stats.rawCustomerRows = Math.max(n(rpcData?.stats?.rawCustomerRows), n(directData?.stats?.rawCustomerRows));
+    stats.requestRowsAllTime = Math.max(n(rpcData?.stats?.requestRowsAllTime), n(directData?.stats?.requestRowsAllTime));
+    stats.requestRowsInRange = Math.max(n(rpcData?.stats?.requestRowsInRange), n(directData?.stats?.requestRowsInRange));
+    stats.rewardRows = n(directData?.stats?.rewardRows);
+
+    const merged = {
+      ...directData,
+      business: rpcData?.business || directData?.business || getBusinessProfile(),
+      source: 'hybrid',
+      stats,
+      customers: mergedCustomers,
+      rewards: directData?.rewards || [],
+      range: EQC.range,
+      businessId
+    };
+
+    merged.filtered = filterCustomers(merged.customers);
+    merged.segments = buildSegments(merged.customers);
+    merged.loyalty = buildLoyalty(merged.customers);
+
+    return merged;
+  }
+
+
   function normalizeStats(stats, customers) {
     const s = stats || {};
     return {
@@ -548,42 +811,72 @@
     };
   }
 
-  function buildDirectPayload(customers, requests, businessId) {
+  function buildDirectPayload(customers, requests, rewards, businessId) {
     const start = rangeStart(EQC.range);
     const map = new Map();
+    const phoneToKey = new Map();
+    const idToKey = new Map();
+    const requestIdToKey = new Map();
 
     function keyForCustomer(c) {
       const phone = normalizePhone(c.phone || c.whatsapp_number || '');
       return phone && phone.length >= 9 ? `phone:${phone}` : `id:${c.id}`;
     }
 
+    function rememberKey(row, key) {
+      if (row.cleanPhone) phoneToKey.set(row.cleanPhone, key);
+      (row.customerIds || []).forEach((id) => { if (id) idToKey.set(id, key); });
+    }
+
+    function updateLatestName(row, name, at) {
+      const cleanName = String(name || '').trim();
+      if (!cleanName) return;
+
+      const ts = new Date(at || 0).getTime();
+      const oldTs = new Date(row.nameUpdatedAt || 0).getTime();
+
+      if (!row.nameUpdatedAt || (Number.isFinite(ts) && ts >= oldTs)) {
+        row.name = cleanName;
+        row.nameUpdatedAt = at || row.nameUpdatedAt || null;
+      }
+
+      if (!row.namesUsed.includes(cleanName)) row.namesUsed.push(cleanName);
+    }
+
     function ensure(key, seed) {
       if (!map.has(key)) {
-        const phone = normalizePhone(seed.phone || seed.whatsapp_number || seed.customer_phone_snapshot || '');
+        const phone = normalizePhone(seed.phone || seed.whatsapp_number || seed.customer_phone_snapshot || seed.phone_snapshot || '');
         map.set(key, {
           key,
           cleanPhone: phone || '',
           phone: phone || t('no_phone'),
-          name: seed.name || seed.customer_name_snapshot || 'عميل',
+          name: seed.name || seed.customer_name_snapshot || seed.customer_name || seed.customer_name_snapshot || 'عميل',
+          nameUpdatedAt: seed.created_at || seed.rewarded_at || null,
           namesUsed: [],
           customerIds: [],
           rawCustomerCount: 0,
           notes: '',
-          firstSeen: seed.created_at || null,
-          lastSeen: seed.created_at || null,
+          firstSeen: seed.created_at || seed.rewarded_at || null,
+          lastSeen: seed.created_at || seed.rewarded_at || null,
           sourceCounts: {},
           zoneCounts: {},
           statusCounts: {},
           requests: [],
+          rewardHistory: [],
           avgParty: 0,
           partySizes: [],
           activeInRange: false,
+          confirmedActiveInRange: false,
           periodRequests: 0,
+          periodConfirmedVisits: 0,
           totalRequests: 0,
           hasValidPhone: !!phone && phone.length >= 9
         });
       }
-      return map.get(key);
+
+      const row = map.get(key);
+      rememberKey(row, key);
+      return row;
     }
 
     customers.forEach((c) => {
@@ -591,22 +884,13 @@
       const row = ensure(key, c);
       row.rawCustomerCount += 1;
       if (c.id && !row.customerIds.includes(c.id)) row.customerIds.push(c.id);
-      if (c.name && !row.namesUsed.includes(c.name)) row.namesUsed.push(c.name);
-      if (c.name) row.name = c.name;
+      updateLatestName(row, c.name, c.created_at);
       if (c.notes) row.notes = row.notes ? `${row.notes} | ${c.notes}` : c.notes;
       if (c.created_at) {
         if (!row.firstSeen || new Date(c.created_at) < new Date(row.firstSeen)) row.firstSeen = c.created_at;
         if (!row.lastSeen || new Date(c.created_at) > new Date(row.lastSeen)) row.lastSeen = c.created_at;
       }
-    });
-
-    const phoneToKey = new Map();
-    map.forEach((row, key) => {
-      if (row.cleanPhone) phoneToKey.set(row.cleanPhone, key);
-    });
-    const idToKey = new Map();
-    map.forEach((row, key) => {
-      (row.customerIds || []).forEach((id) => idToKey.set(id, key));
+      rememberKey(row, key);
     });
 
     requests.forEach((r) => {
@@ -619,15 +903,21 @@
       });
 
       if (r.customer_id && !row.customerIds.includes(r.customer_id)) row.customerIds.push(r.customer_id);
-      if (r.customer_name_snapshot && !row.namesUsed.includes(r.customer_name_snapshot)) row.namesUsed.push(r.customer_name_snapshot);
-      if (r.customer_name_snapshot) row.name = r.customer_name_snapshot;
+      updateLatestName(row, r.customer_name_snapshot, r.created_at);
       row.requests.push(r);
+      if (r.id) requestIdToKey.set(r.id, key);
       row.totalRequests += 1;
+
       const inRange = !start || new Date(r.created_at) >= start;
       if (inRange) {
         row.periodRequests += 1;
         row.activeInRange = true;
+        if (isConfirmedVisitStatus(r.status)) {
+          row.periodConfirmedVisits += 1;
+          row.confirmedActiveInRange = true;
+        }
       }
+
       const src = sourceKey(r.request_source);
       row.sourceCounts[src] = (row.sourceCounts[src] || 0) + 1;
       const zone = r.zone_name || t('unknown');
@@ -635,22 +925,56 @@
       const status = r.status || 'unknown';
       row.statusCounts[status] = (row.statusCounts[status] || 0) + 1;
       row.partySizes.push(n(r.requested_party_size) || 1);
+
       if (r.created_at) {
         if (!row.firstSeen || new Date(r.created_at) < new Date(row.firstSeen)) row.firstSeen = r.created_at;
         if (!row.lastSeen || new Date(r.created_at) > new Date(row.lastSeen)) row.lastSeen = r.created_at;
       }
+
+      rememberKey(row, key);
+    });
+
+    (rewards || []).forEach((reward) => {
+      const phone = normalizePhone(reward.phone_snapshot || '');
+      const key = phoneToKey.get(phone) || idToKey.get(reward.customer_id) || requestIdToKey.get(reward.request_id) || (phone ? `phone:${phone}` : `reward:${reward.id}`);
+      const row = ensure(key, {
+        phone_snapshot: reward.phone_snapshot,
+        customer_name_snapshot: reward.customer_name_snapshot,
+        rewarded_at: reward.rewarded_at,
+        created_at: reward.created_at
+      });
+
+      if (reward.customer_id && !row.customerIds.includes(reward.customer_id)) row.customerIds.push(reward.customer_id);
+      if (reward.customer_name_snapshot && !row.namesUsed.includes(reward.customer_name_snapshot)) row.namesUsed.push(reward.customer_name_snapshot);
+      row.rewardHistory.push({
+        ...reward,
+        cleanPhone: phone,
+        customer_display_name: reward.customer_name_snapshot || row.name || 'عميل',
+        customer_display_phone: phone || row.cleanPhone || '',
+        rewarded_by_name: reward.rewarded_by_name || '—',
+        reward_type_label: rewardTypeLabel(reward.reward_type)
+      });
+
+      rememberKey(row, key);
     });
 
     const rows = Array.from(map.values()).map((row) => finalizeCustomer(row));
     const validPhoneRows = customers.map((c) => normalizePhone(c.phone || c.whatsapp_number)).filter((p) => p && p.length >= 9);
     const activeAllSet = new Set();
     const activeRangeSet = new Set();
+    const confirmedAllSet = new Set();
+    const confirmedRangeSet = new Set();
     const reqStart = rangeStart(EQC.range);
+
     requests.forEach((r) => {
       const phone = normalizePhone(r.customer_phone_snapshot || '');
       if (phone && phone.length >= 9) {
         activeAllSet.add(phone);
-        if (!reqStart || new Date(r.created_at) >= reqStart) activeRangeSet.add(phone);
+        if (isConfirmedVisitStatus(r.status)) confirmedAllSet.add(phone);
+        if (!reqStart || new Date(r.created_at) >= reqStart) {
+          activeRangeSet.add(phone);
+          if (isConfirmedVisitStatus(r.status)) confirmedRangeSet.add(phone);
+        }
       }
     });
 
@@ -665,13 +989,19 @@
         duplicatedCustomerRowsByPhone: customers.length - new Set(validPhoneRows).size,
         requestRowsAllTime: requests.length,
         requestRowsInRange: reqStart ? requests.filter((r) => new Date(r.created_at) >= reqStart).length : requests.length,
+        confirmedVisitsAllTime: requests.filter((r) => isConfirmedVisitStatus(r.status)).length,
+        confirmedVisitsInRange: reqStart ? requests.filter((r) => isConfirmedVisitStatus(r.status) && new Date(r.created_at) >= reqStart).length : requests.filter((r) => isConfirmedVisitStatus(r.status)).length,
         activeCustomersAllTime: activeAllSet.size,
         activeCustomersInRange: activeRangeSet.size,
+        confirmedCustomersAllTime: confirmedAllSet.size,
+        confirmedCustomersInRange: confirmedRangeSet.size,
         visibleCustomerGroups: rows.length,
         multiNameCustomers: rows.filter((r) => r.hasMultipleNames).length,
-        listRowsIncludingNoPhone: rows.length
+        listRowsIncludingNoPhone: rows.length,
+        rewardRows: (rewards || []).length
       },
       customers: rows,
+      rewards: rewards || [],
       range: EQC.range
     };
     payload.filtered = filterCustomers(payload.customers);
@@ -684,23 +1014,56 @@
     const sourceCounts = row.sourceCounts || row.source_counts || {};
     const zoneCounts = row.zoneCounts || row.zone_counts || {};
     const statusCounts = row.statusCounts || row.status_counts || {};
-    const requests = Array.isArray(row.requests) ? row.requests : [];
+    const requests = Array.isArray(row.requests) ? row.requests.slice().sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)) : [];
     const totalRequests = n(row.totalRequests ?? row.total_requests ?? requests.length);
     const periodRequests = n(row.periodRequests ?? row.period_requests);
-    const avgParty = n(row.avgParty ?? row.avg_party_size);
-    const lossCount = n(statusCounts.cancelled) + n(statusCounts.expired) + n(statusCounts.no_show);
+    const avgParty = n(row.avgParty ?? row.avg_party_size) || (row.partySizes?.length ? Math.round((row.partySizes.reduce((a, b) => a + n(b), 0) / row.partySizes.length) * 10) / 10 : 0);
+
+    const confirmedRequests = requests.filter((r) => isConfirmedVisitStatus(r.status));
+    const unconfirmedRequests = requests.filter((r) => !isConfirmedVisitStatus(r.status));
+    const noShowRequests = requests.filter((r) => isNoShowLikeStatus(r.status));
+    const pendingRequests = requests.filter((r) => isPendingLikeStatus(r.status));
+    const confirmedVisitsCount = confirmedRequests.length;
+    const unconfirmedVisitsCount = unconfirmedRequests.length;
+    const noShowVisitsCount = noShowRequests.length;
+    const pendingVisitsCount = pendingRequests.length;
+    const lossCount = noShowVisitsCount;
+
     const lastSeen = row.lastSeen || row.last_seen || row.lastRequestAt || row.last_request_at || row.lastCustomerCreatedAt || row.last_customer_created_at;
     const firstSeen = row.firstSeen || row.first_seen || row.firstRequestAt || row.first_request_at || row.firstCustomerCreatedAt || row.first_customer_created_at;
+    const lastConfirmedVisitAt = confirmedRequests[0]?.created_at || null;
+    const firstConfirmedVisitAt = confirmedRequests.length ? confirmedRequests[confirmedRequests.length - 1]?.created_at : null;
     const namesUsed = Array.isArray(row.namesUsed) ? row.namesUsed : (Array.isArray(row.names_used) ? row.names_used : []);
     const customerIds = Array.isArray(row.customerIds) ? row.customerIds : (Array.isArray(row.customer_ids) ? row.customer_ids : []);
     const cleanPhone = row.cleanPhone || row.clean_phone || normalizePhone(row.phone);
     const preferredSource = topFromObject(sourceCounts) || 'other';
     const preferredZone = topFromObject(zoneCounts) || t('unknown');
-    const inactive = daysSince(lastSeen) !== null && daysSince(lastSeen) >= 30;
-    const repeat = totalRequests > 1 || n(row.rawCustomerCount ?? row.raw_customer_count) > 1;
-    const vip = totalRequests >= 5 && pct(lossCount, totalRequests) <= 20;
+    const inactive = daysSince(lastConfirmedVisitAt || lastSeen) !== null && daysSince(lastConfirmedVisitAt || lastSeen) >= 30;
+    const repeat = confirmedVisitsCount > 1;
+    const vip = confirmedVisitsCount >= 5 && pct(lossCount, Math.max(totalRequests, 1)) <= 20;
     const highLoss = totalRequests >= 2 && pct(lossCount, totalRequests) >= 50;
-    const level = totalRequests >= 5 ? 'gold' : totalRequests >= 3 ? 'silver' : totalRequests >= 2 ? 'bronze' : 'one_time';
+    const level = confirmedVisitsCount >= 5 ? 'gold' : confirmedVisitsCount >= 3 ? 'silver' : confirmedVisitsCount >= 2 ? 'bronze' : 'one_time';
+
+    const rewardHistory = (Array.isArray(row.rewardHistory) ? row.rewardHistory : [])
+      .slice()
+      .sort((a, b) => new Date(b.rewarded_at || b.created_at || 0) - new Date(a.rewarded_at || a.created_at || 0));
+    const lastRewardAt = rewardHistory[0]?.rewarded_at || rewardHistory[0]?.created_at || null;
+    const lastRewardTime = lastRewardAt ? new Date(lastRewardAt).getTime() : 0;
+    const confirmedVisitsAfterLastReward = lastRewardTime
+      ? confirmedRequests.filter((r) => new Date(r.created_at || 0).getTime() > lastRewardTime).length
+      : confirmedVisitsCount;
+
+    const thirtyDaysAgo = Date.now() - (30 * 86400000);
+    const confirmedVisitsLast30 = confirmedRequests.filter((r) => new Date(r.created_at || 0).getTime() >= thirtyDaysAgo).length;
+
+    rewardHistory.forEach((reward) => {
+      const rewardTime = new Date(reward.rewarded_at || reward.created_at || 0).getTime();
+      reward.confirmed_visits_before_reward = Number(reward.repeat_visit_count || 0) || confirmedRequests.filter((r) => new Date(r.created_at || 0).getTime() <= rewardTime).length;
+      reward.confirmed_visits_after_reward = Number.isFinite(rewardTime)
+        ? confirmedRequests.filter((r) => new Date(r.created_at || 0).getTime() > rewardTime).length
+        : 0;
+      reward.reward_type_label = rewardTypeLabel(reward.reward_type);
+    });
 
     return {
       ...row,
@@ -713,10 +1076,22 @@
       rawCustomerCount: n((row.rawCustomerCount ?? row.raw_customer_count) || customerIds.length),
       firstSeen,
       lastSeen,
+      firstConfirmedVisitAt,
+      lastConfirmedVisitAt,
       requests,
+      confirmedRequests,
+      unconfirmedRequests,
+      noShowRequests,
+      pendingRequests,
       totalRequests,
       periodRequests,
+      periodConfirmedVisits: n(row.periodConfirmedVisits),
+      confirmedVisitsCount,
+      unconfirmedVisitsCount,
+      noShowVisitsCount,
+      pendingVisitsCount,
       activeInRange: !!row.activeInRange || !!row.active_in_range || periodRequests > 0,
+      confirmedActiveInRange: !!row.confirmedActiveInRange || n(row.periodConfirmedVisits) > 0,
       sourceCounts,
       zoneCounts,
       statusCounts,
@@ -731,22 +1106,30 @@
       lossCount,
       hasValidPhone: cleanPhone && cleanPhone.length >= 9,
       hasMultipleNames: (namesUsed || []).filter(Boolean).length > 1,
-      daysSinceLast: daysSince(lastSeen),
-      repeatWithin30: hasRecentRepeat(requests, 30) || (totalRequests >= 2 && daysSince(lastSeen) !== null && daysSince(lastSeen) <= 30)
+      daysSinceLast: daysSince(lastConfirmedVisitAt || lastSeen),
+      rewardHistory,
+      rewardsCount: rewardHistory.length,
+      lastRewardAt,
+      confirmedVisitsAfterLastReward,
+      confirmedVisitsLast30,
+      repeatWithin30: confirmedVisitsLast30 >= 2 || confirmedVisitsAfterLastReward > 0
     };
   }
 
   function filterCustomers(rows) {
     const q = String(EQC.search || '').trim().toLowerCase();
     let out = rows.filter((c) => {
-      const searchText = [c.name, c.phone, c.cleanPhone, c.notes, ...(c.namesUsed || []), ...(c.customerIds || [])]
+      const searchText = [c.name, c.phone, c.cleanPhone, c.notes, ...(c.namesUsed || [])]
         .map((v) => String(v || '').toLowerCase()).join(' ');
       if (q && !searchText.includes(q)) return false;
 
-      if (EQC.filter === 'active') return c.activeInRange;
+      if (EQC.filter === 'active') return c.confirmedActiveInRange || c.activeInRange;
       if (EQC.filter === 'with_requests') return c.totalRequests > 0;
       if (EQC.filter === 'no_requests') return c.totalRequests === 0;
-      if (EQC.filter === 'repeat') return c.repeat;
+      if (EQC.filter === 'repeat') return c.confirmedVisitsCount > 1;
+      if (EQC.filter === 'confirmed') return c.confirmedVisitsCount > 0;
+      if (EQC.filter === 'unconfirmed') return c.unconfirmedVisitsCount > 0;
+      if (EQC.filter === 'rewarded') return c.rewardsCount > 0;
       if (EQC.filter === 'multi_names') return c.hasMultipleNames;
       if (EQC.filter === 'no_phone') return !c.hasValidPhone;
       if (EQC.filter === 'online') return c.preferredSource === 'online';
@@ -755,12 +1138,12 @@
       return true;
     });
 
-    out.sort((a, b) => new Date(b.lastSeen || 0) - new Date(a.lastSeen || 0));
+    out.sort((a, b) => new Date(b.lastConfirmedVisitAt || b.lastSeen || 0) - new Date(a.lastConfirmedVisitAt || a.lastSeen || 0));
     return out;
   }
 
   function visitsOf(c) {
-    return Array.isArray(c.requests) ? c.requests : [];
+    return Array.isArray(c.confirmedRequests) ? c.confirmedRequests : (Array.isArray(c.requests) ? c.requests.filter((r) => isConfirmedVisitStatus(r.status)) : []);
   }
 
   function visitDate(r) {
@@ -815,8 +1198,11 @@
 
   function buildSegments(rows) {
     const items = [
-      ['active', t('active_in_range'), rows.filter((r) => r.activeInRange), 'fa-heart-pulse'],
-      ['repeat', t('repeat'), rows.filter((r) => r.repeat), 'fa-repeat'],
+      ['active', t('active_in_range'), rows.filter((r) => r.confirmedActiveInRange || r.activeInRange), 'fa-heart-pulse'],
+      ['repeat', t('repeat'), rows.filter((r) => r.confirmedVisitsCount > 1), 'fa-repeat'],
+      ['confirmed', t('confirmed_visits'), rows.filter((r) => r.confirmedVisitsCount > 0), 'fa-circle-check'],
+      ['unconfirmed', t('unconfirmed_visits'), rows.filter((r) => r.unconfirmedVisitsCount > 0), 'fa-triangle-exclamation'],
+      ['rewarded', t('reward_history'), rows.filter((r) => r.rewardsCount > 0), 'fa-gift'],
       ['multi_names', t('multi_name_filter'), rows.filter((r) => r.hasMultipleNames), 'fa-id-card'],
       ['no_phone', t('no_phone_filter'), rows.filter((r) => !r.hasValidPhone), 'fa-phone-slash'],
       ['online', t('online'), rows.filter((r) => r.preferredSource === 'online'), 'fa-globe'],
@@ -832,8 +1218,11 @@
       silver: rows.filter((r) => r.level === 'silver'),
       bronze: rows.filter((r) => r.level === 'bronze'),
       one_time: rows.filter((r) => r.level === 'one_time'),
-      topRepeat: rows.slice().sort((a, b) => b.totalRequests - a.totalRequests || b.rawCustomerCount - a.rawCustomerCount).slice(0, 12),
-      followup: rows.filter((r) => r.inactive && r.repeat).slice(0, 12)
+      topRepeat: rows.slice().sort((a, b) => b.confirmedVisitsCount - a.confirmedVisitsCount || b.confirmedVisitsAfterLastReward - a.confirmedVisitsAfterLastReward || b.totalRequests - a.totalRequests).slice(0, 12),
+      topRequests: rows.slice().sort((a, b) => b.totalRequests - a.totalRequests || b.confirmedVisitsCount - a.confirmedVisitsCount).slice(0, 12),
+      topNoShow: rows.slice().sort((a, b) => b.unconfirmedVisitsCount - a.unconfirmedVisitsCount || b.noShowVisitsCount - a.noShowVisitsCount).slice(0, 12),
+      rewarded: rows.filter((r) => r.rewardsCount > 0).sort((a, b) => new Date(b.lastRewardAt || 0) - new Date(a.lastRewardAt || 0)).slice(0, 12),
+      followup: rows.filter((r) => r.inactive && r.confirmedVisitsCount > 1).slice(0, 12)
     };
   }
 
@@ -931,7 +1320,7 @@
     const last7 = countVisitedInRange(data.customers || [], 'last7');
     const last30 = countVisitedInRange(data.customers || [], 'last30');
     const last90 = countVisitedInRange(data.customers || [], 'last90');
-    const topRepeat = (data.loyalty.topRepeat || []).filter((c) => c.totalRequests > 0).slice(0, 8);
+    const topRepeat = (data.loyalty.topRepeat || []).filter((c) => c.confirmedVisitsCount > 0).slice(0, 8);
     return `<div class="eqc-grid">
       ${kpi('fa-calendar-day', t('customers_today'), today, t('visits_history'))}
       ${kpi('fa-calendar-week', t('customers_7'), last7, t('visits_history'))}
@@ -948,6 +1337,9 @@
     const filters = [
       ['all', t('all')],
       ['active', t('active_in_range')],
+      ['confirmed', t('confirmed_visits')],
+      ['unconfirmed', t('unconfirmed_visits')],
+      ['rewarded', t('reward_history')],
       ['with_requests', t('with_requests')],
       ['no_requests', t('no_requests')],
       ['repeat', t('repeat')],
@@ -974,15 +1366,17 @@
 
   function customersTable(rows, showActions) {
     if (!rows.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
-    return `<div class="eqc-table-wrap"><table class="eqc-table"><thead><tr>
-      <th>${esc(t('latest_name'))}</th><th>${esc(t('phone'))}</th><th>${esc(t('used_names'))}</th><th>${esc(t('visits'))}</th><th>${esc(t('period_visits'))}</th><th>${esc(t('last_seen'))}</th><th>${esc(t('top_source'))}</th><th>${esc(t('top_zone'))}</th>${showActions ? `<th>${esc(t('actions'))}</th>` : ''}
+    return `<div class="eqc-table-wrap"><table class="eqc-table" style="min-width:980px;"><thead><tr>
+      <th>${esc(t('latest_name'))}</th><th>${esc(t('phone'))}</th><th>${esc(t('total_requests'))}</th><th>${esc(t('confirmed_visits'))}</th><th>${esc(t('unconfirmed_visits'))}</th><th>${esc(t('rewards_count'))}</th><th>${esc(t('confirmed_after_last_reward'))}</th><th>${esc(t('last_seen'))}</th><th>${esc(t('top_source'))}</th><th>${esc(t('top_zone'))}</th>${showActions ? `<th>${esc(t('actions'))}</th>` : ''}
     </tr></thead><tbody>${rows.map((c)=>`<tr>
-      <td><b>${esc(c.repeatWithin30 ? '🏆 ' : '')}${esc(c.name)}</b><div class="eqc-sub">${esc(c.repeatWithin30 ? t('cup_candidate') : (c.hasMultipleNames ? t('multi_name_filter') : ''))}</div></td>
+      <td><b>${esc(c.confirmedVisitsAfterLastReward > 0 ? '🏆 ' : '')}${esc(c.name)}</b><div class="eqc-sub">${esc(c.rewardsCount > 0 ? `${t('last_reward')}: ${fmtDate(c.lastRewardAt)}` : '')}</div></td>
       <td class="eqc-phone">${esc(c.cleanPhone || t('no_phone'))}</td>
-      <td>${esc((c.namesUsed || []).slice(0, 4).join('، '))}${(c.namesUsed || []).length > 4 ? '...' : ''}</td>
       <td>${esc(c.totalRequests)}</td>
-      <td>${esc(c.periodRequests)}</td>
-      <td>${esc(fmtDate(c.lastSeen))}</td>
+      <td><span class="eqc-badge ok">${esc(c.confirmedVisitsCount)}</span></td>
+      <td><span class="eqc-badge ${c.unconfirmedVisitsCount > 0 ? 'warn' : 'muted'}">${esc(c.unconfirmedVisitsCount)}</span></td>
+      <td>${esc(c.rewardsCount || 0)}</td>
+      <td>${esc(c.confirmedVisitsAfterLastReward || 0)}</td>
+      <td>${esc(fmtDate(c.lastConfirmedVisitAt || c.lastSeen))}</td>
       <td><span class="eqc-badge info">${esc(t(c.preferredSource))}</span></td>
       <td>${esc(c.preferredZone || t('unknown'))}</td>
       ${showActions ? `<td><button class="eqc-btn light" onclick="EQRestaurantCustomers.openProfile('${esc(c.key)}')"><i class="fas fa-id-card"></i>${esc(t('open_profile'))}</button></td>` : ''}
@@ -1000,14 +1394,16 @@
           <button class="eqc-btn danger" onclick="EQRestaurantCustomers.setView('list')"><i class="fas fa-times"></i>${esc(t('close_profile'))}</button>
         </div>
         <div style="display:flex;gap:12px;align-items:center;">
-          <div class="eqc-avatar">${esc(c.repeatWithin30 ? '🏆' : String(c.name || 'ع').slice(0,1))}</div>
+          <div class="eqc-avatar">${esc(c.confirmedVisitsAfterLastReward > 0 ? '🏆' : String(c.name || 'ع').slice(0,1))}</div>
           <div style="min-width:0;"><div class="eqc-title" style="font-size:18px;">${esc(c.name)}</div><div class="eqc-phone">${esc(c.cleanPhone || t('no_phone'))}</div></div>
         </div>
         <div class="eqc-small-grid">
-          <div class="eqc-small"><div class="eqc-small-num">${esc(c.totalRequests)}</div><div class="eqc-small-label">${esc(t('visits'))}</div></div>
-          <div class="eqc-small"><div class="eqc-small-num">${esc(c.periodRequests)}</div><div class="eqc-small-label">${esc(t('period_visits'))}</div></div>
-          <div class="eqc-small"><div class="eqc-small-num">${esc(fmtDate(c.firstSeen))}</div><div class="eqc-small-label">${esc(t('first_seen'))}</div></div>
-          <div class="eqc-small"><div class="eqc-small-num">${esc(fmtDate(c.lastSeen))}</div><div class="eqc-small-label">${esc(t('last_seen'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num">${esc(c.totalRequests)}</div><div class="eqc-small-label">${esc(t('total_requests'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num">${esc(c.confirmedVisitsCount)}</div><div class="eqc-small-label">${esc(t('confirmed_visits'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num">${esc(c.unconfirmedVisitsCount)}</div><div class="eqc-small-label">${esc(t('unconfirmed_visits'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num">${esc(c.confirmedVisitsAfterLastReward)}</div><div class="eqc-small-label">${esc(t('confirmed_after_last_reward'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num">${esc(c.rewardsCount)}</div><div class="eqc-small-label">${esc(t('rewards_count'))}</div></div>
+          <div class="eqc-small"><div class="eqc-small-num" style="font-size:14px;line-height:1.5;">${esc(fmtDate(c.lastRewardAt))}</div><div class="eqc-small-label">${esc(t('last_reward'))}</div></div>
         </div>
         <div style="margin-top:12px;">${profileAlerts(c)}</div>
         <div style="margin-top:12px;"><button class="eqc-btn dark" onclick="EQRestaurantCustomers.copy('${esc(c.cleanPhone || '')}')"><i class="fas fa-copy"></i>${esc(t('copy_phone'))}</button></div>
@@ -1015,21 +1411,33 @@
       <div class="eqc-card">
         <div class="eqc-title"><i class="fas fa-id-card"></i>${esc(t('identity'))}</div>
         ${infoLine(t('latest_name'), c.name)}
-        ${infoLine(t('used_names'), (c.namesUsed || []).join('، '))}
+        ${infoLine(t('phone'), c.cleanPhone || t('no_phone'), true)}
+        ${infoLine(t('confirmed_visits'), c.confirmedVisitsCount)}
+        ${infoLine(t('no_show_visits'), c.noShowVisitsCount)}
+        ${infoLine(t('pending_visits'), c.pendingVisitsCount)}
         ${infoLine(t('top_source'), t(c.preferredSource))}
         ${infoLine(t('top_zone'), c.preferredZone)}
         ${infoLine(t('avg_party'), c.avgParty || '—')}
         ${infoLine(t('notes'), c.notes || '—')}
       </div>
-      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-store"></i>${esc(t('source_summary'))}</div>${barsHtml(Object.entries(c.sourceCounts || {}).map(([label,value])=>({label:t(label),value})), c.totalRequests || 1)}</div>
-      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-location-dot"></i>${esc(t('zone_summary'))}</div>${barsHtml(Object.entries(c.zoneCounts || {}).map(([label,value])=>({label,value})), c.totalRequests || 1)}</div>
-      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-clock-rotate-left"></i>${esc(t('requests_linked'))}</div><div class="eqc-sub">${esc(t('visits'))}: ${esc(c.totalRequests)}</div>${visitsTable(c.requests || [])}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-gift"></i>${esc(t('reward_history'))}</div><div class="eqc-sub">${esc(t('actual_visits_note'))}</div>${rewardsTable(c.rewardHistory || [])}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-chart-simple"></i>${esc(t('simple_snapshot'))}</div>${profileMiniCards([
+        { label: t('confirmed_visits'), value: c.confirmedVisitsCount, icon: 'fa-check-circle', tone: 'ok' },
+        { label: t('unconfirmed_visits'), value: c.unconfirmedVisitsCount, icon: 'fa-hourglass-half', tone: 'warn' },
+        { label: t('no_show_visits'), value: c.noShowVisitsCount, icon: 'fa-user-xmark', tone: 'bad' },
+        { label: t('rewards_count'), value: c.rewardsCount, icon: 'fa-gift', tone: 'info' }
+      ])}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-store"></i>${esc(t('source_summary'))}</div>${profileMiniCards(Object.entries(c.sourceCounts || {}).map(([label,value])=>({ label: t(label), value, icon: sourceIcon(label), tone: 'info' })).slice(0, 6))}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-location-dot"></i>${esc(t('zone_summary'))}</div>${profileMiniCards(Object.entries(c.zoneCounts || {}).map(([label,value])=>({ label, value, icon: 'fa-location-dot', tone: 'muted' })).slice(0, 6))}</div>
+      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-clock-rotate-left"></i>${esc(t('requests_linked'))}</div><div class="eqc-sub">${esc(t('total_requests'))}: ${esc(c.totalRequests)} — ${esc(t('confirmed_visits'))}: ${esc(c.confirmedVisitsCount)}</div>${visitsTable(c.requests || [])}</div>
     </div>`;
   }
 
   function profileAlerts(c) {
     const alerts = [];
-    if (c.repeatWithin30) alerts.push(['ok','fa-trophy',t('cup_candidate')]);
+    if (c.confirmedVisitsAfterLastReward > 0) alerts.push(['ok','fa-trophy',`${t('confirmed_after_last_reward')}: ${c.confirmedVisitsAfterLastReward}`]);
+    if (c.rewardsCount > 0) alerts.push(['ok','fa-gift',`${t('last_reward')}: ${fmtDate(c.lastRewardAt)}`]);
+    if (c.unconfirmedVisitsCount > 0) alerts.push(['warn','fa-triangle-exclamation',`${t('unconfirmed_visits')}: ${c.unconfirmedVisitsCount}`]);
     if (c.hasMultipleNames) alerts.push(['warn','fa-id-card',t('multi_name_filter')]);
     if (c.inactive) alerts.push(['warn','fa-user-clock',t('inactive')]);
     if (!c.hasValidPhone) alerts.push(['bad','fa-phone-slash',t('no_phone')]);
@@ -1041,9 +1449,72 @@
     return `<div style="margin-top:12px;"><div class="eqc-sub">${esc(label)}</div><div class="${isIds ? 'eqc-ids' : ''}" style="font-weight:900;line-height:1.7;">${esc(value || '—')}</div></div>`;
   }
 
+  function rewardsTable(rows) {
+    if (!rows.length) return `<div class="eqc-empty" style="margin-top:12px;">${esc(t('reward_empty'))}</div>`;
+
+    const sortedRows = rows
+      .slice()
+      .sort((a, b) => new Date(b.rewarded_at || b.created_at || 0) - new Date(a.rewarded_at || a.created_at || 0));
+
+    return `
+      <div class="eqc-table-wrap" style="margin-top:12px;">
+        <table class="eqc-table" style="min-width:980px; table-layout:fixed;">
+          <thead>
+            <tr>
+              <th style="width:150px;">${esc(t('reward_customer'))}</th>
+              <th style="width:135px;">${esc(t('phone'))}</th>
+              <th style="width:120px;">${esc(t('reward_type'))}</th>
+              <th style="width:150px;">${esc(t('rewarded_at'))}</th>
+              <th style="width:120px;">${esc(t('rewarded_after'))}</th>
+              <th style="width:130px;">${esc(t('rewarded_by'))}</th>
+              <th>${esc(t('reward_note'))}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${sortedRows.map((r)=>`
+              <tr>
+                <td>
+                  <div style="font-weight:1000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.customer_display_name || r.customer_name_snapshot || 'عميل')}">
+                    ${esc(r.customer_display_name || r.customer_name_snapshot || 'عميل')}
+                  </div>
+                </td>
+                <td class="eqc-phone" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${esc(r.customer_display_phone || r.cleanPhone || normalizePhone(r.phone_snapshot) || '—')}
+                </td>
+                <td>
+                  <span class="eqc-badge ok" style="white-space:nowrap;">${esc(r.reward_type_label || rewardTypeLabel(r.reward_type))}</span>
+                </td>
+                <td style="font-size:11px;line-height:1.5;">${esc(fmtDate(r.rewarded_at || r.created_at))}</td>
+                <td>
+                  <b>${esc(r.confirmed_visits_before_reward || 0)}</b>
+                  <div class="eqc-sub" style="margin:2px 0 0;line-height:1.3;">${esc(t('confirmed_visits'))}</div>
+                </td>
+                <td>
+                  <div style="font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.rewarded_by_name || '—')}">
+                    ${esc(r.rewarded_by_name || '—')}
+                  </div>
+                </td>
+                <td>
+                  <div style="max-height:44px;overflow:hidden;line-height:1.55;font-size:11.5px;">
+                    ${esc(r.reward_note || '—')}
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function visitsTable(rows) {
     if (!rows.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
-    return `<div class="eqc-table-wrap" style="margin-top:12px;"><table class="eqc-table" style="min-width:760px;"><thead><tr><th>${esc(t('booking_code'))}</th><th>${esc(t('date'))}</th><th>${esc(t('source'))}</th><th>${esc(t('zone'))}</th><th>${esc(t('party'))}</th><th>${esc(t('status'))}</th></tr></thead><tbody>${rows.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map((r)=>`<tr><td>${esc(r.booking_code || '—')}</td><td>${esc(fmtDate(r.created_at))}</td><td>${esc(sourceLabel(r.request_source))}</td><td>${esc(r.zone_name || t('unknown'))}</td><td>${esc(r.requested_party_size || 1)}</td><td><span class="eqc-badge muted">${esc(t(r.status || 'unknown'))}</span></td></tr>`).join('')}</tbody></table></div>`;
+    return `<div class="eqc-table-wrap" style="margin-top:12px;"><table class="eqc-table" style="min-width:900px;"><thead><tr><th>${esc(t('booking_code'))}</th><th>${esc(t('date'))}</th><th>${esc(t('source'))}</th><th>${esc(t('zone'))}</th><th>${esc(t('party'))}</th><th>${esc(t('status'))}</th><th>${esc(t('diagnostic'))}</th></tr></thead><tbody>${rows.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map((r)=>{
+      const group = requestStatusGroup(r.status);
+      const cls = group === 'confirmed' ? 'ok' : group === 'no_show' ? 'bad' : group === 'pending' ? 'warn' : 'muted';
+      const label = group === 'confirmed' ? t('confirmed_visits') : group === 'no_show' ? t('no_show_visits') : group === 'pending' ? t('pending_visits') : t('unconfirmed_visits');
+      return `<tr><td>${esc(r.booking_code || '—')}</td><td>${esc(fmtDate(r.created_at))}</td><td>${esc(sourceLabel(r.request_source))}</td><td>${esc(r.zone_name || t('unknown'))}</td><td>${esc(r.requested_party_size || 1)}</td><td><span class="eqc-badge ${cls}">${esc(t(r.status || 'unknown'))}</span></td><td>${esc(label)}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
   }
 
   function segmentsHtml(data) {
@@ -1062,28 +1533,100 @@
 
   function loyaltyHtml(data) {
     const l = data.loyalty;
-    const recent = (data.customers || []).filter((c) => c.repeatWithin30).sort((a,b)=>new Date(b.lastSeen||0)-new Date(a.lastSeen||0));
+    const recent = (data.customers || []).filter((c) => c.confirmedVisitsAfterLastReward > 0).sort((a,b)=>b.confirmedVisitsAfterLastReward-a.confirmedVisitsAfterLastReward || new Date(b.lastConfirmedVisitAt||0)-new Date(a.lastConfirmedVisitAt||0));
     return `<div class="eqc-grid">
-      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-trophy"></i>${esc(t('loyalty'))}</div><div class="eqc-sub" style="font-size:13px;color:#334155;">${esc(t('loyalty_cup_note'))}</div><div class="eqc-sub" style="margin-top:8px;">${esc(t('no_auto_points'))}</div></div>
-      ${kpi('fa-trophy', t('cup_candidate'), recent.length, t('loyalty_hint'))}
-      ${kpi('fa-repeat', t('top_repeat'), l.topRepeat.filter((c)=>c.totalRequests>0).length, t('visits_history'))}
-      ${kpi('fa-calendar-check', t('customers_30'), countVisitedInRange(data.customers || [], 'last30'), t('visits_history'))}
-      ${kpi('fa-user', t('one_time'), l.one_time.length, t('visits_history'))}
-      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-trophy"></i>${esc(t('cup_candidate'))}</div>${miniCustomers(recent.slice(0,12))}</div>
-      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-repeat"></i>${esc(t('top_repeat'))}</div>${miniCustomers(l.topRepeat.filter((c)=>c.totalRequests>0).slice(0,12))}</div>
+      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-trophy"></i>${esc(t('loyalty'))}</div><div class="eqc-sub" style="font-size:13px;color:#334155;">${esc(t('loyalty_cup_note'))}</div><div class="eqc-sub" style="margin-top:8px;">${esc(t('actual_visits_note'))}</div></div>
+      ${kpi('fa-trophy', t('confirmed_after_last_reward'), recent.length, t('loyalty_hint'))}
+      ${kpi('fa-repeat', t('top_repeat'), l.topRepeat.filter((c)=>c.confirmedVisitsCount>0).length, t('confirmed_visits'))}
+      ${kpi('fa-calendar-check', t('customers_30'), countVisitedInRange(data.customers || [], 'last30'), t('confirmed_visits'))}
+      ${kpi('fa-gift', t('rewards_count'), (data.customers || []).reduce((sum,c)=>sum+n(c.rewardsCount),0), t('reward_history'))}
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-trophy"></i>${esc(t('confirmed_after_last_reward'))}</div>${miniCustomers(recent.slice(0,12))}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-repeat"></i>${esc(t('top_repeat'))}</div>${miniCustomers(l.topRepeat.filter((c)=>c.confirmedVisitsCount>0).slice(0,12))}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-gift"></i>${esc(t('reward_history'))}</div>${miniCustomers(l.rewarded || [])}</div>
+      <div class="eqc-card wide"><div class="eqc-title"><i class="fas fa-triangle-exclamation"></i>${esc(t('unconfirmed_visits'))}</div>${miniCustomers(l.topNoShow.filter((c)=>c.unconfirmedVisitsCount>0).slice(0,12))}</div>
     </div>`;
   }
 
   function exportHtml(data) {
     return `<div class="eqc-grid">
-      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-file-excel"></i>${esc(t('export'))}</div><div class="eqc-sub">${esc(t('showing'))}: ${esc(data.filtered.length)} ${esc(t('of'))} ${esc(data.customers.length)} — ${esc(rangeLabel(EQC.range))}</div><div class="eqc-chip-row" style="margin-top:14px;"><button class="eqc-btn dark" onclick="EQRestaurantCustomers.exportExcel('filtered')"><i class="fas fa-file-excel"></i>${esc(t('export_current'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.exportExcel('all')"><i class="fas fa-database"></i>${esc(t('export_all'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.print('filtered')"><i class="fas fa-print"></i>${esc(t('print_current'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.print('all')"><i class="fas fa-print"></i>${esc(t('print_all'))}</button></div></div>
+      <div class="eqc-card full"><div class="eqc-title"><i class="fas fa-file-excel"></i>${esc(t('export'))}</div><div class="eqc-sub">${esc(t('showing'))}: ${esc(data.filtered.length)} ${esc(t('of'))} ${esc(data.customers.length)} — ${esc(rangeLabel(EQC.range))}</div><div class="eqc-sub" style="margin-top:6px;">${esc(t('export_clean_note'))}</div><div class="eqc-chip-row" style="margin-top:14px;"><button class="eqc-btn dark" onclick="EQRestaurantCustomers.exportExcel('filtered')"><i class="fas fa-file-excel"></i>${esc(t('export_current'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.exportExcel('all')"><i class="fas fa-database"></i>${esc(t('export_all'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.print('filtered')"><i class="fas fa-print"></i>${esc(t('print_current'))}</button><button class="eqc-btn light" onclick="EQRestaurantCustomers.print('all')"><i class="fas fa-print"></i>${esc(t('print_all'))}</button></div></div>
       <div class="eqc-card full">${customersTable(data.filtered.slice(0,30), true)}</div>
     </div>`;
   }
 
   function miniCustomers(rows) {
     if (!rows.length) return `<div class="eqc-empty">${esc(t('no_data'))}</div>`;
-    return `<div class="eqc-list" style="margin-top:12px;">${rows.map((c)=>`<div class="eqc-item"><div class="eqc-icon"><i class="fas ${c.repeatWithin30 ? 'fa-trophy' : 'fa-user'}"></i></div><div><div class="eqc-item-title">${esc(c.repeatWithin30 ? '🏆 ' : '')}${esc(c.name)}</div><div class="eqc-item-sub">${esc(c.cleanPhone || t('no_phone'))} — ${esc(t('visits'))}: ${esc(c.totalRequests)} — ${esc(t('top_source'))}: ${esc(t(c.preferredSource))}</div></div><button class="eqc-mini" onclick="EQRestaurantCustomers.openProfile('${esc(c.key)}')">${esc(t('open_profile'))}</button></div>`).join('')}</div>`;
+    return `<div class="eqc-list" style="margin-top:12px;">${rows.map((c)=>`<div class="eqc-item"><div class="eqc-icon"><i class="fas ${c.confirmedVisitsAfterLastReward > 0 ? 'fa-trophy' : 'fa-user'}"></i></div><div><div class="eqc-item-title">${esc(c.confirmedVisitsAfterLastReward > 0 ? '🏆 ' : '')}${esc(c.name)}</div><div class="eqc-item-sub">${esc(c.cleanPhone || t('no_phone'))} — ${esc(t('confirmed_visits'))}: ${esc(c.confirmedVisitsCount)} — ${esc(t('unconfirmed_visits'))}: ${esc(c.unconfirmedVisitsCount)}</div></div><button class="eqc-mini" onclick="EQRestaurantCustomers.openProfile('${esc(c.key)}')">${esc(t('open_profile'))}</button></div>`).join('')}</div>`;
+  }
+
+  function sourceIcon(source) {
+    const key = sourceKey(source);
+    if (key === 'walk_in') return 'fa-store';
+    if (key === 'online') return 'fa-globe';
+    if (key === 'restored') return 'fa-rotate-left';
+    return 'fa-circle-dot';
+  }
+
+  function profileMiniCards(items) {
+    const list = (items || []).filter((item) => item && item.label !== undefined);
+
+    if (!list.length) return `<div class="eqc-empty" style="margin-top:12px;">${esc(t('no_data'))}</div>`;
+
+    return `
+      <div style="
+        display:grid;
+        grid-template-columns:repeat(auto-fit, minmax(118px, 1fr));
+        gap:8px;
+        margin-top:12px;
+      ">
+        ${list.map((item) => {
+          const tone = item.tone || 'muted';
+          const icon = item.icon || 'fa-circle-dot';
+          const bg = tone === 'ok' ? '#ECFDF5' : tone === 'warn' ? '#FFFBEB' : tone === 'bad' ? '#FEF2F2' : tone === 'info' ? '#EFF6FF' : '#F8FAFC';
+          const border = tone === 'ok' ? '#A7F3D0' : tone === 'warn' ? '#FDE68A' : tone === 'bad' ? '#FECACA' : tone === 'info' ? '#BFDBFE' : '#EEF2F7';
+          const color = tone === 'ok' ? '#047857' : tone === 'warn' ? '#B45309' : tone === 'bad' ? '#B91C1C' : tone === 'info' ? '#1D4ED8' : '#475569';
+
+          return `
+            <div style="
+              background:${bg};
+              border:1px solid ${border};
+              border-radius:14px;
+              padding:10px;
+              min-height:74px;
+              display:flex;
+              flex-direction:column;
+              justify-content:space-between;
+              overflow:hidden;
+            ">
+              <div style="
+                display:flex;
+                align-items:center;
+                gap:6px;
+                color:${color};
+                font-size:11px;
+                font-weight:1000;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow:ellipsis;
+              " title="${esc(item.label)}">
+                <i class="fas ${icon}"></i>
+                <span style="overflow:hidden;text-overflow:ellipsis;">${esc(item.label)}</span>
+              </div>
+              <div style="
+                color:#0F172A;
+                font-size:22px;
+                font-weight:1000;
+                line-height:1;
+                margin-top:8px;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow:ellipsis;
+              " title="${esc(item.value)}">${esc(item.value ?? 0)}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
   }
 
   function barsHtml(items, total) {
@@ -1149,24 +1692,51 @@
 
   function makeExcel(rows) {
     const headers = [
-      t('latest_name'), t('phone'), t('used_names'),
-      t('visits'), t('period_visits'), t('first_seen'), t('last_seen'),
-      t('top_source'), t('top_zone'), t('avg_party'), t('notes')
+      t('latest_name'),
+      t('phone'),
+      t('total_requests'),
+      t('confirmed_visits'),
+      t('unconfirmed_visits'),
+      t('no_show_visits'),
+      t('rewards_count'),
+      t('last_reward'),
+      t('confirmed_after_last_reward'),
+      t('first_seen'),
+      t('last_seen'),
+      t('top_source'),
+      t('top_zone'),
+      t('avg_party'),
+      t('notes')
     ];
+
     const trs = rows.map((c) => [
       c.name,
       c.cleanPhone || '',
-      (c.namesUsed || []).join('، '),
       c.totalRequests,
-      c.periodRequests,
+      c.confirmedVisitsCount,
+      c.unconfirmedVisitsCount,
+      c.noShowVisitsCount,
+      c.rewardsCount || 0,
+      fmtDate(c.lastRewardAt),
+      c.confirmedVisitsAfterLastReward || 0,
       fmtDate(c.firstSeen),
-      fmtDate(c.lastSeen),
+      fmtDate(c.lastConfirmedVisitAt || c.lastSeen),
       t(c.preferredSource),
       c.preferredZone,
       c.avgParty || '',
       c.notes || ''
     ]);
-    const html = `<!doctype html><html><head><meta charset="UTF-8"><style>body{font-family:Arial}table{border-collapse:collapse;width:100%;direction:${isAr()?'rtl':'ltr'}}th,td{border:1px solid #ddd;padding:8px;text-align:${isAr()?'right':'left'}}th{background:#0E146D;color:white}.ltr{direction:ltr;text-align:left}</style></head><body><table><thead><tr>${headers.map((h)=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${trs.map((row)=>`<tr>${row.map((v,i)=>`<td${i===1?' class="ltr"':''}>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;
+
+    const widths = [180,130,90,95,95,110,90,160,130,160,160,110,130,90,260];
+    const html = `<!doctype html><html><head><meta charset="UTF-8"><style>
+      body{font-family:Arial,Tahoma,sans-serif;margin:0;padding:14px;background:#fff;color:#111827;}
+      table{border-collapse:collapse;table-layout:fixed;width:100%;direction:${isAr()?'rtl':'ltr'};font-size:12px;}
+      th,td{border:1px solid #D1D5DB;padding:7px 8px;text-align:${isAr()?'right':'left'};vertical-align:middle;height:30px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      th{background:#0E146D;color:white;font-weight:800;}
+      tr:nth-child(even) td{background:#F8FAFC;}
+      .ltr{direction:ltr;text-align:left;mso-number-format:'\@';font-family:Arial, sans-serif;}
+      .num{text-align:center;}
+    </style></head><body><table><colgroup>${widths.map(w=>`<col style="width:${w}px">`).join('')}</colgroup><thead><tr>${headers.map((h)=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${trs.map((row)=>`<tr>${row.map((v,i)=>`<td class="${i===1?'ltr':([2,3,4,5,6,8,13].includes(i)?'num':'')}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;
     const blob = new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1180,7 +1750,7 @@
 
   function printRows(rows) {
     const title = `${t('title')} - ${rangeLabel(EQC.range)}`;
-    const body = `<!doctype html><html><head><meta charset="UTF-8"><title>${esc(title)}</title><style>body{font-family:Arial,Tahoma,sans-serif;direction:${isAr()?'rtl':'ltr'};padding:22px;color:#111827}h2{margin:0 0 8px}.sub{color:#64748B;margin-bottom:16px}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:${isAr()?'right':'left'}}th{background:#0E146D;color:white}.ltr{direction:ltr;text-align:left}@media print{button{display:none}}</style></head><body><button onclick="window.print()" style="padding:10px 14px;margin-bottom:14px;cursor:pointer;">${esc(t('print_current'))}</button><h2>${esc(title)}</h2><div class="sub">${esc(t('unique_customers'))}: ${esc((EQC.data?.stats?.uniqueCustomersByPhone)||rows.length)} — ${esc(t('showing'))}: ${esc(rows.length)}</div><table><thead><tr><th>${esc(t('latest_name'))}</th><th>${esc(t('phone'))}</th><th>${esc(t('used_names'))}</th><th>${esc(t('visits'))}</th><th>${esc(t('last_seen'))}</th><th>${esc(t('top_source'))}</th><th>${esc(t('top_zone'))}</th></tr></thead><tbody>${rows.map((c)=>`<tr><td>${esc(c.name)}</td><td class="ltr">${esc(c.cleanPhone||'')}</td><td>${esc((c.namesUsed||[]).join('، '))}</td><td>${esc(c.totalRequests)}</td><td>${esc(fmtDate(c.lastSeen))}</td><td>${esc(t(c.preferredSource))}</td><td>${esc(c.preferredZone||'')}</td></tr>`).join('')}</tbody></table></body></html>`;
+    const body = `<!doctype html><html><head><meta charset="UTF-8"><title>${esc(title)}</title><style>body{font-family:Arial,Tahoma,sans-serif;direction:${isAr()?'rtl':'ltr'};padding:22px;color:#111827}h2{margin:0 0 8px}.sub{color:#64748B;margin-bottom:16px}table{border-collapse:collapse;table-layout:fixed;width:100%;font-size:11px}th,td{border:1px solid #ddd;padding:7px;text-align:${isAr()?'right':'left'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis}th{background:#0E146D;color:white}.ltr{direction:ltr;text-align:left}.num{text-align:center}@media print{button{display:none}body{padding:8px}}</style></head><body><button onclick="window.print()" style="padding:10px 14px;margin-bottom:14px;cursor:pointer;">${esc(t('print_current'))}</button><h2>${esc(title)}</h2><div class="sub">${esc(t('unique_customers'))}: ${esc((EQC.data?.stats?.uniqueCustomersByPhone)||rows.length)} — ${esc(t('showing'))}: ${esc(rows.length)} — ${esc(t('export_clean_note'))}</div><table><thead><tr><th>${esc(t('latest_name'))}</th><th>${esc(t('phone'))}</th><th>${esc(t('total_requests'))}</th><th>${esc(t('confirmed_visits'))}</th><th>${esc(t('unconfirmed_visits'))}</th><th>${esc(t('rewards_count'))}</th><th>${esc(t('confirmed_after_last_reward'))}</th><th>${esc(t('last_seen'))}</th><th>${esc(t('top_source'))}</th><th>${esc(t('top_zone'))}</th></tr></thead><tbody>${rows.map((c)=>`<tr><td>${esc(c.name)}</td><td class="ltr">${esc(c.cleanPhone||'')}</td><td class="num">${esc(c.totalRequests)}</td><td class="num">${esc(c.confirmedVisitsCount)}</td><td class="num">${esc(c.unconfirmedVisitsCount)}</td><td class="num">${esc(c.rewardsCount||0)}</td><td class="num">${esc(c.confirmedVisitsAfterLastReward||0)}</td><td>${esc(fmtDate(c.lastConfirmedVisitAt || c.lastSeen))}</td><td>${esc(t(c.preferredSource))}</td><td>${esc(c.preferredZone||'')}</td></tr>`).join('')}</tbody></table></body></html>`;
     const w = window.open('', '_blank');
     if (!w) return;
     w.document.open();
