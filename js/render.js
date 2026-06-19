@@ -571,7 +571,12 @@ function renderWaitingList() {
     card.className = "waiting-card" + (!isZoneCompatible ? ' zone-mismatch' : '');
     card.setAttribute('data-request-id', w.request_id);
     if (ready) card.classList.add("ready");
-    card.draggable = !editModeActive;
+
+    const isStrictQueueMode = (settings?.ready_mode || 'any_match') === 'queue_priority';
+    const canDragThisCard = !editModeActive && (!isStrictQueueMode || ready);
+
+    card.draggable = canDragThisCard;
+    card.style.cursor = canDragThisCard ? 'grab' : 'default';
     if (selectedRequestId === w.request_id) card.classList.add("active");
     if (selectedRequestId === w.request_id) card.classList.add("selected");
     
@@ -579,6 +584,14 @@ function renderWaitingList() {
     card.onclick = () => selectWaiting(w.request_id, w.requested_party_size);
     card.ondragstart = () => {
       if (editModeActive) return false;
+
+      const isStrictQueueMode = (settings?.ready_mode || 'any_match') === 'queue_priority';
+
+      if (isStrictQueueMode && !ready) {
+        showAlert('وضع الانضباط مفعّل: يمكن سحب العميل الجاهز الأول فقط.');
+        return false;
+      }
+
       draggedRequestId = w.request_id;
       draggedPartySize = w.requested_party_size;
       selectedRequestId = w.request_id;

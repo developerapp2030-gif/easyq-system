@@ -237,13 +237,11 @@ async function assignNextCustomer() {
     const waitingList = filteredWaitingData()
       .filter(w => w.business_id === businessId);
 
-    let targetRequest = null;
+  const waitingListOrdered = waitingList
+    .filter(w => w.status === "waiting" || w.status === "offered")
+    .sort((a, b) => (a.queue_position || 999) - (b.queue_position || 999));
 
-    if (settings.ready_mode === "queue_priority") {
-      targetRequest = waitingList.find(w => hasMatchingAvailableTable(w));
-    } else {
-      targetRequest = waitingList[0];
-    }
+  let targetRequest = waitingListOrdered.find(w => hasMatchingAvailableTable(w));
 
     if (!targetRequest) {
       alert("لا يوجد عميل جاهز للتعيين");
@@ -802,5 +800,16 @@ async function swapCurrentTable() {
 }
 
 function assignSelectedToTable(row) {
-  if (selectedRequestId) assignRequestToTable(selectedRequestId, selectedPartySize, row);
+  if (!selectedRequestId) return;
+
+  const isStrictQueueMode = (settings?.ready_mode || 'any_match') === 'queue_priority';
+  const selectedCard = document.querySelector(`.waiting-card[data-request-id="${selectedRequestId}"]`);
+
+  if (isStrictQueueMode && selectedCard && !selectedCard.classList.contains('ready')) {
+    showAlert('وضع الانضباط مفعّل: لا يمكن تعيين غير العميل الجاهز الأول.');
+    clearSelection();
+    return;
+  }
+
+  assignRequestToTable(selectedRequestId, selectedPartySize, row);
 }

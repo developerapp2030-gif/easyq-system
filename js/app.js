@@ -244,6 +244,106 @@ async function saveSettings() {
 }
 
 // ============================================================
+// QUEUE RULES MODAL
+// ============================================================
+
+function openQueueRulesModal() {
+  if (!canDo('manage_alerts') && !canDo('manage_timers')) {
+    showAlert('ليس لديك صلاحية لتعديل قواعد الطابور');
+    return;
+  }
+
+  settingsDraft = { ...settings };
+  renderQueueRulesModal();
+
+  const modal = document.getElementById('queueRulesModal');
+  if (modal) {
+    modal.classList.add('show');
+  }
+}
+
+function closeQueueRulesModal() {
+  const modal = document.getElementById('queueRulesModal');
+  if (modal) {
+    modal.classList.remove('show');
+  }
+}
+
+function setQueueReadyMode(mode) {
+  settingsDraft.ready_mode = mode;
+  renderQueueRulesModal();
+}
+
+function renderQueueRulesModal() {
+  const anyBtn = document.getElementById('queueRuleAnyBtn');
+  const priorityBtn = document.getElementById('queueRulePriorityBtn');
+
+  const currentMode = settingsDraft.ready_mode || settings.ready_mode || 'any_match';
+
+  if (anyBtn) {
+    anyBtn.classList.toggle('active', currentMode === 'any_match');
+    anyBtn.innerHTML = currentMode === 'any_match'
+      ? '<i class="fas fa-check"></i> محدد'
+      : 'اختيار';
+  }
+
+  if (priorityBtn) {
+    priorityBtn.classList.toggle('active', currentMode === 'queue_priority');
+    priorityBtn.innerHTML = currentMode === 'queue_priority'
+      ? '<i class="fas fa-check"></i> محدد'
+      : 'اختيار';
+  }
+}
+
+async function saveQueueRulesSettings() {
+  if (!canDo('manage_alerts') && !canDo('manage_timers')) {
+    showAlert('ليس لديك صلاحية لحفظ قواعد الطابور');
+    return;
+  }
+
+  const businessId = currentUser?.business_id;
+
+  if (!businessId || !settings?.id) {
+    showAlert('لم يتم العثور على إعدادات المطعم الحالي');
+    return;
+  }
+
+  const nextReadyMode = settingsDraft.ready_mode || settings.ready_mode || 'any_match';
+
+  const { error } = await supabase
+    .from('business_settings')
+    .update({
+      ready_mode: nextReadyMode
+    })
+    .eq('id', settings.id)
+    .eq('business_id', businessId);
+
+  if (error) {
+    console.error('Queue rules save error:', error);
+    showAlert('فشل حفظ قواعد الطابور');
+    return;
+  }
+
+  settings = {
+    ...settings,
+    ready_mode: nextReadyMode
+  };
+
+  settingsDraft = {
+    ...settingsDraft,
+    ready_mode: nextReadyMode
+  };
+
+  closeQueueRulesModal();
+
+  renderWaitingList();
+  renderExpiredList();
+  processReadyAlerts();
+
+  showSuccessNotification('✅ تم حفظ قواعد الطابور');
+}
+
+// ============================================================
 // TIMER SETTINGS MODAL
 // ============================================================
 

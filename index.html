@@ -598,9 +598,9 @@ btn.onclick = function(e) {
         <div class="sub-menu-item" onclick="openSettingsModal()">
           <i class="fas fa-bell"></i> <span>إعدادات التنبيهات والمؤقتات</span>
         </div>
-        <div class="sub-menu-item" data-view="settings-queue">
-          <i class="fas fa-clock"></i> <span>قواعد الطابور</span>
-        </div>
+<div class="sub-menu-item" data-view="settings-queue" onclick="openQueueRulesModal()">
+  <i class="fas fa-clock"></i> <span>قواعد الطابور</span>
+</div>
         <div class="sub-menu-item" data-view="settings-tables">
           <i class="fas fa-chair"></i> <span>أنواع الطاولات</span>
         </div>
@@ -1018,22 +1018,7 @@ btn.onclick = function(e) {
 
     <div class="eq-settings-compact-body">
 
-      <div class="eq-settings-compact-card">
-        <div class="eq-settings-compact-card-title">
-          <i class="fas fa-route"></i>
-          سياسة التعيين
-        </div>
 
-        <div class="eq-settings-compact-mode">
-          <button class="toggle-btn" id="modeAnyBtn" onclick="setReadyMode('any_match')">
-            الأول في الطابور
-          </button>
-
-          <button class="toggle-btn" id="modeQueueBtn" onclick="setReadyMode('queue_priority')">
-            الأنسب للطاولة
-          </button>
-        </div>
-      </div>
 
       <div class="eq-settings-compact-card">
         <div class="eq-settings-compact-card-title">
@@ -1161,6 +1146,332 @@ btn.onclick = function(e) {
       </button>
 
       <button class="settings-close" onclick="closeSettingsModal()">
+        إغلاق
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- =========================================================
+     QUEUE RULES MODAL - قواعد الطابور
+========================================================= -->
+<div class="settings-backdrop" id="queueRulesModal" style="
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px !important;
+  box-sizing: border-box !important;
+">
+  <div class="settings-modal" style="
+    max-width: 520px;
+    width: min(520px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    padding: 0;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #FFFFFF;
+    border: 1px solid rgba(226,232,240,0.95);
+    box-shadow: 0 22px 62px rgba(15,23,42,0.26);
+    display: flex;
+    flex-direction: column;
+  ">
+
+    <style>
+      .eq-queue-rules-head {
+        background: linear-gradient(135deg, #0E146D, #060427);
+        color: #FFFFFF;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+
+      .eq-queue-rules-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .eq-queue-rules-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        background: rgba(244,210,138,0.16);
+        color: #F4D28A;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+
+      .eq-queue-rules-title {
+        font-size: 18px;
+        font-weight: 1000;
+        line-height: 1.25;
+      }
+
+      .eq-queue-rules-subtitle {
+        margin-top: 4px;
+        color: rgba(255,255,255,0.72);
+        font-size: 11.5px;
+        font-weight: 700;
+        line-height: 1.45;
+      }
+
+      .eq-queue-rules-x {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 11px;
+        background: rgba(255,255,255,0.12);
+        color: #FFFFFF;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .eq-queue-rules-body {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        flex: 1;
+        min-height: 0;
+        background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .eq-queue-policy-card {
+        border: 1px solid #E5E7EB;
+        border-radius: 16px;
+        background: #FFFFFF;
+        padding: 12px;
+        display: grid;
+        gap: 9px;
+      }
+
+      .eq-queue-policy-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .eq-queue-policy-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #0E146D;
+        font-size: 13px;
+        font-weight: 1000;
+      }
+
+      .eq-queue-policy-desc {
+        color: #475569;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1.75;
+      }
+
+      .eq-queue-policy-example {
+        background: #F8FAFC;
+        border: 1px solid #E5E7EB;
+        border-radius: 13px;
+        padding: 9px 10px;
+        color: #64748B;
+        font-size: 11.5px;
+        font-weight: 800;
+        line-height: 1.7;
+      }
+
+      .eq-queue-policy-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        width: fit-content;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #EEF2FF;
+        color: #0E146D;
+        font-size: 11px;
+        font-weight: 1000;
+      }
+
+      .eq-queue-policy-btn {
+        min-height: 36px;
+        border-radius: 12px;
+        border: 1px solid #E5E7EB;
+        background: #F8FAFC;
+        color: #334155;
+        font-weight: 1000;
+        cursor: pointer;
+        padding: 0 12px;
+        font-family: inherit;
+        white-space: nowrap;
+      }
+
+      .eq-queue-policy-btn.active {
+        background: linear-gradient(135deg, #0E146D, #060427);
+        color: #FFFFFF;
+        border-color: #0E146D;
+        box-shadow: 0 10px 22px rgba(14,20,109,0.22);
+      }
+
+      .eq-queue-rules-note {
+        background: #EEF2FF;
+        border: 1px solid rgba(14,20,109,0.12);
+        color: #334155;
+        border-radius: 15px;
+        padding: 10px 12px;
+        font-size: 11.5px;
+        font-weight: 800;
+        line-height: 1.65;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
+      .eq-queue-rules-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 11px 12px 12px;
+        background: #F8FAFC;
+        border-top: 1px solid #E5E7EB;
+        flex-shrink: 0;
+      }
+
+      .eq-queue-rules-actions .settings-save,
+      .eq-queue-rules-actions .settings-close {
+        min-height: 42px;
+        border-radius: 13px;
+        font-weight: 1000;
+      }
+
+      @media (max-width: 560px) {
+        .eq-queue-policy-top {
+          align-items: stretch;
+          flex-direction: column;
+        }
+
+        .eq-queue-policy-btn {
+          width: 100%;
+        }
+
+        .eq-queue-rules-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+
+    <div class="eq-queue-rules-head">
+      <div class="eq-queue-rules-title-wrap">
+        <div class="eq-queue-rules-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+
+        <div>
+          <div class="eq-queue-rules-title">
+            قواعد الطابور
+          </div>
+          <div class="eq-queue-rules-subtitle">
+            اختر طريقة السماح بالتعيين اليدوي عند توفر الطاولات
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="eq-queue-rules-x" onclick="closeQueueRulesModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="eq-queue-rules-body">
+
+      <div class="eq-queue-policy-card">
+        <div class="eq-queue-policy-top">
+          <div class="eq-queue-policy-title">
+            <i class="fas fa-shield-alt"></i>
+            وضع الانضباط
+          </div>
+
+          <button
+            type="button"
+            class="eq-queue-policy-btn"
+            id="queueRulePriorityBtn"
+            onclick="setQueueReadyMode('queue_priority')"
+          >
+            اختيار
+          </button>
+        </div>
+
+        <div class="eq-queue-policy-tag">
+          <i class="fas fa-user-check"></i>
+          سحب البطاقة الذهبية فقط
+        </div>
+
+        <div class="eq-queue-policy-desc">
+          يعرض النظام أول عميل جاهز بإطار ذهبي، ويسمح بسحب هذه البطاقة فقط للحفاظ على ترتيب الطابور وتقليل أخطاء التعيين.
+        </div>
+
+        <div class="eq-queue-policy-example">
+          مناسب للمطاعم التي تريد أن يقود النظام قرار التعيين. أكثر عدلًا وتنظيمًا، ولكن يقلل مرونة الموظف في اختيار مجموعة أكبر أو عميل آخر مناسب.
+        </div>
+      </div>
+
+      <div class="eq-queue-policy-card">
+        <div class="eq-queue-policy-top">
+          <div class="eq-queue-policy-title">
+            <i class="fas fa-hand-pointer"></i>
+            وضع المرونة
+          </div>
+
+          <button
+            type="button"
+            class="eq-queue-policy-btn"
+            id="queueRuleAnyBtn"
+            onclick="setQueueReadyMode('any_match')"
+          >
+            اختيار
+          </button>
+        </div>
+
+        <div class="eq-queue-policy-tag">
+          <i class="fas fa-arrows-alt"></i>
+          سحب أي بطاقة مناسبة
+        </div>
+
+        <div class="eq-queue-policy-desc">
+          يقترح النظام أول عميل جاهز بإطار ذهبي، لكن يسمح للموظف بسحب أي بطاقة أخرى يدويًا إذا كانت مناسبة للطاولة.
+        </div>
+
+        <div class="eq-queue-policy-example">
+          مناسب وقت الزحام أو عندما يريد الموظف اختيار مجموعة أكبر أو استغلال الطاولات بطريقة أفضل. يعطي مرونة أعلى، و يحتاج موظفًا واعيًا حتى لا يخل بترتيب الطابور.
+        </div>
+      </div>
+
+      <div class="eq-queue-rules-note">
+        <i class="fas fa-circle-info" style="color:#0E146D; margin-top:4px;"></i>
+        <span>
+          في الوضعين يظهر الإطار الذهبي على أول عميل جاهز فقط، وزر التعيين التلقائي يعيّن العميل الجاهز الأول. الفرق فقط في السماح أو منع السحب اليدوي لغير البطاقة الذهبية.
+        </span>
+      </div>
+
+    </div>
+
+    <div class="settings-actions eq-queue-rules-actions">
+      <button class="settings-save" onclick="saveQueueRulesSettings()">
+        <i class="fas fa-save"></i>
+        حفظ
+      </button>
+
+      <button class="settings-close" onclick="closeQueueRulesModal()">
         إغلاق
       </button>
     </div>

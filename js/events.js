@@ -429,10 +429,20 @@ function clearSelection() {
 }
 
 function selectWaiting(id, size) {
+  const isStrictQueueMode = (settings?.ready_mode || 'any_match') === 'queue_priority';
+  const selectedCard = document.querySelector(`.waiting-card[data-request-id="${id}"]`);
+
+  if (isStrictQueueMode && selectedCard && !selectedCard.classList.contains('ready')) {
+    showAlert('وضع الانضباط مفعّل: يمكن اختيار العميل الجاهز الأول فقط.');
+    clearSelection();
+    return;
+  }
+
   if (selectedRequestId === id) {
     clearSelection();
     return;
   }
+
   selectedRequestId = id;
   selectedPartySize = size;
   draggedRequestId = null;
@@ -442,7 +452,6 @@ function selectWaiting(id, size) {
     card.classList.remove('selected');
   });
   
-  const selectedCard = document.querySelector(`.waiting-card[data-request-id="${id}"]`);
   if (selectedCard) {
     selectedCard.classList.add('selected');
   }
