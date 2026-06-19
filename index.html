@@ -306,7 +306,7 @@ btn.onclick = function(e) {
 
       <div class="eqlogin-features">
         <div class="eqlogin-feature"><span class="ic"><i class="fas fa-chair"></i></span><span>إدارة الطاولات والحجوزات بسهولة</span></div>
-        <div class="eqlogin-feature"><span class="ic"><i class="fas fa-table-list"></i></span><span>صفحة حجز أولاين للعملاء بمتابعة لحظية</span></div>
+        <div class="eqlogin-feature"><span class="ic"><i class="fas fa-table-list"></i></span><span>صفحة حجز للعملاء بمتابعة لحظية</span></div>
         <div class="eqlogin-feature"><span class="ic"><i class="fas fa-chart-line"></i></span><span>تقارير ذكية وتحليل أوقات الانتظار</span></div>
       </div>
 
@@ -354,7 +354,7 @@ btn.onclick = function(e) {
 
         <div class="eqlogin-row">
           <label class="eqlogin-remember">
-            <input type="checkbox">
+            <input type="checkbox" id="rememberLogin">
             <span>تذكرني</span>
           </label>
           <button type="button" id="forgotPasswordBtn" class="eqlogin-forgot" onclick="resetPassword()">نسيت كلمة المرور؟</button>
@@ -779,35 +779,392 @@ btn.onclick = function(e) {
   </div>
 </div>
 
-<div class="settings-backdrop" id="settingsModal">
-  <div class="settings-modal">
-    <div class="modal-title" id="settingsPanelTitle">Settings</div>
-    <div class="settings-section">
-      <div class="settings-row">
-        <div class="settings-label" id="readyModeLabel">سياسة التعيين التلقائي</div>
-        <div class="toggle-group">
-          <button class="toggle-btn" id="modeAnyBtn" onclick="setReadyMode('any_match')">First (الأول في الطابور)</button>
-          <button class="toggle-btn" id="modeQueueBtn" onclick="setReadyMode('queue_priority')">Queue Fit (الأنسب)</button>
+<div class="settings-backdrop" id="settingsModal" style="
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px !important;
+  box-sizing: border-box !important;
+">
+  <div class="settings-modal" style="
+    max-width: 500px;
+    width: min(500px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    padding: 0;
+    border-radius: 20px;
+    overflow: hidden;
+    background: #FFFFFF;
+    border: 1px solid rgba(226,232,240,0.95);
+    box-shadow: 0 22px 62px rgba(15,23,42,0.26);
+    display: flex;
+    flex-direction: column;
+  ">
+
+    <style>
+      .eq-settings-compact-head {
+        background: linear-gradient(135deg, #0E146D, #060427);
+        color: #FFFFFF;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+
+      .eq-settings-compact-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .eq-settings-compact-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        background: rgba(244,210,138,0.16);
+        color: #F4D28A;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+
+      .eq-settings-compact-title {
+        font-size: 18px;
+        font-weight: 1000;
+        line-height: 1.25;
+      }
+
+      .eq-settings-compact-subtitle {
+        margin-top: 4px;
+        color: rgba(255,255,255,0.72);
+        font-size: 11.5px;
+        font-weight: 700;
+        line-height: 1.45;
+      }
+
+      .eq-settings-x-btn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 11px;
+        background: rgba(255,255,255,0.12);
+        color: #FFFFFF;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .eq-settings-compact-body {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        flex: 1;
+        min-height: 0;
+        background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .eq-settings-compact-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 16px;
+        padding: 11px;
+        display: grid;
+        gap: 9px;
+      }
+
+      .eq-settings-compact-card-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #0E146D;
+        font-size: 12.5px;
+        font-weight: 1000;
+      }
+
+      .eq-settings-compact-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 9px;
+        border-radius: 13px;
+        background: #F8FAFC;
+        border: 1px solid #E5E7EB;
+      }
+
+      .eq-settings-compact-label {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1.45;
+      }
+
+      .eq-settings-compact-label i {
+        color: #0E146D;
+        width: 14px;
+        text-align: center;
+      }
+
+      .eq-settings-compact-toggle {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        min-width: 126px;
+      }
+
+      .eq-settings-compact-toggle .toggle-btn {
+        min-height: 32px;
+        border-radius: 11px;
+        font-size: 11.5px;
+        font-weight: 1000;
+        padding: 0 9px;
+      }
+
+      .eq-settings-compact-mode {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .eq-settings-compact-mode .toggle-btn {
+        min-height: 38px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+
+      .eq-settings-compact-step .stepper {
+        height: 34px;
+        border-radius: 12px;
+      }
+
+      .eq-settings-compact-step .step-btn {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+      }
+
+      .eq-settings-compact-step .step-value {
+        min-width: 32px;
+        font-size: 12px;
+        font-weight: 1000;
+      }
+
+      .eq-settings-compact-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 11px 12px 12px;
+        background: #F8FAFC;
+        border-top: 1px solid #E5E7EB;
+        flex-shrink: 0;
+      }
+
+      .eq-settings-compact-actions .settings-save,
+      .eq-settings-compact-actions .settings-close {
+        min-height: 42px;
+        border-radius: 13px;
+        font-weight: 1000;
+      }
+
+      @media (max-width: 560px) {
+        .eq-settings-compact-row {
+          grid-template-columns: 1fr;
+        }
+
+        .eq-settings-compact-toggle {
+          min-width: 0;
+          width: 100%;
+        }
+
+        .eq-settings-compact-mode,
+        .eq-settings-compact-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+
+    <div class="eq-settings-compact-head">
+      <div class="eq-settings-compact-title-wrap">
+        <div class="eq-settings-compact-icon">
+          <i class="fas fa-bell"></i>
+        </div>
+
+        <div>
+          <div class="eq-settings-compact-title" id="settingsPanelTitle">
+            إعدادات التنبيهات والمؤقتات
+          </div>
+          <div class="eq-settings-compact-subtitle">
+            الأصوات، الاهتزاز، والمؤقتات الأساسية
+          </div>
         </div>
       </div>
+
+      <button type="button" class="eq-settings-x-btn" onclick="closeSettingsModal()">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
-    <div class="settings-section">
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-bell"></i> Ready Alert</div><div class="toggle-group"><button class="toggle-btn" id="soundOnBtn" onclick="setBoolSetting('alert_sound_enabled',true)">ON</button><button class="toggle-btn" id="soundOffBtn" onclick="setBoolSetting('alert_sound_enabled',false)">OFF</button></div></div>
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-mobile-alt"></i> Vibration</div><div class="toggle-group"><button class="toggle-btn" id="vibrationOnBtn" onclick="setBoolSetting('alert_vibration_enabled',true)">ON</button><button class="toggle-btn" id="vibrationOffBtn" onclick="setBoolSetting('alert_vibration_enabled',false)">OFF</button></div></div>
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-hourglass-end"></i> Expired Sound</div><div class="toggle-group"><button class="toggle-btn" id="expiredSoundOnBtn" onclick="setBoolSetting('expired_sound_enabled',true)">ON</button><button class="toggle-btn" id="expiredSoundOffBtn" onclick="setBoolSetting('expired_sound_enabled',false)">OFF</button></div></div>
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-mobile-alt"></i> Expired Vibration</div><div class="toggle-group"><button class="toggle-btn" id="expiredVibrationOnBtn" onclick="setBoolSetting('expired_vibration_enabled',true)">ON</button><button class="toggle-btn" id="expiredVibrationOffBtn" onclick="setBoolSetting('expired_vibration_enabled',false)">OFF</button></div></div>
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-list"></i> Expired Panel</div><div class="toggle-group"><button class="toggle-btn" id="expiredPanelOnBtn" onclick="setBoolSetting('expired_panel_enabled',true)">ON</button><button class="toggle-btn" id="expiredPanelOffBtn" onclick="setBoolSetting('expired_panel_enabled',false)">OFF</button></div></div>
+
+    <div class="eq-settings-compact-body">
+
+      <div class="eq-settings-compact-card">
+        <div class="eq-settings-compact-card-title">
+          <i class="fas fa-route"></i>
+          سياسة التعيين
+        </div>
+
+        <div class="eq-settings-compact-mode">
+          <button class="toggle-btn" id="modeAnyBtn" onclick="setReadyMode('any_match')">
+            الأول في الطابور
+          </button>
+
+          <button class="toggle-btn" id="modeQueueBtn" onclick="setReadyMode('queue_priority')">
+            الأنسب للطاولة
+          </button>
+        </div>
+      </div>
+
+      <div class="eq-settings-compact-card">
+        <div class="eq-settings-compact-card-title">
+          <i class="fas fa-volume-high"></i>
+          التنبيهات
+        </div>
+
+        <div class="eq-settings-compact-row">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-bell"></i>
+            تنبيه الجاهزية
+          </div>
+          <div class="toggle-group eq-settings-compact-toggle">
+            <button class="toggle-btn" id="soundOnBtn" onclick="setBoolSetting('alert_sound_enabled',true)">تشغيل</button>
+            <button class="toggle-btn" id="soundOffBtn" onclick="setBoolSetting('alert_sound_enabled',false)">إيقاف</button>
+          </div>
+        </div>
+
+        <div class="eq-settings-compact-row">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-mobile-alt"></i>
+            اهتزاز الجاهزية
+          </div>
+          <div class="toggle-group eq-settings-compact-toggle">
+            <button class="toggle-btn" id="vibrationOnBtn" onclick="setBoolSetting('alert_vibration_enabled',true)">تشغيل</button>
+            <button class="toggle-btn" id="vibrationOffBtn" onclick="setBoolSetting('alert_vibration_enabled',false)">إيقاف</button>
+          </div>
+        </div>
+
+        <div class="eq-settings-compact-row">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-hourglass-end"></i>
+            صوت انتهاء الحجز
+          </div>
+          <div class="toggle-group eq-settings-compact-toggle">
+            <button class="toggle-btn" id="expiredSoundOnBtn" onclick="setBoolSetting('expired_sound_enabled',true)">تشغيل</button>
+            <button class="toggle-btn" id="expiredSoundOffBtn" onclick="setBoolSetting('expired_sound_enabled',false)">إيقاف</button>
+          </div>
+        </div>
+
+        <div class="eq-settings-compact-row">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-mobile-alt"></i>
+            اهتزاز انتهاء الحجز
+          </div>
+          <div class="toggle-group eq-settings-compact-toggle">
+            <button class="toggle-btn" id="expiredVibrationOnBtn" onclick="setBoolSetting('expired_vibration_enabled',true)">تشغيل</button>
+            <button class="toggle-btn" id="expiredVibrationOffBtn" onclick="setBoolSetting('expired_vibration_enabled',false)">إيقاف</button>
+          </div>
+        </div>
+
+        <div class="eq-settings-compact-row">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-list"></i>
+            لوحة المنتهية
+          </div>
+          <div class="toggle-group eq-settings-compact-toggle">
+            <button class="toggle-btn" id="expiredPanelOnBtn" onclick="setBoolSetting('expired_panel_enabled',true)">إظهار</button>
+            <button class="toggle-btn" id="expiredPanelOffBtn" onclick="setBoolSetting('expired_panel_enabled',false)">إخفاء</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="eq-settings-compact-card">
+        <div class="eq-settings-compact-card-title">
+          <i class="fas fa-stopwatch"></i>
+          مؤقتات واعدادات 
+        </div>
+
+        <div class="eq-settings-compact-row eq-settings-compact-step">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-list-ol"></i>
+            عدد الطلبات المنتهية
+          </div>
+          <div class="stepper">
+            <button class="step-btn" onclick="changeNumberSetting('expired_list_limit',-1,1,20)">-</button>
+            <div class="step-value" id="expired_list_limit_value">5</div>
+            <button class="step-btn" onclick="changeNumberSetting('expired_list_limit',1,1,20)">+</button>
+          </div>
+        </div>
+
+        <div class="eq-settings-compact-row eq-settings-compact-step">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-clock"></i>
+            مدة الحجز
+          </div>
+          <div class="stepper">
+            <button class="step-btn" onclick="changeNumberSetting('reservation_hold_minutes',-1,1,120)">-</button>
+            <div class="step-value" id="reservation_hold_minutes_value">10</div>
+            <button class="step-btn" onclick="changeNumberSetting('reservation_hold_minutes',1,1,120)">+</button>
+          </div>
+        </div>
+
+        <div class="eq-settings-compact-row eq-settings-compact-step">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-hourglass-start"></i>
+            مدة الانتظار المؤقت
+          </div>
+          <div class="stepper">
+            <button class="step-btn" onclick="changeNumberSetting('pending_hold_minutes',-1,1,120)">-</button>
+            <div class="step-value" id="pending_hold_minutes_value">5</div>
+            <button class="step-btn" onclick="changeNumberSetting('pending_hold_minutes',1,1,120)">+</button>
+          </div>
+        </div>
+
+        <div class="eq-settings-compact-row eq-settings-compact-step">
+          <div class="eq-settings-compact-label">
+            <i class="fas fa-broom"></i>
+            مدة التنظيف
+          </div>
+          <div class="stepper">
+            <button class="step-btn" onclick="changeNumberSetting('cleaning_hold_minutes',-1,1,120)">-</button>
+            <div class="step-value" id="cleaning_hold_minutes_value">10</div>
+            <button class="step-btn" onclick="changeNumberSetting('cleaning_hold_minutes',1,1,120)">+</button>
+          </div>
+        </div>
+      </div>
+
     </div>
-    <div class="settings-section">
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-list-ol"></i> Expired Limit</div><div class="stepper"><button class="step-btn" onclick="changeNumberSetting('expired_list_limit',-1,1,20)">-</button><div class="step-value" id="expired_list_limit_value">5</div><button class="step-btn" onclick="changeNumberSetting('expired_list_limit',1,1,20)">+</button></div></div>
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-clock"></i> Reservation Hold</div><div class="stepper"><button class="step-btn" onclick="changeNumberSetting('reservation_hold_minutes',-1,1,120)">-</button><div class="step-value" id="reservation_hold_minutes_value">10</div><button class="step-btn" onclick="changeNumberSetting('reservation_hold_minutes',1,1,120)">+</button></div></div>
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-hourglass-start"></i> Pending Hold</div><div class="stepper"><button class="step-btn" onclick="changeNumberSetting('pending_hold_minutes',-1,1,120)">-</button><div class="step-value" id="pending_hold_minutes_value">5</div><button class="step-btn" onclick="changeNumberSetting('pending_hold_minutes',1,1,120)">+</button></div></div>
-      <div class="settings-row"><div class="settings-label"><i class="fas fa-broom"></i> Cleaning Hold</div><div class="stepper"><button class="step-btn" onclick="changeNumberSetting('cleaning_hold_minutes',-1,1,120)">-</button><div class="step-value" id="cleaning_hold_minutes_value">10</div><button class="step-btn" onclick="changeNumberSetting('cleaning_hold_minutes',1,1,120)">+</button></div></div>
+
+    <div class="settings-actions eq-settings-compact-actions">
+      <button class="settings-save" onclick="saveSettings()">
+        <i class="fas fa-save"></i>
+        حفظ
+      </button>
+
+      <button class="settings-close" onclick="closeSettingsModal()">
+        إغلاق
+      </button>
     </div>
-    <div class="settings-actions">
-      <button class="settings-save" onclick="saveSettings()">Save</button>
-      <button class="settings-close" onclick="closeSettingsModal()">Cancel</button>
-    </div>
+
   </div>
 </div>
 
@@ -1147,80 +1504,334 @@ btn.onclick = function(e) {
      MY ACCOUNT MODAL - حسابي
 ========================================================= -->
 <div class="modal-backdrop" id="myAccountModal">
-  <div class="modal" style="max-width: 460px;">
-    <div class="modal-title">
-      <i class="fas fa-user-cog"></i> حسابي
+  <div class="modal" style="
+    max-width: 620px;
+    width: calc(100% - 32px);
+    max-height: calc(100vh - 32px);
+    border-radius: 22px;
+    overflow: hidden;
+    padding: 0;
+    background: #FFFFFF;
+    box-shadow: 0 22px 62px rgba(15, 23, 42, 0.24);
+    border: 1px solid rgba(226, 232, 240, 0.95);
+    display: flex;
+    flex-direction: column;
+  ">
+
+    <div style="
+      background: linear-gradient(135deg, #0E146D, #060427);
+      color: #FFFFFF;
+      padding: 15px 17px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    ">
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      ">
+        <div style="
+          width: 38px;
+          height: 38px;
+          border-radius: 14px;
+          background: rgba(244, 210, 138, 0.16);
+          color: #F4D28A;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          flex-shrink: 0;
+        ">
+          <i class="fas fa-user-cog"></i>
+        </div>
+
+        <div style="min-width: 0;">
+          <div style="
+            font-size: 18px;
+            font-weight: 1000;
+            line-height: 1.2;
+          ">
+            حسابي
+          </div>
+          <div style="
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.72);
+            line-height: 1.45;
+          ">
+            تحديث الاسم الظاهر أو تغيير كلمة المرور
+          </div>
+        </div>
+      </div>
+
+      <button type="button" onclick="closeMyAccountModal()" style="
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 11px;
+        background: rgba(255,255,255,0.12);
+        color: #FFFFFF;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      ">
+        <i class="fas fa-times"></i>
+      </button>
     </div>
 
-    <div class="modal-sub">
-      تعديل بيانات حسابك الشخصي
-    </div>
+    <div style="
+      padding: 13px 14px 14px;
+      display: grid;
+      gap: 10px;
+      background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex: 1;
+      min-height: 0;
+      -webkit-overflow-scrolling: touch;
+    ">
 
-    <div class="walkin-form">
+      <div style="
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 10px;
+        padding: 11px;
+        border: 1px solid #E5E7EB;
+        border-radius: 16px;
+        background: #FFFFFF;
+      ">
+        <div style="
+          grid-column: 1 / -1;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #0E146D;
+          font-size: 13px;
+          font-weight: 1000;
+          margin-bottom: 1px;
+        ">
+          <i class="fas fa-id-card"></i>
+          بيانات الحساب
+        </div>
 
-      <div>
-        <label class="guest-label">الاسم الظاهر</label>
-        <input
-          id="myAccountDisplayName"
-          type="text"
-          class="walkin-input"
-          placeholder="الاسم الظاهر"
-          maxlength="40"
-        >
-      </div>
+        <div style="min-width: 0;">
+          <label style="
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+          ">
+            الاسم الظاهر
+          </label>
+          <input
+            id="myAccountDisplayName"
+            type="text"
+            class="walkin-input"
+            placeholder="الاسم داخل النظام"
+            maxlength="40"
+            style="
+              height: 42px;
+              width: 100%;
+              border-radius: 13px;
+              background: #F8FAFC;
+              border: 1px solid #E5E7EB;
+              font-weight: 800;
+              padding: 0 12px;
+            "
+          >
+        </div>
 
-      <div>
-        <label class="guest-label">البريد الإلكتروني</label>
-        <input
-          id="myAccountEmail"
-          type="email"
-          class="walkin-input"
-          placeholder="البريد الإلكتروني"
-          disabled
-          style="direction:ltr;text-align:left;background:#F3F4F6;color:#6B7280;"
-        >
-      </div>
+        <div style="min-width: 0;">
+          <label style="
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+          ">
+            البريد الإلكتروني
+          </label>
+          <input
+            id="myAccountEmail"
+            type="email"
+            class="walkin-input"
+            placeholder="البريد الإلكتروني"
+            disabled
+            style="
+              height: 42px;
+              width: 100%;
+              border-radius: 13px;
+              direction: ltr;
+              text-align: left;
+              background: #F1F5F9;
+              border: 1px solid #E2E8F0;
+              color: #64748B;
+              font-weight: 800;
+              cursor: not-allowed;
+              padding: 0 12px;
+            "
+          >
+        </div>
 
-      <div>
-        <label class="guest-label">كلمة المرور الجديدة</label>
-        <input
-          id="myAccountNewPassword"
-          type="password"
-          class="walkin-input"
-          placeholder="اتركها فارغة إذا لا تريد تغييرها"
-          autocomplete="new-password"
-        >
-      </div>
-
-      <div>
-        <label class="guest-label">تأكيد كلمة المرور الجديدة</label>
-        <input
-          id="myAccountConfirmPassword"
-          type="password"
-          class="walkin-input"
-          placeholder="تأكيد كلمة المرور"
-          autocomplete="new-password"
-        >
+        <div style="
+          grid-column: 1 / -1;
+          margin-top: -2px;
+          color: #94A3B8;
+          font-size: 11px;
+          font-weight: 700;
+          line-height: 1.45;
+        ">
+          البريد مرتبط بتسجيل الدخول ولا يمكن تعديله من هنا.
+        </div>
       </div>
 
       <div style="
-        background:#F8FAFC;
-        border:1px solid #E5E7EB;
-        color:#6B7280;
-        border-radius:12px;
-        padding:10px 12px;
-        font-size:12px;
-        line-height:1.7;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 10px;
+        padding: 11px;
+        border: 1px solid #E5E7EB;
+        border-radius: 16px;
+        background: #FFFFFF;
       ">
-        لا يمكن تغيير المنصب أو الصلاحيات من هنا. هذه الصفحة مخصصة لبيانات حسابك الشخصي فقط.
+        <div style="
+          grid-column: 1 / -1;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #0E146D;
+          font-size: 13px;
+          font-weight: 1000;
+          margin-bottom: 1px;
+        ">
+          <i class="fas fa-lock"></i>
+          تغيير كلمة المرور
+        </div>
+
+        <div style="
+          grid-column: 1 / -1;
+          padding: 9px 11px;
+          border-radius: 13px;
+          background: #FFFBEB;
+          border: 1px solid #FDE68A;
+          color: #92400E;
+          font-size: 11.5px;
+          font-weight: 800;
+          line-height: 1.55;
+        ">
+          اترك حقول كلمة المرور فارغة إذا كنت تريد تحديث الاسم فقط.
+        </div>
+
+        <div style="min-width: 0;">
+          <label style="
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+          ">
+            كلمة المرور الجديدة
+          </label>
+          <input
+            id="myAccountNewPassword"
+            type="password"
+            class="walkin-input"
+            placeholder="8 أحرف على الأقل"
+            autocomplete="new-password"
+            style="
+              height: 42px;
+              width: 100%;
+              border-radius: 13px;
+              background: #F8FAFC;
+              border: 1px solid #E5E7EB;
+              font-weight: 800;
+              padding: 0 12px;
+            "
+          >
+        </div>
+
+        <div style="min-width: 0;">
+          <label style="
+            display: block;
+            margin-bottom: 6px;
+            color: #334155;
+            font-size: 12px;
+            font-weight: 900;
+          ">
+            تأكيد كلمة المرور
+          </label>
+          <input
+            id="myAccountConfirmPassword"
+            type="password"
+            class="walkin-input"
+            placeholder="أعد كتابة كلمة المرور"
+            autocomplete="new-password"
+            style="
+              height: 42px;
+              width: 100%;
+              border-radius: 13px;
+              background: #F8FAFC;
+              border: 1px solid #E5E7EB;
+              font-weight: 800;
+              padding: 0 12px;
+            "
+          >
+        </div>
       </div>
 
-      <div style="display:flex; gap:12px; margin-top:8px;">
-        <button class="settings-save" onclick="saveMyAccount()" style="flex:1;">
-          حفظ
+      <div style="
+        background: #EEF2FF;
+        border: 1px solid rgba(14, 20, 109, 0.12);
+        color: #334155;
+        border-radius: 15px;
+        padding: 10px 12px;
+        font-size: 11.5px;
+        font-weight: 800;
+        line-height: 1.65;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      ">
+        <i class="fas fa-circle-info" style="color:#0E146D; margin-top:4px;"></i>
+        <span>
+          لا يمكن تغيير الدور أو الصلاحيات من هنا. هذه الصفحة مخصصة للاسم الظاهر وكلمة المرور فقط.
+        </span>
+      </div>
+
+      <div style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 0;
+        position: sticky;
+        bottom: -14px;
+        background: #F8FAFC;
+        padding-top: 9px;
+        padding-bottom: 1px;
+        z-index: 5;
+      ">
+        <button class="settings-save" onclick="saveMyAccount()" style="
+          min-height: 42px;
+          border-radius: 13px;
+          font-weight: 1000;
+        ">
+          <i class="fas fa-save"></i>
+          حفظ التغييرات
         </button>
 
-        <button class="settings-close" onclick="closeMyAccountModal()" style="flex:1;">
+        <button class="settings-close" onclick="closeMyAccountModal()" style="
+          min-height: 42px;
+          border-radius: 13px;
+          font-weight: 1000;
+        ">
           إلغاء
         </button>
       </div>
@@ -1234,7 +1845,7 @@ btn.onclick = function(e) {
 ============================================================ -->
 <div class="modal-backdrop" id="branchAccountModal">
   <div class="modal-content" style="
-    max-width: 760px;
+    max-width: 660px;
     width: calc(100% - 28px);
     max-height: calc(100vh - 28px);
     background: #FFFFFF;
@@ -2803,9 +3414,9 @@ function openRegisterModal() {
 
         .eqreg-title {
           margin: 34px 0 0;
-          font-size: 31px;
+          font-size: 25px;
           line-height: 1.65;
-          font-weight: 1000;
+          font-weight: 800;
           letter-spacing: -.4px;
         }
 
@@ -3606,7 +4217,7 @@ async function submitRegistration() {
       line-height: 1.7;
       opacity: 0;
       transform: translateY(-12px);
-      transition: opacity .42s ease, transform .42s ease;
+            transition: opacity .60s ease, transform .60s ease;
     `
 
     step.innerHTML = `
@@ -3657,10 +4268,10 @@ async function submitRegistration() {
 
     for (const step of steps) {
       addRegisterProgressStep(step.text, step.icon)
-      await delay(850)
+    await delay(1150)
     }
 
-    await delay(450)
+    await delay(700)
   }
 
   function showRegisterSideSuccess() {
@@ -3799,17 +4410,29 @@ async function submitRegistration() {
     if (submitSpinner) submitSpinner.style.display = 'none'
     if (submitBtn) submitBtn.disabled = true
 
-    await delay(1800)
-
-    closeRegisterModal()
+    await delay(1600)
 
     const loginUsername = document.getElementById('loginUsername')
     const loginPassword = document.getElementById('loginPassword')
 
     if (loginUsername) loginUsername.value = email
-    if (loginPassword) loginPassword.value = ''
+    if (loginPassword) loginPassword.value = password
 
-    showNotification('تم إنشاء الحساب بنجاح. يمكنك الآن تسجيل الدخول.', 'info')
+    showNotification('تم إنشاء الحساب بنجاح، جاري فتح لوحة المطعم...', 'info')
+
+    closeRegisterModal()
+
+    window.easyqRegisterBusy = false
+
+    setTimeout(() => {
+      if (typeof doLogin === 'function') {
+        doLogin()
+      } else {
+        showNotification('تم إنشاء الحساب، لكن تعذر تشغيل تسجيل الدخول التلقائي.', 'error')
+      }
+    }, 300)
+
+    return
 
   } catch (err) {
     restoreOriginalRegisterSide()
@@ -3824,6 +4447,7 @@ async function submitRegistration() {
   window.easyqRegisterBusy = false
 }
 
+var notificationTimeout = null
 function showNotification(message, type = 'info') {
   hideNotification()
   

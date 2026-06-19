@@ -976,73 +976,7 @@ if (themeToggleBtn) {
   }
 }
 
-// ============================================================
-// LOGOUT
-// ============================================================
 
-function logoutAndClean() {
-  currentUser = null;
-
-  // حذف بيانات تسجيل الدخول
-  localStorage.removeItem('easyq_user');
-settings = {
-  ready_mode: "any_match",
-  alert_sound_enabled: true,
-  expired_sound_enabled: true,
-  alert_vibration_enabled: true,
-  expired_vibration_enabled: true,
-  expired_panel_enabled: true,
-  expired_list_limit: 5,
-  reservation_hold_minutes: 10,
-  pending_hold_minutes: 5,
-  cleaning_hold_minutes: 10,
-  business_id: null,
-  id: null
-};
-
-settingsDraft = {};
-  // تنظيف بيانات المطعم السابق من الذاكرة
-  floorData = [];
-  waitingData = [];
-  expiredData = [];
-  cachedExpiredData = [];
-
-  // تنظيف التحديدات والحالات المؤقتة
-  selectedRequestId = null;
-  selectedPartySize = null;
-  draggedRequestId = null;
-  draggedPartySize = null;
-  selectedTableForMove = null;
-  pendingPositionUpdates = {};
-
-  // إيقاف وضع التحريك أو التعديل إن كان مفعل
-  moveModeActive = false;
-  tableEditMode = false;
-  tableDeleteMode = false;
-
-  // تنظيف لوحة الطاولات والقوائم من الواجهة
-  const floorCanvas = document.getElementById('floorCanvas');
-  if (floorCanvas) floorCanvas.innerHTML = '';
-
-  const waitingList = document.getElementById('waitingList');
-  if (waitingList) waitingList.innerHTML = '';
-
-  const expiredList = document.getElementById('expiredList');
-  if (expiredList) expiredList.innerHTML = '';
-
-  const statusSummary = document.getElementById('statusSummary');
-  if (statusSummary) statusSummary.innerHTML = '';
-
-  // إظهار شاشة تسجيل الدخول
-  const loginOverlay = document.getElementById('loginOverlay');
-  if (loginOverlay) loginOverlay.style.display = 'flex';
-
-  const loginUsername = document.getElementById('loginUsername');
-  if (loginUsername) loginUsername.value = '';
-
-  const loginPassword = document.getElementById('loginPassword');
-  if (loginPassword) loginPassword.value = '';
-}
 
 // ============================================================
 // جعل دوال السايدبار عامة وإعادة ربط الأحداث
@@ -2076,223 +2010,710 @@ window.downloadBookingPageQr = downloadBookingPageQr;
 window.printBookingPageQr = printBookingPageQr;
 
 function openBusinessProfileModal() {
-    if (!canDo('manage_business_profile')) {
+  if (!canDo('manage_business_profile')) {
     showAlert('ليس لديك صلاحية لإعداد بيانات المطعم / الفرع');
     return;
   }
+
   const canViewSupportRef = ['super_admin', 'owner', 'admin'].includes(currentUser?.role);
 
+  const supportRefBlock = canViewSupportRef ? `
+    <div class="eqbp-field eqbp-field-wide">
+      <label>معرف المطعم للدعم</label>
+      <div class="eqbp-support-row">
+        <input
+          type="text"
+          id="businessSupportRef"
+          class="business-profile-input eqbp-input"
+          readonly
+          placeholder="EQ-XXXXXX"
+          style="direction:ltr; text-align:center; font-weight:1000; letter-spacing:1px; color:#0E146D; background:#F8FAFC;"
+        >
+
+        <button type="button" class="eqbp-copy-btn" onclick="copyBusinessSupportRef()">
+          <i class="fas fa-copy"></i>
+          نسخ
+        </button>
+      </div>
+
+      <div class="eqbp-help">
+        استخدم هذا المعرف عند التواصل مع دعم EASY-Q للوصول إلى حساب المطعم بسرعة.
+      </div>
+    </div>
+  ` : '';
+
   const contentHtml = `
-    <div class="business-profile-page">
+    <style>
+      .eqbp-page {
+        direction: rtl;
+        padding: 14px;
+        background: #F5F7FF;
+      }
 
-      <div class="business-profile-grid">
+      .eqbp-shell {
+        max-width: 1120px;
+        margin: 0 auto;
+        display: grid;
+        gap: 14px;
+      }
 
-        <div class="business-profile-card">
-          <div class="business-profile-card-title">
-            <i class="fas fa-store-alt"></i>
-            بيانات المطعم / الفرع
-          </div>
+      .eqbp-hero {
+        border-radius: 22px;
+        padding: 18px 20px;
+        background: linear-gradient(135deg, #0E146D, #060427);
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        box-shadow: 0 18px 45px rgba(14,20,109,0.20);
+      }
 
-          <div class="business-profile-form">
+      .eqbp-hero-main {
+        display: flex;
+        align-items: center;
+        gap: 13px;
+        min-width: 0;
+      }
 
-            ${canViewSupportRef ? `
-              <div class="form-group">
-                <label>معرف المطعم للدعم</label>
+      .eqbp-hero-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 17px;
+        background: rgba(244,210,138,0.16);
+        color: #F4D28A;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
 
-                <div style="
-                  display: flex;
-                  gap: 8px;
-                  align-items: stretch;
-                ">
-                  <input 
-                    type="text" 
-                    id="businessSupportRef" 
-                    class="business-profile-input" 
-                    readonly
-                    placeholder="EQ-XXXXXX"
-                    style="
-                      direction: ltr;
-                      text-align: center;
-                      font-weight: 900;
-                      letter-spacing: 1px;
-                      background: #F9FAFB;
-                      color: #0E146D;
-                    "
-                  >
+      .eqbp-hero-title {
+        font-size: 22px;
+        font-weight: 1000;
+        line-height: 1.25;
+      }
 
-                  <button 
-                    type="button"
-                    onclick="copyBusinessSupportRef()"
-style="
-  border: none;
-  background: #0E146D;
-  color: #FFFFFF;
-  height: 43px;
-  padding: 0 13px;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 900;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-"
-                  >
-                    <i class="fas fa-copy"></i>
-                    نسخ
-                  </button>
-                </div>
+      .eqbp-hero-subtitle {
+        margin-top: 5px;
+        color: rgba(255,255,255,0.72);
+        font-size: 12.5px;
+        font-weight: 700;
+        line-height: 1.6;
+      }
 
-                <div style="
-                  margin-top: 7px;
-                  font-size: 11px;
-                  color: #6B7280;
-                  line-height: 1.6;
-                ">
-                  استخدم هذا المعرف عند التواصل مع دعم EASY-Q للوصول إلى حساب المطعم بسرعة.
-                </div>
+      .eqbp-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(310px, 0.75fr);
+        gap: 14px;
+        align-items: start;
+      }
+
+      .eqbp-left {
+        display: grid;
+        gap: 14px;
+      }
+
+      .eqbp-card {
+        background: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 20px;
+        padding: 15px;
+        box-shadow: 0 10px 24px rgba(15,23,42,0.045);
+      }
+
+      .eqbp-card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #0E146D;
+        font-size: 14px;
+        font-weight: 1000;
+        margin-bottom: 13px;
+      }
+
+      .eqbp-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .eqbp-field {
+        min-width: 0;
+      }
+
+      .eqbp-field-wide {
+        grid-column: 1 / -1;
+      }
+
+      .eqbp-field label {
+        display: block;
+        margin-bottom: 6px;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .eqbp-input {
+        height: 43px;
+        border-radius: 13px;
+        font-weight: 800;
+        background: #F8FAFC;
+        border: 1px solid #E5E7EB;
+      }
+
+      .eqbp-help {
+        margin-top: 6px;
+        color: #94A3B8;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1.55;
+      }
+
+      .eqbp-support-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .eqbp-copy-btn,
+      .eqbp-upload-btn,
+      .eqbp-mini-btn {
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 1000;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        font-family: inherit;
+      }
+
+      .eqbp-copy-btn {
+        height: 43px;
+        padding: 0 13px;
+        color: #FFFFFF;
+        background: #0E146D;
+      }
+
+      .eqbp-logo-card {
+        position: sticky;
+        top: 12px;
+      }
+
+      .eqbp-logo-box {
+        border-radius: 20px;
+        background:
+          radial-gradient(circle at top, rgba(244,210,138,0.16), transparent 48%),
+          linear-gradient(180deg, #F8FAFC, #FFFFFF);
+        border: 1px solid #E5E7EB;
+        padding: 18px;
+        text-align: center;
+      }
+
+      .eqbp-logo-circle {
+        width: 136px;
+        height: 136px;
+        border-radius: 50%;
+        margin: 0 auto;
+        position: relative;
+        background: #EEF2FF;
+        border: 4px solid #FFFFFF;
+        box-shadow: 0 14px 32px rgba(14,20,109,0.18);
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #0E146D;
+        font-size: 42px;
+      }
+
+      .eqbp-logo-circle img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+      }
+
+      .eqbp-logo-overlay {
+        position: absolute;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 7px;
+        background: rgba(6,4,39,0.68);
+        color: #FFFFFF;
+        font-size: 12px;
+        font-weight: 1000;
+        z-index: 3;
+      }
+
+      .eqbp-logo-spinner {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        border: 4px solid rgba(255,255,255,0.25);
+        border-top-color: #F4D28A;
+        animation: eqbpSpin 0.8s linear infinite;
+      }
+
+      @keyframes eqbpSpin {
+        to { transform: rotate(360deg); }
+      }
+
+      .eqbp-upload-status {
+        min-height: 20px;
+        margin-top: 10px;
+        color: #64748B;
+        font-size: 12px;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+      }
+
+      .eqbp-inline-spinner {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        border: 3px solid rgba(14,20,109,0.16);
+        border-top-color: #0E146D;
+        animation: eqbpSpin 0.8s linear infinite;
+      }
+
+      .eqbp-upload-btn {
+        width: 100%;
+        height: 44px;
+        margin-top: 13px;
+        color: #FFFFFF;
+        background: linear-gradient(135deg, #0E146D, #060427);
+      }
+
+      .eqbp-logo-note {
+        margin-top: 12px;
+        color: #64748B;
+        font-size: 11.5px;
+        font-weight: 800;
+        line-height: 1.65;
+      }
+
+      .eqbp-actions {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        background: #F8FAFC;
+        border: 1px solid #E5E7EB;
+        border-radius: 18px;
+        padding: 12px;
+      }
+
+      .eqbp-save-btn,
+      .eqbp-close-btn {
+        min-height: 44px;
+        border-radius: 13px;
+        border: none;
+        font-weight: 1000;
+        cursor: pointer;
+        font-family: inherit;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .eqbp-save-btn {
+        background: linear-gradient(135deg, #0E146D, #060427);
+        color: #FFFFFF;
+      }
+
+      .eqbp-close-btn {
+        background: #EEF2FF;
+        color: #0E146D;
+        padding: 0 18px;
+      }
+
+      .eqbp-cropper-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1000000;
+        background: rgba(7, 2, 25, 0.68);
+        backdrop-filter: blur(8px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+
+      .eqbp-cropper-card {
+        width: min(420px, 100%);
+        background: #FFFFFF;
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 28px 80px rgba(0,0,0,0.36);
+        border: 1px solid rgba(226,232,240,0.9);
+      }
+
+      .eqbp-cropper-head {
+        padding: 14px 16px;
+        background: linear-gradient(135deg, #0E146D, #060427);
+        color: #FFFFFF;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .eqbp-cropper-title {
+        font-size: 15px;
+        font-weight: 1000;
+      }
+
+      .eqbp-cropper-body {
+        padding: 16px;
+        display: grid;
+        gap: 13px;
+        background: #F8FAFC;
+      }
+
+      .eqbp-canvas-wrap {
+        width: 252px;
+        height: 252px;
+        margin: 0 auto;
+        border-radius: 24px;
+        background: #111827;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+        touch-action: none;
+      }
+
+      .eqbp-canvas-wrap::after {
+        content: "";
+        position: absolute;
+        inset: 16px;
+        border-radius: 50%;
+        border: 2px dashed rgba(244,210,138,0.9);
+        pointer-events: none;
+      }
+
+      #businessLogoCropCanvas {
+        width: 252px;
+        height: 252px;
+        display: block;
+        cursor: grab;
+      }
+
+      .eqbp-cropper-range {
+        display: grid;
+        gap: 7px;
+      }
+
+      .eqbp-cropper-range label {
+        font-size: 12px;
+        font-weight: 1000;
+        color: #334155;
+      }
+
+      .eqbp-cropper-range input {
+        width: 100%;
+      }
+
+      .eqbp-cropper-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 9px;
+      }
+
+      .eqbp-cropper-actions button {
+        min-height: 42px;
+        border-radius: 13px;
+        border: none;
+        cursor: pointer;
+        font-weight: 1000;
+        font-family: inherit;
+      }
+
+      .eqbp-apply-btn {
+        background: #0E146D;
+        color: #FFFFFF;
+      }
+
+      .eqbp-reset-btn {
+        background: #EEF2FF;
+        color: #0E146D;
+      }
+
+      .eqbp-cancel-btn {
+        background: #F1F5F9;
+        color: #475569;
+      }
+
+      @media (max-width: 900px) {
+        .eqbp-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .eqbp-logo-card {
+          position: static;
+        }
+      }
+
+      @media (max-width: 620px) {
+        .eqbp-form-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .eqbp-actions {
+          grid-template-columns: 1fr;
+        }
+
+        .eqbp-close-btn {
+          width: 100%;
+        }
+      }
+    </style>
+
+    <div class="eqbp-page">
+      <div class="eqbp-shell">
+
+        <div class="eqbp-hero">
+          <div class="eqbp-hero-main">
+            <div class="eqbp-hero-icon">
+              <i class="fas fa-store"></i>
+            </div>
+            <div>
+              <div class="eqbp-hero-title">بيانات المطعم / الفرع</div>
+              <div class="eqbp-hero-subtitle">
+                عدّل الهوية الأساسية، معلومات التواصل، وشعار المطعم الذي يظهر في النظام وصفحة الحجز.
               </div>
-            ` : ''}
-
-            <div class="form-group">
-              <label>اسم المطعم</label>
-              <input type="text" id="businessProfileName" class="business-profile-input" placeholder="مثال: مطعم الأحلام">
             </div>
-
-            <div class="form-group">
-              <label>اسم الفرع</label>
-              <input type="text" id="businessProfileBranchName" class="business-profile-input" placeholder="مثال: فرع أبها الرئيسي">
-            </div>
-
-            <div class="form-group">
-              <label>المدينة</label>
-              <input type="text" id="businessProfileCity" class="business-profile-input" placeholder="مثال: أبها">
-            </div>
-
-            <div class="form-group">
-              <label>العنوان المختصر</label>
-              <input type="text" id="businessProfileAddress" class="business-profile-input" placeholder="مثال: حي النزهة - طريق الملك فهد">
-            </div>
-
-            <div class="form-group">
-              <label>رقم التواصل</label>
-              <input type="text" id="businessProfilePhone" class="business-profile-input" placeholder="مثال: 05xxxxxxxx">
-            </div>
-
-            <div class="form-group">
-              <label>البريد الإلكتروني</label>
-              <input type="email" id="businessProfileEmail" class="business-profile-input" placeholder="example@restaurant.com">
-            </div>
-
-            <div class="form-group">
-              <label>رابط خرائط Google</label>
-              <input type="text" id="businessProfileMapUrl" class="business-profile-input" placeholder="ضع رابط موقع المطعم من خرائط Google">
-            </div>
-
-            <div class="form-group">
-              <label>رابط إنستغرام</label>
-              <input type="text" id="businessProfileInstagramUrl" class="business-profile-input" placeholder="https://instagram.com/restaurant">
-            </div>
-
-            <div class="form-group">
-              <label>رابط الموقع الإلكتروني</label>
-              <input type="text" id="businessProfileWebsiteUrl" class="business-profile-input" placeholder="https://example.com">
-            </div>
-
           </div>
         </div>
 
-        <div class="business-profile-card">
-          <div class="business-profile-card-title">
-            <i class="fas fa-image"></i>
-            شعار المطعم
-          </div>
+        <div class="eqbp-grid">
 
-          <div class="business-logo-preview">
-            <div class="business-logo-circle" id="businessLogoPreviewCircle">
-              <i class="fas fa-utensils" id="businessLogoDefaultIcon"></i>
-              <img id="businessLogoPreviewImg" src="" alt="Logo" style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;">
+          <div class="eqbp-left">
+
+            <div class="eqbp-card">
+              <div class="eqbp-card-title">
+                <i class="fas fa-id-card"></i>
+                الهوية الأساسية
+              </div>
+
+              <div class="eqbp-form-grid">
+                ${supportRefBlock}
+
+                <div class="eqbp-field">
+                  <label>اسم المطعم</label>
+                  <input type="text" id="businessProfileName" class="business-profile-input eqbp-input" placeholder="مثال: مطعم الأحلام">
+                </div>
+
+                <div class="eqbp-field">
+                  <label>اسم الفرع</label>
+                  <input type="text" id="businessProfileBranchName" class="business-profile-input eqbp-input" placeholder="مثال: فرع أبها الرئيسي">
+                </div>
+
+                <div class="eqbp-field">
+                  <label>المدينة</label>
+                  <input type="text" id="businessProfileCity" class="business-profile-input eqbp-input" placeholder="مثال: أبها">
+                </div>
+
+                <div class="eqbp-field">
+                  <label>العنوان المختصر</label>
+                  <input type="text" id="businessProfileAddress" class="business-profile-input eqbp-input" placeholder="مثال: حي النزهة - طريق الملك فهد">
+                </div>
+              </div>
             </div>
 
-            <div class="business-logo-note">
-              ضع رابط الشعار الآن، ولاحقًا يمكن ربطه برفع مباشر من الجهاز.
+            <div class="eqbp-card">
+              <div class="eqbp-card-title">
+                <i class="fas fa-phone"></i>
+                التواصل والروابط
+              </div>
+
+              <div class="eqbp-form-grid">
+                <div class="eqbp-field">
+                  <label>رقم التواصل</label>
+                  <input type="text" id="businessProfilePhone" class="business-profile-input eqbp-input" placeholder="مثال: 05xxxxxxxx">
+                </div>
+
+                <div class="eqbp-field">
+                  <label>البريد الإلكتروني</label>
+                  <input type="email" id="businessProfileEmail" class="business-profile-input eqbp-input" placeholder="example@restaurant.com" style="direction:ltr; text-align:left;">
+                </div>
+
+                <div class="eqbp-field eqbp-field-wide">
+                  <label>رابط خرائط Google</label>
+                  <input type="text" id="businessProfileMapUrl" class="business-profile-input eqbp-input" placeholder="ضع رابط موقع المطعم من خرائط Google" style="direction:ltr; text-align:left;">
+                </div>
+
+                <div class="eqbp-field">
+                  <label>رابط إنستغرام</label>
+                  <input type="text" id="businessProfileInstagramUrl" class="business-profile-input eqbp-input" placeholder="https://instagram.com/restaurant" style="direction:ltr; text-align:left;">
+                </div>
+
+                <div class="eqbp-field">
+                  <label>رابط الموقع الإلكتروني</label>
+                  <input type="text" id="businessProfileWebsiteUrl" class="business-profile-input eqbp-input" placeholder="https://example.com" style="direction:ltr; text-align:left;">
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="eqbp-card eqbp-logo-card">
+            <div class="eqbp-card-title">
+              <i class="fas fa-image"></i>
+              شعار المطعم
+            </div>
+
+            <div class="eqbp-logo-box">
+              <div class="eqbp-logo-circle" id="businessLogoPreviewCircle">
+                <i class="fas fa-utensils" id="businessLogoDefaultIcon"></i>
+                <img id="businessLogoPreviewImg" src="" alt="Logo">
+
+                <div class="eqbp-logo-overlay" id="businessLogoUploadOverlay">
+                  <div class="eqbp-logo-spinner"></div>
+                  <div>جاري رفع الشعار...</div>
+                </div>
+              </div>
+
+              <div class="eqbp-upload-status" id="businessLogoUploadStatus">
+                لم يتم اختيار ملف
+              </div>
+
+              <input
+                type="file"
+                id="businessLogoFileInput"
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                style="display:none;"
+                onchange="handleBusinessLogoFileSelected(event)"
+              >
+
+              <button
+                type="button"
+                class="eqbp-upload-btn"
+                onclick="document.getElementById('businessLogoFileInput').click()"
+              >
+                <i class="fas fa-upload"></i>
+                اختيار صورة وتعديلها
+              </button>
+
+              <div class="eqbp-logo-note">
+                بعد اختيار الصورة يمكنك تكبيرها وتحريكها داخل الإطار ثم رفعها. بعد الرفع اضغط “حفظ بيانات المطعم” لتثبيت الشعار.
+              </div>
+            </div>
+
+            <div class="eqbp-field" style="margin-top:13px;">
+              <label>رابط الشعار</label>
+              <input
+                type="text"
+                id="businessProfileLogoUrl"
+                class="business-profile-input eqbp-input"
+                placeholder="https://example.com/logo.png"
+                oninput="previewBusinessLogoFromInput()"
+                style="direction:ltr; text-align:left;"
+              >
+              <div class="eqbp-help">
+                يمكنك لصق رابط مباشر أو استخدام الرفع من الجهاز.
+              </div>
             </div>
           </div>
 
-          <div class="form-group">
-<div class="form-group">
-  <label>رابط الشعار</label>
-  <input 
-    type="text" 
-    id="businessProfileLogoUrl" 
-    class="business-profile-input" 
-    placeholder="https://example.com/logo.png" 
-    oninput="previewBusinessLogoFromInput()"
-  >
-</div>
+        </div>
 
-<div class="form-group" style="margin-top: 12px;">
-  <label>أو ارفع شعار من الجهاز</label>
+        <div class="eqbp-actions">
+          <button class="eqbp-save-btn" onclick="saveBusinessProfile()">
+            <i class="fas fa-save"></i>
+            حفظ بيانات المطعم
+          </button>
 
-  <div style="display: flex; gap: 10px; align-items: center;">
-    <input 
-      type="file" 
-      id="businessLogoFileInput" 
-      accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" 
-      style="display: none;"
-      onchange="handleBusinessLogoFileSelected(event)"
-    >
-
-    <button 
-      type="button" 
-      class="business-profile-upload-btn" 
-      onclick="document.getElementById('businessLogoFileInput').click()"
-    >
-      <i class="fas fa-upload"></i>
-      اختيار شعار
-    </button>
-
-    <span id="businessLogoUploadStatus" style="font-size: 12px; color: var(--gray-500);">
-      لم يتم اختيار ملف
-    </span>
-  </div>
-
-  <div style="font-size: 11px; color: var(--gray-500); margin-top: 8px; line-height: 1.6;">
-    الصيغ المدعومة: PNG, JPG, WEBP, SVG — يفضل شعار مربع أو دائري.
-  </div>
-</div>
+          <button class="eqbp-close-btn" onclick="closeFullPagePanel()">
+            إغلاق
+          </button>
         </div>
 
       </div>
+    </div>
 
-      <div class="business-profile-actions">
-        <button class="business-profile-save-btn" onclick="saveBusinessProfile()">
-          <i class="fas fa-save"></i>
-          حفظ بيانات المطعم
-        </button>
+    <div class="eqbp-cropper-modal" id="businessLogoCropperModal">
+      <div class="eqbp-cropper-card">
+        <div class="eqbp-cropper-head">
+          <div>
+            <div class="eqbp-cropper-title">تعديل الشعار قبل الرفع</div>
+            <div style="font-size:11.5px; color:rgba(255,255,255,0.7); margin-top:4px;">
+              حرّك الصورة داخل الإطار واضبط التكبير
+            </div>
+          </div>
 
-        <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
-        إغلاق
-        </button>
+          <button type="button" class="eqbp-mini-btn" onclick="closeBusinessLogoCropper()" style="
+            width:32px;
+            height:32px;
+            background:rgba(255,255,255,0.12);
+            color:#FFFFFF;
+          ">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
 
+        <div class="eqbp-cropper-body">
+          <div class="eqbp-canvas-wrap">
+            <canvas id="businessLogoCropCanvas" width="512" height="512"></canvas>
+          </div>
+
+          <div class="eqbp-cropper-range">
+            <label>تكبير الصورة</label>
+            <input
+              type="range"
+              id="businessLogoCropZoom"
+              min="1"
+              max="3"
+              step="0.05"
+              value="1"
+              oninput="setBusinessLogoCropZoom(this.value)"
+            >
+          </div>
+
+          <div class="eqbp-cropper-actions">
+            <button type="button" class="eqbp-apply-btn" onclick="applyBusinessLogoCropAndUpload()">
+              <i class="fas fa-cloud-upload-alt"></i>
+              تطبيق ورفع
+            </button>
+
+            <button type="button" class="eqbp-reset-btn" onclick="resetBusinessLogoCropper()">
+              إعادة ضبط
+            </button>
+
+            <button type="button" class="eqbp-cancel-btn" onclick="closeBusinessLogoCropper()" style="grid-column:1 / -1;">
+              إلغاء
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   `;
 
-openFullPagePanel(
-  "بيانات المطعم / الفرع",
-  "إدارة الاسم، العنوان، الشعار، وبيانات الظهور في واجهة النظام وواجهة الحجز",
-  contentHtml
-);
+  openFullPagePanel(
+    "بيانات المطعم / الفرع",
+    "إدارة الاسم، العنوان، الشعار، وبيانات الظهور في واجهة النظام وواجهة الحجز",
+    contentHtml
+  );
 
-// إخفاء زر الإغلاق العلوي لهذه الصفحة فقط
-const closeBtn = document.querySelector(".full-page-panel-close");
-if (closeBtn) {
-  closeBtn.style.display = "none";
-}
+  const closeBtn = document.querySelector(".full-page-panel-close");
+  if (closeBtn) {
+    closeBtn.style.display = "none";
+  }
 
-loadBusinessProfile();
+  loadBusinessProfile();
 }
 
 async function loadBusinessProfile() {
@@ -2518,37 +2939,81 @@ async function loadTopbarBusinessIdentity() {
 }
 
 // ============================================================
-// BUSINESS LOGO UPLOAD
+// BUSINESS LOGO UPLOAD + CROP EDITOR
 // ============================================================
+
+let businessLogoCropState = {
+  file: null,
+  image: null,
+  objectUrl: '',
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  isDragging: false,
+  lastX: 0,
+  lastY: 0,
+  isBound: false
+};
+
+function setBusinessLogoUploading(isUploading, message = '') {
+  const overlay = document.getElementById('businessLogoUploadOverlay');
+  const statusEl = document.getElementById('businessLogoUploadStatus');
+  const fileInput = document.getElementById('businessLogoFileInput');
+
+  if (overlay) {
+    overlay.style.display = isUploading ? 'flex' : 'none';
+  }
+
+  if (fileInput) {
+    fileInput.disabled = isUploading;
+  }
+
+  if (statusEl) {
+    if (isUploading) {
+      statusEl.innerHTML = `
+        <span class="eqbp-inline-spinner"></span>
+        <span>${message || 'جاري رفع الشعار...'}</span>
+      `;
+    } else {
+      statusEl.textContent = message || 'لم يتم اختيار ملف';
+    }
+  }
+}
+
+function setBusinessLogoUploadStatus(message, type = 'normal') {
+  const statusEl = document.getElementById('businessLogoUploadStatus');
+  if (!statusEl) return;
+
+  statusEl.textContent = message || '';
+
+  if (type === 'success') {
+    statusEl.style.color = '#059669';
+  } else if (type === 'error') {
+    statusEl.style.color = '#DC2626';
+  } else {
+    statusEl.style.color = '#64748B';
+  }
+}
 
 async function handleBusinessLogoFileSelected(event) {
   const file = event.target.files && event.target.files[0];
-  const statusEl = document.getElementById("businessLogoUploadStatus");
 
   if (!file) {
-    if (statusEl) statusEl.innerText = "لم يتم اختيار ملف";
-    return;
-  }
-
-  const businessId = currentUser?.business_id;
-
-  if (!businessId) {
-    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
-    event.target.value = "";
+    setBusinessLogoUploadStatus('لم يتم اختيار ملف');
     return;
   }
 
   const allowedTypes = [
-    "image/png",
-    "image/jpeg",
-    "image/jpg",
-    "image/webp",
-    "image/svg+xml"
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/webp',
+    'image/svg+xml'
   ];
 
   if (!allowedTypes.includes(file.type)) {
-    showAlert("صيغة الشعار غير مدعومة. استخدم PNG أو JPG أو WEBP أو SVG");
-    event.target.value = "";
+    showAlert('صيغة الشعار غير مدعومة. استخدم PNG أو JPG أو WEBP أو SVG');
+    event.target.value = '';
     return;
   }
 
@@ -2557,57 +3022,347 @@ async function handleBusinessLogoFileSelected(event) {
 
   if (file.size > maxSizeBytes) {
     showAlert(`حجم الشعار كبير. الحد الأقصى ${maxSizeMB}MB`);
-    event.target.value = "";
+    event.target.value = '';
+    return;
+  }
+
+  // SVG لا يتم قصه عبر Canvas، نرفعه مباشرة كما هو
+  if (file.type === 'image/svg+xml') {
+    await uploadBusinessLogoFile(file, 'svg');
+    event.target.value = '';
+    return;
+  }
+
+  openBusinessLogoCropper(file);
+  event.target.value = '';
+}
+
+function openBusinessLogoCropper(file) {
+  const modal = document.getElementById('businessLogoCropperModal');
+  const zoomInput = document.getElementById('businessLogoCropZoom');
+
+  if (!modal) {
+    showAlert('تعذر فتح محرر الشعار');
+    return;
+  }
+
+  if (businessLogoCropState.objectUrl) {
+    URL.revokeObjectURL(businessLogoCropState.objectUrl);
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  const image = new Image();
+
+  businessLogoCropState = {
+    ...businessLogoCropState,
+    file,
+    image,
+    objectUrl,
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0,
+    isDragging: false,
+    lastX: 0,
+    lastY: 0
+  };
+
+  if (zoomInput) {
+    zoomInput.value = '1';
+  }
+
+  image.onload = function () {
+    modal.style.display = 'flex';
+    bindBusinessLogoCropperEvents();
+    drawBusinessLogoCropper();
+    setBusinessLogoUploadStatus('تم اختيار الصورة — اضبطها ثم اضغط تطبيق ورفع');
+  };
+
+  image.onerror = function () {
+    showAlert('تعذر قراءة الصورة المختارة');
+    closeBusinessLogoCropper();
+  };
+
+  image.src = objectUrl;
+}
+
+function closeBusinessLogoCropper() {
+  const modal = document.getElementById('businessLogoCropperModal');
+
+  if (modal) {
+    modal.style.display = 'none';
+  }
+
+  if (businessLogoCropState.objectUrl) {
+    URL.revokeObjectURL(businessLogoCropState.objectUrl);
+  }
+
+  businessLogoCropState.file = null;
+  businessLogoCropState.image = null;
+  businessLogoCropState.objectUrl = '';
+  businessLogoCropState.scale = 1;
+  businessLogoCropState.offsetX = 0;
+  businessLogoCropState.offsetY = 0;
+  businessLogoCropState.isDragging = false;
+}
+
+function setBusinessLogoCropZoom(value) {
+  const nextValue = Number(value);
+
+  if (!Number.isFinite(nextValue)) return;
+
+  businessLogoCropState.scale = Math.max(1, Math.min(3, nextValue));
+  drawBusinessLogoCropper();
+}
+
+function resetBusinessLogoCropper() {
+  businessLogoCropState.scale = 1;
+  businessLogoCropState.offsetX = 0;
+  businessLogoCropState.offsetY = 0;
+
+  const zoomInput = document.getElementById('businessLogoCropZoom');
+  if (zoomInput) {
+    zoomInput.value = '1';
+  }
+
+  drawBusinessLogoCropper();
+}
+
+function bindBusinessLogoCropperEvents() {
+  if (businessLogoCropState.isBound) return;
+
+  const canvas = document.getElementById('businessLogoCropCanvas');
+  if (!canvas) return;
+
+  businessLogoCropState.isBound = true;
+
+  canvas.addEventListener('pointerdown', function (event) {
+    businessLogoCropState.isDragging = true;
+    businessLogoCropState.lastX = event.clientX;
+    businessLogoCropState.lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+    canvas.style.cursor = 'grabbing';
+  });
+
+  canvas.addEventListener('pointermove', function (event) {
+    if (!businessLogoCropState.isDragging) return;
+
+    const dx = event.clientX - businessLogoCropState.lastX;
+    const dy = event.clientY - businessLogoCropState.lastY;
+
+    businessLogoCropState.lastX = event.clientX;
+    businessLogoCropState.lastY = event.clientY;
+
+    businessLogoCropState.offsetX += dx * 2;
+    businessLogoCropState.offsetY += dy * 2;
+
+    drawBusinessLogoCropper();
+  });
+
+  canvas.addEventListener('pointerup', function (event) {
+    businessLogoCropState.isDragging = false;
+    canvas.releasePointerCapture(event.pointerId);
+    canvas.style.cursor = 'grab';
+  });
+
+  canvas.addEventListener('pointercancel', function () {
+    businessLogoCropState.isDragging = false;
+    canvas.style.cursor = 'grab';
+  });
+}
+
+function getBusinessLogoDrawMetrics(canvas, image) {
+  const baseScale = Math.max(
+    canvas.width / image.naturalWidth,
+    canvas.height / image.naturalHeight
+  );
+
+  const finalScale = baseScale * businessLogoCropState.scale;
+
+  const drawWidth = image.naturalWidth * finalScale;
+  const drawHeight = image.naturalHeight * finalScale;
+
+  const x = (canvas.width - drawWidth) / 2 + businessLogoCropState.offsetX;
+  const y = (canvas.height - drawHeight) / 2 + businessLogoCropState.offsetY;
+
+  return { x, y, drawWidth, drawHeight };
+}
+
+function drawBusinessLogoCropper() {
+  const canvas = document.getElementById('businessLogoCropCanvas');
+  const image = businessLogoCropState.image;
+
+  if (!canvas || !image) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#111827';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const metrics = getBusinessLogoDrawMetrics(canvas, image);
+
+  ctx.drawImage(
+    image,
+    metrics.x,
+    metrics.y,
+    metrics.drawWidth,
+    metrics.drawHeight
+  );
+
+  // تعتيم خفيف خارج الدائرة لتوضيح مساحة الشعار النهائية
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.rect(0, 0, canvas.width, canvas.height);
+  ctx.arc(
+    canvas.width / 2,
+    canvas.height / 2,
+    canvas.width * 0.42,
+    0,
+    Math.PI * 2,
+    true
+  );
+  ctx.fill('evenodd');
+  ctx.restore();
+}
+
+async function applyBusinessLogoCropAndUpload() {
+  const previewCanvas = document.getElementById('businessLogoCropCanvas');
+  const image = businessLogoCropState.image;
+
+  if (!previewCanvas || !image) {
+    showAlert('لا توجد صورة جاهزة للرفع');
     return;
   }
 
   try {
-    if (statusEl) statusEl.innerText = "جاري رفع الشعار...";
+    // Canvas نظيف للتصدير فقط، بدون خلفية سوداء وبدون تعتيم المعاينة
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = 512;
+    exportCanvas.height = 512;
 
-    const fileExt = file.name.split(".").pop()?.toLowerCase() || "png";
-    const filePath = `${businessId}/logo-${Date.now()}.${fileExt}`;
+    const exportCtx = exportCanvas.getContext('2d');
+    if (!exportCtx) {
+      showAlert('تعذر تجهيز الصورة للرفع');
+      return;
+    }
+
+    exportCtx.clearRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+    // قص دائري شفاف: خارج الدائرة يبقى شفافًا وليس أسود
+    exportCtx.save();
+    exportCtx.beginPath();
+    exportCtx.arc(
+      exportCanvas.width / 2,
+      exportCanvas.height / 2,
+      exportCanvas.width / 2,
+      0,
+      Math.PI * 2
+    );
+    exportCtx.closePath();
+    exportCtx.clip();
+
+    const metrics = getBusinessLogoDrawMetrics(exportCanvas, image);
+
+    exportCtx.drawImage(
+      image,
+      metrics.x,
+      metrics.y,
+      metrics.drawWidth,
+      metrics.drawHeight
+    );
+
+    exportCtx.restore();
+
+    const blob = await new Promise((resolve) => {
+      exportCanvas.toBlob(resolve, 'image/png', 0.95);
+    });
+
+    if (!blob) {
+      showAlert('تعذر تجهيز الصورة للرفع');
+      return;
+    }
+
+    closeBusinessLogoCropper();
+    await uploadBusinessLogoBlob(blob, 'png');
+
+  } catch (err) {
+    console.error('❌ خطأ أثناء تجهيز الشعار:', err);
+    showAlert('حدث خطأ أثناء تجهيز الشعار: ' + err.message);
+    setBusinessLogoUploading(false, 'فشل تجهيز الصورة');
+  }
+}
+
+async function uploadBusinessLogoFile(file, fileExt = '') {
+  const ext =
+    fileExt ||
+    file.name.split('.').pop()?.toLowerCase() ||
+    'png';
+
+  await uploadBusinessLogoBlob(file, ext);
+}
+
+async function uploadBusinessLogoBlob(blob, fileExt = 'png') {
+  const businessId = currentUser?.business_id;
+
+  if (!businessId) {
+    showAlert('لم يتم العثور على مطعم المستخدم الحالي');
+    return;
+  }
+
+  try {
+    setBusinessLogoUploading(true, 'جاري رفع الشعار...');
+
+    const safeExt = String(fileExt || 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png';
+    const filePath = `${businessId}/logo-${Date.now()}.${safeExt}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("business-logos")
-      .upload(filePath, file, {
-        cacheControl: "3600",
+      .from('business-logos')
+      .upload(filePath, blob, {
+        cacheControl: '3600',
         upsert: true
       });
 
     if (uploadError) {
-      console.error("❌ خطأ رفع الشعار:", uploadError);
-      showAlert("فشل رفع الشعار: " + uploadError.message);
-      if (statusEl) statusEl.innerText = "فشل الرفع";
+      console.error('❌ خطأ رفع الشعار:', uploadError);
+      showAlert('فشل رفع الشعار: ' + uploadError.message);
+      setBusinessLogoUploading(false, 'فشل رفع الشعار');
+      setBusinessLogoUploadStatus('فشل رفع الشعار', 'error');
       return;
     }
 
     const { data: publicUrlData } = supabase.storage
-      .from("business-logos")
+      .from('business-logos')
       .getPublicUrl(filePath);
 
     const publicUrl = publicUrlData?.publicUrl;
 
     if (!publicUrl) {
-      showAlert("تم الرفع لكن لم يتم إنشاء رابط الشعار");
-      if (statusEl) statusEl.innerText = "فشل إنشاء الرابط";
+      showAlert('تم الرفع لكن لم يتم إنشاء رابط الشعار');
+      setBusinessLogoUploading(false, 'فشل إنشاء الرابط');
+      setBusinessLogoUploadStatus('فشل إنشاء الرابط', 'error');
       return;
     }
 
-    const logoInput = document.getElementById("businessProfileLogoUrl");
+    const logoInput = document.getElementById('businessProfileLogoUrl');
     if (logoInput) {
       logoInput.value = publicUrl;
     }
 
     previewBusinessLogo(publicUrl);
 
-    if (statusEl) statusEl.innerText = "تم رفع الشعار بنجاح";
+    setBusinessLogoUploading(false, 'تم رفع الشعار بنجاح');
+    setBusinessLogoUploadStatus('تم رفع الشعار بنجاح — اضغط حفظ بيانات المطعم لتثبيته', 'success');
 
-    showSuccessNotification("✅ تم رفع الشعار، اضغط حفظ بيانات المطعم لتثبيته");
+    showSuccessNotification('✅ تم رفع الشعار، اضغط حفظ بيانات المطعم لتثبيته');
 
   } catch (err) {
-    console.error("❌ خطأ غير متوقع في رفع الشعار:", err);
-    showAlert("حدث خطأ أثناء رفع الشعار: " + err.message);
-    if (statusEl) statusEl.innerText = "فشل الرفع";
+    console.error('❌ خطأ غير متوقع في رفع الشعار:', err);
+    showAlert('حدث خطأ أثناء رفع الشعار: ' + err.message);
+    setBusinessLogoUploading(false, 'فشل رفع الشعار');
+    setBusinessLogoUploadStatus('فشل رفع الشعار', 'error');
   }
 }
 

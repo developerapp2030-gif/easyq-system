@@ -1275,6 +1275,57 @@ updateTopbarUserIdentity(updatedUser);
   }
 }
 
+const EASYQ_REMEMBER_LOGIN_KEY = 'easyq_remember_login_email';
+
+function saveRememberedLogin(email, shouldRemember) {
+  if (!email) return;
+
+  if (shouldRemember) {
+    localStorage.setItem(EASYQ_REMEMBER_LOGIN_KEY, JSON.stringify({
+      email: email,
+      saved_at: new Date().toISOString()
+    }));
+  } else {
+    localStorage.removeItem(EASYQ_REMEMBER_LOGIN_KEY);
+  }
+}
+
+function getRememberedLoginEmail() {
+  try {
+    const raw = localStorage.getItem(EASYQ_REMEMBER_LOGIN_KEY);
+    if (!raw) return '';
+
+    const data = JSON.parse(raw);
+    return data?.email || '';
+  } catch (_) {
+    localStorage.removeItem(EASYQ_REMEMBER_LOGIN_KEY);
+    return '';
+  }
+}
+
+function applyRememberedLogin() {
+  const rememberedEmail = getRememberedLoginEmail();
+
+  const usernameInput = document.getElementById('loginUsername');
+  const passwordInput = document.getElementById('loginPassword');
+  const rememberCheckbox = document.getElementById('rememberLogin');
+
+  if (usernameInput && rememberedEmail) {
+    usernameInput.value = rememberedEmail;
+  }
+
+  if (passwordInput) {
+    passwordInput.value = '';
+  }
+
+  if (rememberCheckbox) {
+    rememberCheckbox.checked = !!rememberedEmail;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', applyRememberedLogin);
+window.addEventListener('load', applyRememberedLogin);
+
 function setLoginLoading(isLoading) {
   const loginBtn = document.getElementById('premiumLoginBtn');
   const loginBtnText = document.getElementById('premiumLoginBtnText');
@@ -1426,9 +1477,10 @@ window.addEventListener('focus', function () {
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
-  const errorEl = document.getElementById('loginError');
+const errorEl = document.getElementById('loginError');
 if (errorEl) {
   errorEl.classList.remove('show');
+  errorEl.style.display = '';
   errorEl.innerText = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
 }
   setLoginLoading(true);
@@ -1452,6 +1504,9 @@ if (authError) {
   setLoginLoading(false);
   return;
 }
+
+const rememberCheckbox = document.getElementById('rememberLogin');
+saveRememberedLogin(email, rememberCheckbox?.checked === true);
     
     // جلب بيانات المستخدم
 const { data: user, error: userError } = await supabase
@@ -1485,15 +1540,20 @@ if (user.is_active === false) {
 }
     
     // 🔥 الشرط هنا بعد جلب user (المكان الصحيح)
-    if (user.role === 'super_admin') {
-      currentUser = user;
-      localStorage.setItem('easyq_user', JSON.stringify(user));
-      const loginOverlay = document.getElementById('loginOverlay');
-      if (loginOverlay) loginOverlay.style.display = 'none';
-      document.body.classList.add('logged-in');
-      showSuperAdminDashboard();
-      return;
-    }
+if (user.role === 'super_admin') {
+  currentUser = user;
+  localStorage.setItem('easyq_user', JSON.stringify(user));
+
+  // إعادة زر تسجيل الدخول لحالته الطبيعية بعد نجاح دخول السوبر أدمن
+  setLoginLoading(false);
+
+  const loginOverlay = document.getElementById('loginOverlay');
+  if (loginOverlay) loginOverlay.style.display = 'none';
+
+  document.body.classList.add('logged-in');
+  showSuperAdminDashboard();
+  return;
+}
     
 // باقي الكود للمستخدمين العاديين
 await supabase.rpc('set_current_business_id', { p_business_id: user.business_id });
@@ -1576,6 +1636,9 @@ await logBusinessActivitySafe(
     login_method: 'email_password'
   }
 );
+
+// إعادة زر تسجيل الدخول لحالته الطبيعية بعد نجاح الدخول
+setLoginLoading(false);
 
 const loginOverlay = document.getElementById('loginOverlay');
 if (loginOverlay) loginOverlay.style.display = 'none';
@@ -2374,12 +2437,65 @@ async function logoutAndClean() {
   // 4. إظهار شاشة تسجيل الدخول
   const loginOverlay = document.getElementById('loginOverlay');
   if (loginOverlay) loginOverlay.style.display = 'flex';
+
+  // تأكيد إعادة زر تسجيل الدخول لحالته الطبيعية عند ظهور شاشة الدخول
+  if (typeof setLoginLoading === 'function') {
+    setLoginLoading(false);
+  }
   
-  // 5. مسح حقول الإدخال
+  // 5. مسح كلمة المرور فقط، مع إبقاء البريد إذا كان "تذكرني" مفعّلًا
   const usernameInput = document.getElementById('loginUsername');
   const passwordInput = document.getElementById('loginPassword');
-  if (usernameInput) usernameInput.value = '';
-  if (passwordInput) passwordInput.value = '';
+  const rememberCheckbox = document.getElementById('rememberLogin');
+
+  const rememberedEmail = getRememberedLoginEmail();
+
+  if (usernameInput) {
+    usernameInput.value = rememberedEmail || '';
+  }
+
+  if (passwordInput) {
+    passwordInput.value = '';
+  }
+
+  if (rememberCheckbox) {
+    rememberCheckbox.checked = !!rememberedEmail;
+  }
+
+  // إعادة تطبيق تذكرني بعد ظهور مودل الدخول لضمان عدم مسح البريد من أي كود متأخر
+  if (typeof applyRememberedLogin === 'function') {
+    applyRememberedLogin();
+    setTimeout(applyRememberedLogin, 50);
+  }
+
+  if (typeof setLoginLoading === 'function') {
+    setLoginLoading(false);
+  }
+
+  // إعادة زر تسجيل الدخول لحالته الطبيعية بعد تسجيل الخروج
+  const loginBtn = document.getElementById('premiumLoginBtn');
+  const loginBtnText = document.getElementById('premiumLoginBtnText');
+  const loginBtnSpinner = document.getElementById('premiumLoginBtnSpinner');
+  const loginError = document.getElementById('loginError');
+
+  if (loginBtn) {
+    loginBtn.disabled = false;
+    loginBtn.style.opacity = '';
+    loginBtn.style.cursor = '';
+  }
+
+  if (loginBtnText) {
+    loginBtnText.textContent = 'تسجيل الدخول';
+  }
+
+  if (loginBtnSpinner) {
+    loginBtnSpinner.style.display = 'none';
+  }
+
+  if (loginError) {
+    loginError.classList.remove('show');
+    loginError.style.display = 'none';
+  }
   
   // 6. إخفاء واجهة النظام
   document.body.classList.remove('logged-in');
@@ -6952,7 +7068,7 @@ async function logoutAndClean() {
   localStorage.removeItem('easyq_license_status');
 
   settings = {
-    ready_mode: "any_match",
+    ready_mode: 'any_match',
     alert_sound_enabled: true,
     expired_sound_enabled: true,
     alert_vibration_enabled: true,
@@ -6999,11 +7115,37 @@ async function logoutAndClean() {
 
   const usernameInput = document.getElementById('loginUsername');
   const passwordInput = document.getElementById('loginPassword');
+  const rememberCheckbox = document.getElementById('rememberLogin');
 
-  if (usernameInput) usernameInput.value = '';
-  if (passwordInput) passwordInput.value = '';
+  const rememberedEmail =
+    typeof getRememberedLoginEmail === 'function'
+      ? getRememberedLoginEmail()
+      : '';
+
+  if (usernameInput) {
+    usernameInput.value = rememberedEmail || '';
+  }
+
+  if (passwordInput) {
+    passwordInput.value = '';
+  }
+
+  if (rememberCheckbox) {
+    rememberCheckbox.checked = !!rememberedEmail;
+  }
+
+  if (typeof setLoginLoading === 'function') {
+    setLoginLoading(false);
+  }
+
+  const loginError = document.getElementById('loginError');
+  if (loginError) {
+    loginError.classList.remove('show');
+    loginError.style.display = 'none';
+  }
 
   document.body.classList.remove('logged-in');
+  document.body.classList.remove('super-admin-mode');
 
   showSuccessNotification('تم تسجيل الخروج بنجاح');
 }
