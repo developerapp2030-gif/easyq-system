@@ -1177,103 +1177,320 @@ function isBookingSettingChecked(settings, key) {
   return settings?.[key] === true ? "checked" : "";
 }
 
+function getBookingSettingsAdminLang() {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    currentLang ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function bookingSettingsAdminText(arText, enText) {
+  return getBookingSettingsAdminLang() === 'en' ? enText : arText;
+}
+
+function bookingSettingsAdminSubText(arText, enText) {
+  const otherText = getBookingSettingsAdminLang() === 'en' ? arText : enText;
+  return otherText
+    ? `<small class="booking-setting-label-translation">${otherText}</small>`
+    : "";
+}
+
 function getBookingSettingLabelTranslation(label) {
   const translations = {
+    "تنبيه الاسم مطلوب": {
+      ar: "تنبيه الاسم مطلوب",
+      en: "Name required alert"
+    },
+    "تنبيه رقم الجوال غير صحيح": {
+      ar: "تنبيه رقم الجوال غير صحيح",
+      en: "Invalid phone alert"
+    },
+    "نص جاري التحقق": {
+      ar: "نص جاري التحقق",
+      en: "Checking booking text"
+    },
+    "نص جاري الحجز": {
+      ar: "نص جاري الحجز",
+      en: "Creating booking text"
+    },
+    "نص فشل الحجز": {
+      ar: "نص فشل الحجز",
+      en: "Booking failed text"
+    },
 
-"تنبيه الاسم مطلوب": "Name required alert",
-"تنبيه رقم الجوال غير صحيح": "Invalid phone alert",
-"نص جاري التحقق": "Checking booking text",
-"نص جاري الحجز": "Creating booking text",
-"نص فشل الحجز": "Booking failed text",
+    "عنوان حقل الاسم": {
+      ar: "عنوان حقل الاسم",
+      en: "Name field label"
+    },
+    "نص داخل حقل الاسم": {
+      ar: "نص داخل حقل الاسم",
+      en: "Name field placeholder"
+    },
+    "عنوان حقل الجوال": {
+      ar: "عنوان حقل الجوال",
+      en: "Phone field label"
+    },
+    "نص داخل حقل الجوال": {
+      ar: "نص داخل حقل الجوال",
+      en: "Phone field placeholder"
+    },
+    "عنوان حقل المنطقة": {
+      ar: "عنوان حقل المنطقة",
+      en: "Zone field label"
+    },
+    "نص خيار بدون تفضيل": {
+      ar: "نص خيار بدون تفضيل",
+      en: "No preference option text"
+    },
+    "عنوان عدد الأشخاص": {
+      ar: "عنوان عدد الأشخاص",
+      en: "Party size label"
+    },
 
-"عنوان حقل الاسم": "Name field label",
-"نص داخل حقل الاسم": "Name field placeholder",
-"عنوان حقل الجوال": "Phone field label",
-"نص داخل حقل الجوال": "Phone field placeholder",
-"عنوان حقل المنطقة": "Zone field label",
-"نص خيار بدون تفضيل": "No preference option text",
-"عنوان عدد الأشخاص": "Party size label",
-    // نصوص نموذج الحجز
-    "عبارة الترحيب": "Welcome message",
-    "عبارة استعادة الحجز - البداية": "Restore booking hint - prefix",
-    "نص رابط استعادة الحجز": "Restore booking link text",
-    "عبارة استعادة الحجز - النهاية": "Restore booking hint - suffix",
-    "عنوان الطابور الحالي": "Current queue title",
-    "وصف الطابور الحالي": "Current queue description",
-    "نص زر الحجز": "Booking button text",
-    "نص زر الإشعارات": "Notification button text",
+    "عبارة الترحيب": {
+      ar: "عبارة الترحيب",
+      en: "Welcome message"
+    },
+    "عبارة استعادة الحجز - البداية": {
+      ar: "عبارة استعادة الحجز - البداية",
+      en: "Restore booking hint - prefix"
+    },
+    "نص رابط استعادة الحجز": {
+      ar: "نص رابط استعادة الحجز",
+      en: "Restore booking link text"
+    },
+    "عبارة استعادة الحجز - النهاية": {
+      ar: "عبارة استعادة الحجز - النهاية",
+      en: "Restore booking hint - suffix"
+    },
+    "عنوان الطابور الحالي": {
+      ar: "عنوان الطابور الحالي",
+      en: "Current queue title"
+    },
+    "وصف الطابور الحالي": {
+      ar: "وصف الطابور الحالي",
+      en: "Current queue description"
+    },
+    "نص زر الحجز": {
+      ar: "نص زر الحجز",
+      en: "Booking button text"
+    },
+    "نص زر الإشعارات": {
+      ar: "نص زر الإشعارات",
+      en: "Notification button text"
+    },
 
-    // نصوص صفحة المتابعة
-    "عنوان صفحة المتابعة": "Status page title",
-    "نص الحالة العادية": "Default waiting label",
-    "نص اقترب دورك": "Near turn label",
-    "نص أنت التالي": "Next turn label",
-    "نص حان دورك": "Ready title",
-    "نص طاولتك جاهزة": "Table ready text",
-    "نص طاولتك رقم جاهزة": "Table ready with number text",
-    "نص الحضور قبل انتهاء الوقت": "Ready countdown message",
-    "نص تم وصولك": "Arrived message",
-    "نص شرفت المكان": "Arrived subtitle",
-    "نص شكراً لزيارتك": "Thank you message",
-    "نص نتمنى زيارتك": "Visit again message",
-    "النص أسفل الحلقة أثناء الانتظار": "Waiting footer text",
-    "النص أسفل الحلقة عند جاهزية الطاولة": "Ready footer text",
+    "عنوان صفحة المتابعة": {
+      ar: "عنوان صفحة المتابعة",
+      en: "Status page title"
+    },
+    "نص الحالة العادية": {
+      ar: "نص الحالة العادية",
+      en: "Default waiting label"
+    },
+    "نص اقترب دورك": {
+      ar: "نص اقترب دورك",
+      en: "Near turn label"
+    },
+    "نص أنت التالي": {
+      ar: "نص أنت التالي",
+      en: "Next turn label"
+    },
+    "نص حان دورك": {
+      ar: "نص حان دورك",
+      en: "Ready title"
+    },
+    "نص طاولتك جاهزة": {
+      ar: "نص طاولتك جاهزة",
+      en: "Table ready text"
+    },
+    "نص طاولتك رقم جاهزة": {
+      ar: "نص طاولتك رقم جاهزة",
+      en: "Table ready with number text"
+    },
+    "نص الحضور قبل انتهاء الوقت": {
+      ar: "نص الحضور قبل انتهاء الوقت",
+      en: "Ready countdown message"
+    },
+    "نص تم وصولك": {
+      ar: "نص تم وصولك",
+      en: "Arrived message"
+    },
+    "نص شرفت المكان": {
+      ar: "نص شرفت المكان",
+      en: "Arrived subtitle"
+    },
+    "نص شكراً لزيارتك": {
+      ar: "نص شكراً لزيارتك",
+      en: "Thank you message"
+    },
+    "نص نتمنى زيارتك": {
+      ar: "نص نتمنى زيارتك",
+      en: "Visit again message"
+    },
+    "النص أسفل الحلقة أثناء الانتظار": {
+      ar: "النص أسفل الحلقة أثناء الانتظار",
+      en: "Waiting footer text"
+    },
+    "النص أسفل الحلقة عند جاهزية الطاولة": {
+      ar: "النص أسفل الحلقة عند جاهزية الطاولة",
+      en: "Ready footer text"
+    },
 
-    // المشاركة والرقم المرجعي
-    "عبارة مشاركة الحجز": "Share booking message",
-    "عبارة رابط المشاهدة فقط": "Guest view message",
-    "عنوان الرقم المرجعي": "Reference code label",
-    "عبارة حفظ الرقم المرجعي": "Reference save hint",
-    "نص إلغاء الحجز": "Cancel booking text",
-    "عنوان لا أستطيع الحضور": "Cannot attend title",
-    "وصف لا أستطيع الحضور": "Cannot attend description",
-    "نص زر الخروج": "Exit button text",
+    "عبارة مشاركة الحجز": {
+      ar: "عبارة مشاركة الحجز",
+      en: "Share booking message"
+    },
+    "عبارة رابط المشاهدة فقط": {
+      ar: "عبارة رابط المشاهدة فقط",
+      en: "Guest view message"
+    },
+    "عنوان الرقم المرجعي": {
+      ar: "عنوان الرقم المرجعي",
+      en: "Reference code label"
+    },
+    "عبارة حفظ الرقم المرجعي": {
+      ar: "عبارة حفظ الرقم المرجعي",
+      en: "Reference save hint"
+    },
+    "نص إلغاء الحجز": {
+      ar: "نص إلغاء الحجز",
+      en: "Cancel booking text"
+    },
+    "عنوان لا أستطيع الحضور": {
+      ar: "عنوان لا أستطيع الحضور",
+      en: "Cannot attend title"
+    },
+    "وصف لا أستطيع الحضور": {
+      ar: "وصف لا أستطيع الحضور",
+      en: "Cannot attend description"
+    },
+    "نص زر الخروج": {
+      ar: "نص زر الخروج",
+      en: "Exit button text"
+    },
 
-    // التفعيل والتعطيل
-    "تفعيل مشاركة الحجز": "Enable booking sharing",
-    "تفعيل إلغاء الحجز أثناء الانتظار": "Enable waiting cancellation",
-    "تفعيل زر لا أستطيع الحضور": "Enable cannot attend button",
-    "إظهار الطابور الحالي": "Show current queue",
-    "إظهار اختيار المنطقة": "Show zone selector",
-    "إظهار شعار المطعم": "Show restaurant logo",
-    "إظهار بيانات المطعم": "Show restaurant information",
-    "إظهار سطر استعادة الحجز": "Show restore booking hint",
-    "إظهار الرقم المرجعي": "Show reference code",
-    "إظهار زر الإشعارات": "Show notification button",
+    "تفعيل مشاركة الحجز": {
+      ar: "تفعيل مشاركة الحجز",
+      en: "Enable booking sharing"
+    },
+    "تفعيل إلغاء الحجز أثناء الانتظار": {
+      ar: "تفعيل إلغاء الحجز أثناء الانتظار",
+      en: "Enable waiting cancellation"
+    },
+    "تفعيل زر لا أستطيع الحضور": {
+      ar: "تفعيل زر لا أستطيع الحضور",
+      en: "Enable cannot attend button"
+    },
+    "إظهار الطابور الحالي": {
+      ar: "إظهار الطابور الحالي",
+      en: "Show current queue"
+    },
+    "إظهار اختيار المنطقة": {
+      ar: "إظهار اختيار المنطقة",
+      en: "Show zone selector"
+    },
+    "إظهار شعار المطعم": {
+      ar: "إظهار شعار المطعم",
+      en: "Show restaurant logo"
+    },
+    "إظهار بيانات المطعم": {
+      ar: "إظهار بيانات المطعم",
+      en: "Show restaurant information"
+    },
+    "إظهار سطر استعادة الحجز": {
+      ar: "إظهار سطر استعادة الحجز",
+      en: "Show restore booking hint"
+    },
+    "إظهار الرقم المرجعي": {
+      ar: "إظهار الرقم المرجعي",
+      en: "Show reference code"
+    },
+    "إظهار زر الإشعارات": {
+      ar: "إظهار زر الإشعارات",
+      en: "Show notification button"
+    },
 
-// الألوان
-"لون بداية الخلفية": "Background start color",
-"لون نهاية الخلفية": "Background end color",
-"اللون الرئيسي": "Primary color",
-"اللون الرئيسي الثاني": "Secondary primary color",
-"اللون الذهبي / المميز": "Accent color",
-"لون الحلقة أثناء الانتظار": "Waiting ring color",
-"لون النجاح / الجاهزية": "Success / ready color",
-"لون النص الأساسي": "Main text color",
-
-"لون خلفية رسالة الترحيب": "Welcome message background",
-"لون نص رسالة الترحيب": "Welcome message text color",
-
-"لون خلفية سطر استعادة الحجز": "Restore hint background",
-"لون نص سطر استعادة الحجز": "Restore hint text color",
-
-"لون خلفية كرت نموذج الحجز": "Booking form card background",
-"لون نصوص كرت نموذج الحجز": "Booking form card text color",
-
-"لون نص الأزرار": "Button text color"
+    "لون بداية الخلفية": {
+      ar: "لون بداية الخلفية",
+      en: "Background start color"
+    },
+    "لون نهاية الخلفية": {
+      ar: "لون نهاية الخلفية",
+      en: "Background end color"
+    },
+    "اللون الرئيسي": {
+      ar: "اللون الرئيسي",
+      en: "Primary color"
+    },
+    "اللون الرئيسي الثاني": {
+      ar: "اللون الرئيسي الثاني",
+      en: "Secondary primary color"
+    },
+    "اللون الذهبي / المميز": {
+      ar: "اللون الذهبي / المميز",
+      en: "Accent color"
+    },
+    "لون الحلقة أثناء الانتظار": {
+      ar: "لون الحلقة أثناء الانتظار",
+      en: "Waiting ring color"
+    },
+    "لون النجاح / الجاهزية": {
+      ar: "لون النجاح / الجاهزية",
+      en: "Success / ready color"
+    },
+    "لون النص الأساسي": {
+      ar: "لون النص الأساسي",
+      en: "Main text color"
+    },
+    "لون خلفية رسالة الترحيب": {
+      ar: "لون خلفية رسالة الترحيب",
+      en: "Welcome message background"
+    },
+    "لون نص رسالة الترحيب": {
+      ar: "لون نص رسالة الترحيب",
+      en: "Welcome message text color"
+    },
+    "لون خلفية سطر استعادة الحجز": {
+      ar: "لون خلفية سطر استعادة الحجز",
+      en: "Restore hint background"
+    },
+    "لون نص سطر استعادة الحجز": {
+      ar: "لون نص سطر استعادة الحجز",
+      en: "Restore hint text color"
+    },
+    "لون خلفية كرت نموذج الحجز": {
+      ar: "لون خلفية كرت نموذج الحجز",
+      en: "Booking form card background"
+    },
+    "لون نصوص كرت نموذج الحجز": {
+      ar: "لون نصوص كرت نموذج الحجز",
+      en: "Booking form card text color"
+    },
+    "لون نص الأزرار": {
+      ar: "لون نص الأزرار",
+      en: "Button text color"
+    }
   };
 
-  return translations[label] || "";
+  return translations[label] || {
+    ar: label,
+    en: label
+  };
 }
 
 function bookingSettingsTextInput(settings, key, label, placeholder = "") {
-  const labelTranslation = getBookingSettingLabelTranslation(label);
+  const labelInfo = getBookingSettingLabelTranslation(label);
 
   return `
     <div class="form-group">
       <label>
-        <span>${label}</span>
-        ${labelTranslation ? `<small class="booking-setting-label-translation">${labelTranslation}</small>` : ""}
+        <span>${bookingSettingsAdminText(labelInfo.ar, labelInfo.en)}</span>
+        ${bookingSettingsAdminSubText(labelInfo.ar, labelInfo.en)}
       </label>
 
       <input
@@ -1289,13 +1506,13 @@ function bookingSettingsTextInput(settings, key, label, placeholder = "") {
 
 function bookingSettingsColorInput(settings, key, label) {
   const safeValue = escapeBookingSetting(settings[key]);
-  const labelTranslation = getBookingSettingLabelTranslation(label);
+  const labelInfo = getBookingSettingLabelTranslation(label);
 
   return `
     <div class="form-group">
       <label>
-        <span>${label}</span>
-        ${labelTranslation ? `<small class="booking-setting-label-translation">${labelTranslation}</small>` : ""}
+        <span>${bookingSettingsAdminText(labelInfo.ar, labelInfo.en)}</span>
+        ${bookingSettingsAdminSubText(labelInfo.ar, labelInfo.en)}
       </label>
 
       <div style="display:flex; gap:10px; align-items:center;">
@@ -1329,17 +1546,18 @@ function bookingSettingsColorInput(settings, key, label) {
   `;
 }
 
-function bookingSettingsToggle(settings, key, label, hint = "") {
-  const labelTranslation = getBookingSettingLabelTranslation(label);
+function bookingSettingsToggle(settings, key, label, hint = "", hintEn = "") {
+  const labelInfo = getBookingSettingLabelTranslation(label);
+  const cleanHint = bookingSettingsAdminText(hint, hintEn || hint);
 
   return `
     <div class="booking-setting-toggle-row">
       <div>
         <div class="booking-setting-toggle-title">
-          <span>${label}</span>
-          ${labelTranslation ? `<small class="booking-setting-label-translation">${labelTranslation}</small>` : ""}
+          <span>${bookingSettingsAdminText(labelInfo.ar, labelInfo.en)}</span>
+          ${bookingSettingsAdminSubText(labelInfo.ar, labelInfo.en)}
         </div>
-        ${hint ? `<div class="booking-setting-toggle-hint">${hint}</div>` : ""}
+        ${cleanHint ? `<div class="booking-setting-toggle-hint">${cleanHint}</div>` : ""}
       </div>
 
       <label class="booking-setting-switch">
@@ -1358,7 +1576,10 @@ async function loadBookingSettingsV2ForAdmin() {
   const businessId = getBookingSettingsBusinessId();
 
   if (!businessId) {
-    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    showAlert(bookingSettingsAdminText(
+      "لم يتم العثور على مطعم المستخدم الحالي",
+      "Current user restaurant was not found"
+    ));
     return { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
   }
 
@@ -1371,7 +1592,12 @@ async function loadBookingSettingsV2ForAdmin() {
 
   if (error) {
     console.error("❌ فشل تحميل إعدادات واجهة الحجز:", error);
-    showAlert("فشل تحميل إعدادات واجهة الحجز");
+
+    showAlert(bookingSettingsAdminText(
+      "فشل تحميل إعدادات واجهة الحجز",
+      "Failed to load booking page settings"
+    ));
+
     return { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
   }
 
@@ -1391,7 +1617,10 @@ async function loadBookingSettingsV2ForAdmin() {
 }
 
 function collectBookingSettingsV2FromPanel() {
-  const next = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
+  const next = {
+    ...DEFAULT_EASYQ_BOOKING_SETTINGS,
+    ...(easyQBookingSettingsAdmin || {})
+  };
 
   Object.keys(DEFAULT_EASYQ_BOOKING_SETTINGS).forEach((key) => {
     const el = document.getElementById(`bookingSetting_${key}`);
@@ -1411,14 +1640,21 @@ async function saveBookingSettingsV2() {
   const businessId = getBookingSettingsBusinessId();
 
   if (!businessId) {
-    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    showAlert(bookingSettingsAdminText(
+      "لم يتم العثور على مطعم المستخدم الحالي",
+      "Current user restaurant was not found"
+    ));
     return;
   }
 
   const saveBtn = document.getElementById("saveBookingSettingsV2Btn");
+
   if (saveBtn) {
     saveBtn.disabled = true;
-    saveBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...`;
+    saveBtn.innerHTML = `
+      <i class="fas fa-spinner fa-spin"></i>
+      ${bookingSettingsAdminText("جاري الحفظ...", "Saving...")}
+    `;
   }
 
   const nextSettings = collectBookingSettingsV2FromPanel();
@@ -1457,21 +1693,39 @@ async function saveBookingSettingsV2() {
 
     easyQBookingSettingsAdmin = nextSettings;
     closeFullPagePanel();
-    showSuccessNotification("✅ تم حفظ إعدادات واجهة الحجز بنجاح");
+
+    showSuccessNotification(bookingSettingsAdminText(
+      "✅ تم حفظ إعدادات واجهة الحجز بنجاح",
+      "✅ Booking page settings saved successfully"
+    ));
+
   } catch (err) {
     console.error("❌ فشل حفظ إعدادات واجهة الحجز:", err);
-    showAlert("فشل حفظ إعدادات واجهة الحجز: " + err.message);
+
+    showAlert(
+      bookingSettingsAdminText(
+        "فشل حفظ إعدادات واجهة الحجز: ",
+        "Failed to save booking page settings: "
+      ) + err.message
+    );
+
   } finally {
     if (saveBtn) {
       saveBtn.disabled = false;
-      saveBtn.innerHTML = `<i class="fas fa-save"></i> حفظ الإعدادات`;
+      saveBtn.innerHTML = `
+        <i class="fas fa-save"></i>
+        ${bookingSettingsAdminText("حفظ الإعدادات", "Save Settings")}
+      `;
     }
   }
 }
 
 async function resetBookingSettingsToDefault() {
   const confirmed = confirm(
-    "هل أنت متأكد من استعادة الإعدادات الافتراضية لواجهة الحجز؟\nسيتم استبدال جميع النصوص والألوان والخيارات الحالية."
+    bookingSettingsAdminText(
+      "هل أنت متأكد من استعادة الإعدادات الافتراضية لواجهة الحجز؟\nسيتم استبدال جميع النصوص والألوان والخيارات الحالية.",
+      "Are you sure you want to restore the default booking page settings?\nAll current texts, colors, and options will be replaced."
+    )
   );
 
   if (!confirmed) return;
@@ -1479,15 +1733,21 @@ async function resetBookingSettingsToDefault() {
   const businessId = getBookingSettingsBusinessId();
 
   if (!businessId) {
-    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    showAlert(bookingSettingsAdminText(
+      "لم يتم العثور على مطعم المستخدم الحالي",
+      "Current user restaurant was not found"
+    ));
     return;
   }
 
-  const resetBtn = event?.target?.closest("button");
+  const resetBtn = document.getElementById("resetBookingSettingsV2Btn");
 
   if (resetBtn) {
     resetBtn.disabled = true;
-    resetBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> جاري الاستعادة...`;
+    resetBtn.innerHTML = `
+      <i class="fas fa-spinner fa-spin"></i>
+      ${bookingSettingsAdminText("جاري الاستعادة...", "Restoring...")}
+    `;
   }
 
   const defaultSettings = { ...DEFAULT_EASYQ_BOOKING_SETTINGS };
@@ -1529,16 +1789,31 @@ async function resetBookingSettingsToDefault() {
     const bodyEl = document.getElementById("fullPagePanelBody");
     if (bodyEl) {
       bodyEl.innerHTML = renderBookingSettingsV2Panel(defaultSettings);
+      setTimeout(renderBookingPageQr, 50);
     }
 
-    showSuccessNotification("✅ تم استعادة الإعدادات الافتراضية لواجهة الحجز");
+    showSuccessNotification(bookingSettingsAdminText(
+      "✅ تم استعادة الإعدادات الافتراضية لواجهة الحجز",
+      "✅ Default booking page settings restored"
+    ));
+
   } catch (err) {
     console.error("❌ فشل استعادة إعدادات واجهة الحجز:", err);
-    showAlert("فشل استعادة الإعدادات الافتراضية: " + err.message);
+
+    showAlert(
+      bookingSettingsAdminText(
+        "فشل استعادة الإعدادات الافتراضية: ",
+        "Failed to restore default settings: "
+      ) + err.message
+    );
+
   } finally {
     if (resetBtn) {
       resetBtn.disabled = false;
-      resetBtn.innerHTML = `<i class="fas fa-undo"></i> استعادة الاعدادت الافتراضية`;
+      resetBtn.innerHTML = `
+        <i class="fas fa-undo"></i>
+        ${bookingSettingsAdminText("استعادة الإعدادات الافتراضية", "Restore Defaults")}
+      `;
     }
   }
 }
@@ -1571,7 +1846,7 @@ function renderBookingPageQr() {
   if (typeof QRCode === "undefined") {
     qrContainer.innerHTML = `
       <div style="font-size:12px; color:#8B0000; text-align:center; line-height:1.7;">
-        مكتبة QR غير محملة
+        ${bookingSettingsAdminText("مكتبة QR غير محملة", "QR library is not loaded")}
       </div>
     `;
     return;
@@ -1591,16 +1866,28 @@ async function copyBookingPageQrUrl() {
   const bookingUrl = getBookingPageQrUrl();
 
   if (!bookingUrl) {
-    showAlert("لم يتم العثور على رابط صفحة الحجز");
+    showAlert(bookingSettingsAdminText(
+      "لم يتم العثور على رابط صفحة الحجز",
+      "Booking page link was not found"
+    ));
     return;
   }
 
   try {
     await navigator.clipboard.writeText(bookingUrl);
-    showSuccessNotification("✅ تم نسخ رابط صفحة الحجز");
+
+    showSuccessNotification(bookingSettingsAdminText(
+      "✅ تم نسخ رابط صفحة الحجز",
+      "✅ Booking page link copied"
+    ));
+
   } catch (err) {
     console.error("❌ فشل نسخ رابط صفحة الحجز:", err);
-    showAlert("فشل نسخ الرابط");
+
+    showAlert(bookingSettingsAdminText(
+      "فشل نسخ الرابط",
+      "Failed to copy link"
+    ));
   }
 }
 
@@ -1608,7 +1895,10 @@ function downloadBookingPageQr() {
   const qrContainer = document.getElementById("bookingPageQrContainer");
 
   if (!qrContainer) {
-    showAlert("لم يتم العثور على QR");
+    showAlert(bookingSettingsAdminText(
+      "لم يتم العثور على QR",
+      "QR code was not found"
+    ));
     return;
   }
 
@@ -1624,7 +1914,10 @@ function downloadBookingPageQr() {
   }
 
   if (!imageUrl) {
-    showAlert("لم يتم توليد QR بعد");
+    showAlert(bookingSettingsAdminText(
+      "لم يتم توليد QR بعد",
+      "QR code has not been generated yet"
+    ));
     return;
   }
 
@@ -1641,7 +1934,10 @@ function printBookingPageQr() {
   const qrContainer = document.getElementById("bookingPageQrContainer");
 
   if (!bookingUrl || !qrContainer) {
-    showAlert("لم يتم العثور على QR");
+    showAlert(bookingSettingsAdminText(
+      "لم يتم العثور على QR",
+      "QR code was not found"
+    ));
     return;
   }
 
@@ -1652,19 +1948,24 @@ function printBookingPageQr() {
     window.currentBusinessProfile?.name ||
     "EASY-Q";
 
+  const isEnglish = getBookingSettingsAdminLang() === "en";
+
   const printWindow = window.open("", "_blank");
 
   if (!printWindow) {
-    showAlert("المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.");
+    showAlert(bookingSettingsAdminText(
+      "المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم حاول مرة أخرى.",
+      "Popup was blocked. Please allow popups and try again."
+    ));
     return;
   }
 
   printWindow.document.write(`
     <!DOCTYPE html>
-    <html lang="ar" dir="rtl">
+    <html lang="${isEnglish ? "en" : "ar"}" dir="${isEnglish ? "ltr" : "rtl"}">
     <head>
       <meta charset="UTF-8">
-      <title>QR Code صفحة الحجز</title>
+      <title>${bookingSettingsAdminText("QR Code صفحة الحجز", "Booking Page QR Code")}</title>
       <style>
         body {
           margin: 0;
@@ -1732,7 +2033,9 @@ function printBookingPageQr() {
     <body>
       <div class="qr-print-card">
         <div class="qr-title">${businessName}</div>
-        <div class="qr-subtitle">امسح الرمز لفتح صفحة الحجز</div>
+        <div class="qr-subtitle">
+          ${bookingSettingsAdminText("امسح الرمز لفتح صفحة الحجز", "Scan the code to open the booking page")}
+        </div>
 
         <div class="qr-box">
           ${qrHtml}
@@ -1762,7 +2065,7 @@ function renderBookingSettingsV2Panel(settings) {
         <div class="business-profile-card">
           <div class="business-profile-card-title">
             <i class="fas fa-comment-dots"></i>
-            نصوص نموذج الحجز
+            ${bookingSettingsAdminText("نصوص نموذج الحجز", "Booking Form Texts")}
           </div>
 
           <div class="business-profile-form">
@@ -1792,7 +2095,7 @@ function renderBookingSettingsV2Panel(settings) {
         <div class="business-profile-card">
           <div class="business-profile-card-title">
             <i class="fas fa-list-check"></i>
-            نصوص صفحة المتابعة
+            ${bookingSettingsAdminText("نصوص صفحة المتابعة", "Status Page Texts")}
           </div>
 
           <div class="business-profile-form">
@@ -1802,7 +2105,7 @@ function renderBookingSettingsV2Panel(settings) {
             ${bookingSettingsTextInput(settings, "waiting_next_label", "نص أنت التالي")}
             ${bookingSettingsTextInput(settings, "ready_title_text", "نص حان دورك")}
             ${bookingSettingsTextInput(settings, "table_ready_text", "نص طاولتك جاهزة")}
-            ${bookingSettingsTextInput(settings, "table_ready_with_number_text", "نص طاولتك رقم جاهزة", "استخدم {table} مكان رقم الطاولة")}
+            ${bookingSettingsTextInput(settings, "table_ready_with_number_text", "نص طاولتك رقم جاهزة", bookingSettingsAdminText("استخدم {table} مكان رقم الطاولة", "Use {table} as the table number placeholder"))}
             ${bookingSettingsTextInput(settings, "ready_sub_text", "نص الحضور قبل انتهاء الوقت")}
             ${bookingSettingsTextInput(settings, "occupied_title_text", "نص تم وصولك")}
             ${bookingSettingsTextInput(settings, "occupied_sub_text", "نص شرفت المكان")}
@@ -1816,7 +2119,7 @@ function renderBookingSettingsV2Panel(settings) {
         <div class="business-profile-card">
           <div class="business-profile-card-title">
             <i class="fas fa-share-alt"></i>
-            المشاركة والرقم المرجعي
+            ${bookingSettingsAdminText("المشاركة والرقم المرجعي", "Sharing & Reference Code")}
           </div>
 
           <div class="business-profile-form">
@@ -1834,164 +2137,175 @@ function renderBookingSettingsV2Panel(settings) {
         <div class="business-profile-card">
           <div class="business-profile-card-title">
             <i class="fas fa-toggle-on"></i>
-            التفعيل والتعطيل
+            ${bookingSettingsAdminText("التفعيل والتعطيل", "Enable / Disable")}
           </div>
 
-          ${bookingSettingsToggle(settings, "share_booking_enabled", "تفعيل مشاركة الحجز", "إظهار عبارة المشاركة ورابط المشاهدة فقط.")}
-          ${bookingSettingsToggle(settings, "cancel_waiting_enabled", "تفعيل إلغاء الحجز أثناء الانتظار", "إظهار زر إلغاء الحجز قبل تعيين الطاولة.")}
-          ${bookingSettingsToggle(settings, "cannot_attend_enabled", "تفعيل زر لا أستطيع الحضور", "يظهر بعد جاهزية الطاولة لتحريرها لعميل آخر.")}
-          ${bookingSettingsToggle(settings, "show_current_queue", "إظهار الطابور الحالي", "إظهار بطاقة الطابور الحالي في نموذج الحجز.")}
-          ${bookingSettingsToggle(settings, "show_zone_selector", "إظهار اختيار المنطقة", "إذا كانت المناطق مفعلة في الفرع.")}
-          ${bookingSettingsToggle(settings, "show_business_logo", "إظهار شعار المطعم", "إظهار دائرة الشعار في صفحة الحجز.")}
-          ${bookingSettingsToggle(settings, "show_business_info", "إظهار بيانات المطعم", "اسم المطعم والفرع والمدينة والعنوان.")}
-          ${bookingSettingsToggle(settings, "show_restore_hint", "إظهار سطر استعادة الحجز", "سطر: إذا كان لديك حجز نشط اضغط هنا.")}
-          ${bookingSettingsToggle(settings, "show_reference_code", "إظهار الرقم المرجعي", "إخفاؤه لا يلغي إنشاء الرقم في قاعدة البيانات.")}
-          ${bookingSettingsToggle(settings, "show_notification_button", "إظهار زر الإشعارات", "زر تفعيل إشعارات الدور.")}
+          ${bookingSettingsToggle(settings, "share_booking_enabled", "تفعيل مشاركة الحجز", "إظهار عبارة المشاركة ورابط المشاهدة فقط.", "Show sharing text and view-only link.")}
+          ${bookingSettingsToggle(settings, "cancel_waiting_enabled", "تفعيل إلغاء الحجز أثناء الانتظار", "إظهار زر إلغاء الحجز قبل تعيين الطاولة.", "Show cancel booking button before table assignment.")}
+          ${bookingSettingsToggle(settings, "cannot_attend_enabled", "تفعيل زر لا أستطيع الحضور", "يظهر بعد جاهزية الطاولة لتحريرها لعميل آخر.", "Appears after the table is ready to free it for another customer.")}
+          ${bookingSettingsToggle(settings, "show_current_queue", "إظهار الطابور الحالي", "إظهار بطاقة الطابور الحالي في نموذج الحجز.", "Show current queue card in the booking form.")}
+          ${bookingSettingsToggle(settings, "show_zone_selector", "إظهار اختيار المنطقة", "إذا كانت المناطق مفعلة في الفرع.", "Only if zones are enabled in this branch.")}
+          ${bookingSettingsToggle(settings, "show_business_logo", "إظهار شعار المطعم", "إظهار دائرة الشعار في صفحة الحجز.", "Show the logo circle on the booking page.")}
+          ${bookingSettingsToggle(settings, "show_business_info", "إظهار بيانات المطعم", "اسم المطعم والفرع والمدينة والعنوان.", "Restaurant name, branch, city, and address.")}
+          ${bookingSettingsToggle(settings, "show_restore_hint", "إظهار سطر استعادة الحجز", "سطر: إذا كان لديك حجز نشط اضغط هنا.", "The line: If you have an active booking, click here.")}
+          ${bookingSettingsToggle(settings, "show_reference_code", "إظهار الرقم المرجعي", "إخفاؤه لا يلغي إنشاء الرقم في قاعدة البيانات.", "Hiding it does not stop generating the code in the database.")}
+          ${bookingSettingsToggle(settings, "show_notification_button", "إظهار زر الإشعارات", "زر تفعيل إشعارات الدور.", "Button for enabling queue notifications.")}
         </div>
 
         <div class="business-profile-card">
-  <div class="business-profile-card-title">
-    <i class="fas fa-qrcode"></i>
-    QR Code لصفحة الحجز
-  </div>
+          <div class="business-profile-card-title">
+            <i class="fas fa-qrcode"></i>
+            ${bookingSettingsAdminText("QR Code لصفحة الحجز", "Booking Page QR Code")}
+          </div>
 
-  <div class="business-profile-form">
+          <div class="business-profile-form">
 
-    <div class="form-group">
-      <label>
-        <span>رابط صفحة الحجز</span>
-        <small class="booking-setting-label-translation">Booking page link</small>
-      </label>
+            <div class="form-group">
+              <label>
+                <span>${bookingSettingsAdminText("رابط صفحة الحجز", "Booking page link")}</span>
+                ${bookingSettingsAdminSubText("رابط صفحة الحجز", "Booking page link")}
+              </label>
 
-      <input
-        type="text"
-        id="bookingPageQrUrl"
-        class="business-profile-input"
-        readonly
-        value="${getBookingPageQrUrl()}"
-        style="direction:ltr; text-align:left;"
-      >
-    </div>
+              <input
+                type="text"
+                id="bookingPageQrUrl"
+                class="business-profile-input"
+                readonly
+                value="${getBookingPageQrUrl()}"
+                style="direction:ltr; text-align:left;"
+              >
+            </div>
 
-    <div style="display:flex; justify-content:center; margin:16px 0;">
-      <div
-        id="bookingPageQrContainer"
-        style="
-          width:190px;
-          height:190px;
-          background:#fff;
-          border-radius:18px;
-          padding:14px;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          box-shadow:0 12px 30px rgba(0,0,0,.12);
-        "
-      ></div>
-    </div>
+            <div style="display:flex; justify-content:center; margin:16px 0;">
+              <div
+                id="bookingPageQrContainer"
+                style="
+                  width:190px;
+                  height:190px;
+                  background:#fff;
+                  border-radius:18px;
+                  padding:14px;
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  box-shadow:0 12px 30px rgba(0,0,0,.12);
+                "
+              ></div>
+            </div>
 
-    <div style="display:flex; gap:10px; flex-wrap:wrap;">
-      <button
-        type="button"
-        class="business-profile-cancel-btn"
-        onclick="copyBookingPageQrUrl()"
-        style="flex:1;"
-      >
-        <i class="fas fa-copy"></i>
-        نسخ الرابط
-      </button>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+              <button
+                type="button"
+                class="business-profile-cancel-btn"
+                onclick="copyBookingPageQrUrl()"
+                style="flex:1;"
+              >
+                <i class="fas fa-copy"></i>
+                ${bookingSettingsAdminText("نسخ الرابط", "Copy Link")}
+              </button>
 
-      <button
-        type="button"
-        class="business-profile-cancel-btn"
-        onclick="downloadBookingPageQr()"
-        style="flex:1;"
-      >
-        <i class="fas fa-download"></i>
-        تحميل QR
-      </button>
+              <button
+                type="button"
+                class="business-profile-cancel-btn"
+                onclick="downloadBookingPageQr()"
+                style="flex:1;"
+              >
+                <i class="fas fa-download"></i>
+                ${bookingSettingsAdminText("تحميل QR", "Download QR")}
+              </button>
 
-      <button
-        type="button"
-        class="business-profile-cancel-btn"
-        onclick="printBookingPageQr()"
-        style="flex:1;"
-      >
-        <i class="fas fa-print"></i>
-        طباعة
-      </button>
-    </div>
+              <button
+                type="button"
+                class="business-profile-cancel-btn"
+                onclick="printBookingPageQr()"
+                style="flex:1;"
+              >
+                <i class="fas fa-print"></i>
+                ${bookingSettingsAdminText("طباعة", "Print")}
+              </button>
+            </div>
 
-  </div>
-</div>
+          </div>
+        </div>
 
         <div class="business-profile-card">
           <div class="business-profile-card-title">
             <i class="fas fa-palette"></i>
-            ألوان صفحة الحجز
+            ${bookingSettingsAdminText("ألوان صفحة الحجز", "Booking Page Colors")}
           </div>
 
           <div class="business-profile-form">
-${bookingSettingsColorInput(settings, "page_bg_start", "لون بداية الخلفية")}
-${bookingSettingsColorInput(settings, "page_bg_end", "لون نهاية الخلفية")}
+            ${bookingSettingsColorInput(settings, "page_bg_start", "لون بداية الخلفية")}
+            ${bookingSettingsColorInput(settings, "page_bg_end", "لون نهاية الخلفية")}
 
-${bookingSettingsColorInput(settings, "primary_color", "اللون الرئيسي")}
-${bookingSettingsColorInput(settings, "primary_color_2", "اللون الرئيسي الثاني")}
-${bookingSettingsColorInput(settings, "accent_color", "اللون الذهبي / المميز")}
+            ${bookingSettingsColorInput(settings, "primary_color", "اللون الرئيسي")}
+            ${bookingSettingsColorInput(settings, "primary_color_2", "اللون الرئيسي الثاني")}
+            ${bookingSettingsColorInput(settings, "accent_color", "اللون الذهبي / المميز")}
 
-${bookingSettingsColorInput(settings, "progress_color", "لون الحلقة أثناء الانتظار")}
-${bookingSettingsColorInput(settings, "success_color", "لون النجاح / الجاهزية")}
+            ${bookingSettingsColorInput(settings, "progress_color", "لون الحلقة أثناء الانتظار")}
+            ${bookingSettingsColorInput(settings, "success_color", "لون النجاح / الجاهزية")}
 
-${bookingSettingsColorInput(settings, "text_color", "لون النص الأساسي")}
+            ${bookingSettingsColorInput(settings, "text_color", "لون النص الأساسي")}
 
-${bookingSettingsColorInput(settings, "welcome_bg_color", "لون خلفية رسالة الترحيب")}
-${bookingSettingsColorInput(settings, "welcome_text_color", "لون نص رسالة الترحيب")}
+            ${bookingSettingsColorInput(settings, "welcome_bg_color", "لون خلفية رسالة الترحيب")}
+            ${bookingSettingsColorInput(settings, "welcome_text_color", "لون نص رسالة الترحيب")}
 
-${bookingSettingsColorInput(settings, "restore_hint_bg_color", "لون خلفية سطر استعادة الحجز")}
-${bookingSettingsColorInput(settings, "restore_hint_text_color", "لون نص سطر استعادة الحجز")}
+            ${bookingSettingsColorInput(settings, "restore_hint_bg_color", "لون خلفية سطر استعادة الحجز")}
+            ${bookingSettingsColorInput(settings, "restore_hint_text_color", "لون نص سطر استعادة الحجز")}
 
-${bookingSettingsColorInput(settings, "booking_card_bg_color", "لون خلفية كرت نموذج الحجز")}
-${bookingSettingsColorInput(settings, "booking_card_text_color", "لون نصوص كرت نموذج الحجز")}
+            ${bookingSettingsColorInput(settings, "booking_card_bg_color", "لون خلفية كرت نموذج الحجز")}
+            ${bookingSettingsColorInput(settings, "booking_card_text_color", "لون نصوص كرت نموذج الحجز")}
 
-${bookingSettingsColorInput(settings, "button_text_color", "لون نص الأزرار")}
+            ${bookingSettingsColorInput(settings, "button_text_color", "لون نص الأزرار")}
           </div>
         </div>
 
-
       </div>
 
-<div class="business-profile-actions">
-  <button class="business-profile-save-btn" id="saveBookingSettingsV2Btn" onclick="saveBookingSettingsV2()">
-    <i class="fas fa-save"></i>
-    حفظ الإعدادات
-  </button>
+      <div class="business-profile-actions">
+        <button class="business-profile-save-btn" id="saveBookingSettingsV2Btn" onclick="saveBookingSettingsV2()">
+          <i class="fas fa-save"></i>
+          ${bookingSettingsAdminText("حفظ الإعدادات", "Save Settings")}
+        </button>
 
-  <button class="business-profile-cancel-btn" onclick="resetBookingSettingsToDefault()">
-    <i class="fas fa-undo"></i>
-    استعادة الاعدادت الافتراضية
-  </button>
+        <button class="business-profile-cancel-btn" id="resetBookingSettingsV2Btn" onclick="resetBookingSettingsToDefault()">
+          <i class="fas fa-undo"></i>
+          ${bookingSettingsAdminText("استعادة الإعدادات الافتراضية", "Restore Defaults")}
+        </button>
 
-  <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
-    إغلاق
-  </button>
-</div>
+        <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
+          ${bookingSettingsAdminText("إغلاق", "Close")}
+        </button>
+      </div>
 
     </div>
   `;
 }
 
 async function openBookingSettingsModal() {
-    if (!canDo('manage_booking_page')) {
-    showAlert('ليس لديك صلاحية لإعدادات واجهة الحجز');
+  if (!canDo('manage_booking_page')) {
+    showAlert(bookingSettingsAdminText(
+      'ليس لديك صلاحية لإعدادات واجهة الحجز',
+      'You do not have permission to manage the booking page settings'
+    ));
     return;
   }
+
   openFullPagePanel(
-    "إعدادات واجهة الحجز",
-    "تخصيص نصوص وألوان وخيارات صفحة الحجز الخاصة بالعملاء",
+    bookingSettingsAdminText("إعدادات واجهة الحجز", "Booking Page Settings"),
+    bookingSettingsAdminText(
+      "تخصيص نصوص وألوان وخيارات صفحة الحجز الخاصة بالعملاء",
+      "Customize customer booking page texts, colors, and options"
+    ),
     `
       <div style="text-align:center; padding:60px;">
         <i class="fas fa-spinner fa-spin" style="font-size:28px;"></i>
-        <div style="margin-top:14px;">جاري تحميل إعدادات واجهة الحجز...</div>
+        <div style="margin-top:14px;">
+          ${bookingSettingsAdminText(
+            "جاري تحميل إعدادات واجهة الحجز...",
+            "Loading booking page settings..."
+          )}
+        </div>
       </div>
     `
   );
@@ -2003,11 +2317,11 @@ async function openBookingSettingsModal() {
 
   easyQBookingSettingsAdmin = await loadBookingSettingsV2ForAdmin();
 
-const bodyEl = document.getElementById("fullPagePanelBody");
-if (bodyEl) {
-  bodyEl.innerHTML = renderBookingSettingsV2Panel(easyQBookingSettingsAdmin);
-  setTimeout(renderBookingPageQr, 50);
-}
+  const bodyEl = document.getElementById("fullPagePanelBody");
+  if (bodyEl) {
+    bodyEl.innerHTML = renderBookingSettingsV2Panel(easyQBookingSettingsAdmin);
+    setTimeout(renderBookingPageQr, 50);
+  }
 }
 
 window.openBookingSettingsModal = openBookingSettingsModal;
@@ -2018,704 +2332,394 @@ window.copyBookingPageQrUrl = copyBookingPageQrUrl;
 window.downloadBookingPageQr = downloadBookingPageQr;
 window.printBookingPageQr = printBookingPageQr;
 
+function businessProfileText(arText, enText) {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? enText : arText;
+}
+
+function applyBusinessProfilePanelPolish() {
+  let style = document.getElementById('eqBusinessProfilePolishStyle');
+
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'eqBusinessProfilePolishStyle';
+    document.head.appendChild(style);
+  }
+
+  style.textContent = `
+    .business-profile-grid {
+      align-items: stretch !important;
+    }
+
+    .business-profile-card {
+      height: 100% !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    .business-profile-form {
+      flex: 1 !important;
+    }
+
+    .business-profile-logo-card {
+      min-height: 100% !important;
+    }
+
+    .business-profile-logo-card .business-logo-preview {
+      flex: 1 !important;
+      min-height: 255px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 18px 14px !important;
+      border-radius: 18px !important;
+      background:
+        radial-gradient(circle at top, rgba(14,20,109,0.08), transparent 38%),
+        #F8FAFC !important;
+      border: 1px solid #E5E7EB !important;
+    }
+
+    .business-profile-logo-card .business-logo-circle {
+      margin-bottom: 14px !important;
+    }
+
+    .business-profile-logo-card .business-logo-note {
+      max-width: 300px !important;
+      text-align: center !important;
+      line-height: 1.7 !important;
+      font-weight: 800 !important;
+    }
+
+    .business-profile-logo-card .form-group {
+      margin-top: 12px !important;
+    }
+
+    .business-profile-upload-row {
+      display: grid !important;
+      grid-template-columns: auto minmax(0, 1fr) !important;
+      gap: 10px !important;
+      align-items: center !important;
+    }
+
+    .business-profile-upload-status {
+      min-height: 43px !important;
+      border-radius: 12px !important;
+      background: #F8FAFC !important;
+      border: 1px solid #E5E7EB !important;
+      color: #64748B !important;
+      display: flex !important;
+      align-items: center !important;
+      padding: 0 11px !important;
+      font-size: 12px !important;
+      font-weight: 850 !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+    }
+
+    .business-profile-upload-hint {
+      font-size: 11px !important;
+      color: #64748B !important;
+      margin-top: 8px !important;
+      line-height: 1.7 !important;
+      font-weight: 750 !important;
+    }
+
+    @media (max-width: 820px) {
+      .business-profile-upload-row {
+        grid-template-columns: 1fr !important;
+      }
+
+      .business-profile-upload-btn {
+        width: 100% !important;
+      }
+    }
+  `;
+}
+
 function openBusinessProfileModal() {
   if (!canDo('manage_business_profile')) {
-    showAlert('ليس لديك صلاحية لإعداد بيانات المطعم / الفرع');
+    showAlert(businessProfileText(
+      'ليس لديك صلاحية لإعداد بيانات المطعم / الفرع',
+      'You do not have permission to manage restaurant / branch details'
+    ));
     return;
   }
 
   const canViewSupportRef = ['super_admin', 'owner', 'admin'].includes(currentUser?.role);
 
-  const supportRefBlock = canViewSupportRef ? `
-    <div class="eqbp-field eqbp-field-wide">
-      <label>معرف المطعم للدعم</label>
-      <div class="eqbp-support-row">
-        <input
-          type="text"
-          id="businessSupportRef"
-          class="business-profile-input eqbp-input"
-          readonly
-          placeholder="EQ-XXXXXX"
-          style="direction:ltr; text-align:center; font-weight:1000; letter-spacing:1px; color:#0E146D; background:#F8FAFC;"
-        >
-
-        <button type="button" class="eqbp-copy-btn" onclick="copyBusinessSupportRef()">
-          <i class="fas fa-copy"></i>
-          نسخ
-        </button>
-      </div>
-
-      <div class="eqbp-help">
-        استخدم هذا المعرف عند التواصل مع دعم EASY-Q للوصول إلى حساب المطعم بسرعة.
-      </div>
-    </div>
-  ` : '';
-
   const contentHtml = `
-    <style>
-      .eqbp-page {
-        direction: rtl;
-        padding: 14px;
-        background: #F5F7FF;
-      }
+    <div class="business-profile-page">
 
-      .eqbp-shell {
-        max-width: 1120px;
-        margin: 0 auto;
-        display: grid;
-        gap: 14px;
-      }
+      <div class="business-profile-grid">
 
-      .eqbp-hero {
-        border-radius: 22px;
-        padding: 18px 20px;
-        background: linear-gradient(135deg, #0E146D, #060427);
-        color: #FFFFFF;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        box-shadow: 0 18px 45px rgba(14,20,109,0.20);
-      }
-
-      .eqbp-hero-main {
-        display: flex;
-        align-items: center;
-        gap: 13px;
-        min-width: 0;
-      }
-
-      .eqbp-hero-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 17px;
-        background: rgba(244,210,138,0.16);
-        color: #F4D28A;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        flex-shrink: 0;
-      }
-
-      .eqbp-hero-title {
-        font-size: 22px;
-        font-weight: 1000;
-        line-height: 1.25;
-      }
-
-      .eqbp-hero-subtitle {
-        margin-top: 5px;
-        color: rgba(255,255,255,0.72);
-        font-size: 12.5px;
-        font-weight: 700;
-        line-height: 1.6;
-      }
-
-      .eqbp-grid {
-        display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(310px, 0.75fr);
-        gap: 14px;
-        align-items: start;
-      }
-
-      .eqbp-left {
-        display: grid;
-        gap: 14px;
-      }
-
-      .eqbp-card {
-        background: #FFFFFF;
-        border: 1px solid #E5E7EB;
-        border-radius: 20px;
-        padding: 15px;
-        box-shadow: 0 10px 24px rgba(15,23,42,0.045);
-      }
-
-      .eqbp-card-title {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: #0E146D;
-        font-size: 14px;
-        font-weight: 1000;
-        margin-bottom: 13px;
-      }
-
-      .eqbp-form-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      .eqbp-field {
-        min-width: 0;
-      }
-
-      .eqbp-field-wide {
-        grid-column: 1 / -1;
-      }
-
-      .eqbp-field label {
-        display: block;
-        margin-bottom: 6px;
-        color: #334155;
-        font-size: 12px;
-        font-weight: 900;
-      }
-
-      .eqbp-input {
-        height: 43px;
-        border-radius: 13px;
-        font-weight: 800;
-        background: #F8FAFC;
-        border: 1px solid #E5E7EB;
-      }
-
-      .eqbp-help {
-        margin-top: 6px;
-        color: #94A3B8;
-        font-size: 11px;
-        font-weight: 700;
-        line-height: 1.55;
-      }
-
-      .eqbp-support-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 8px;
-        align-items: center;
-      }
-
-      .eqbp-copy-btn,
-      .eqbp-upload-btn,
-      .eqbp-mini-btn {
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        font-weight: 1000;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 7px;
-        font-family: inherit;
-      }
-
-      .eqbp-copy-btn {
-        height: 43px;
-        padding: 0 13px;
-        color: #FFFFFF;
-        background: #0E146D;
-      }
-
-      .eqbp-logo-card {
-        position: sticky;
-        top: 12px;
-      }
-
-      .eqbp-logo-box {
-        border-radius: 20px;
-        background:
-          radial-gradient(circle at top, rgba(244,210,138,0.16), transparent 48%),
-          linear-gradient(180deg, #F8FAFC, #FFFFFF);
-        border: 1px solid #E5E7EB;
-        padding: 18px;
-        text-align: center;
-      }
-
-      .eqbp-logo-circle {
-        width: 136px;
-        height: 136px;
-        border-radius: 50%;
-        margin: 0 auto;
-        position: relative;
-        background: #EEF2FF;
-        border: 4px solid #FFFFFF;
-        box-shadow: 0 14px 32px rgba(14,20,109,0.18);
-        overflow: hidden;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #0E146D;
-        font-size: 42px;
-      }
-
-      .eqbp-logo-circle img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: none;
-      }
-
-      .eqbp-logo-overlay {
-        position: absolute;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        flex-direction: column;
-        gap: 7px;
-        background: rgba(6,4,39,0.68);
-        color: #FFFFFF;
-        font-size: 12px;
-        font-weight: 1000;
-        z-index: 3;
-      }
-
-      .eqbp-logo-spinner {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        border: 4px solid rgba(255,255,255,0.25);
-        border-top-color: #F4D28A;
-        animation: eqbpSpin 0.8s linear infinite;
-      }
-
-      @keyframes eqbpSpin {
-        to { transform: rotate(360deg); }
-      }
-
-      .eqbp-upload-status {
-        min-height: 20px;
-        margin-top: 10px;
-        color: #64748B;
-        font-size: 12px;
-        font-weight: 900;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 7px;
-      }
-
-      .eqbp-inline-spinner {
-        width: 15px;
-        height: 15px;
-        border-radius: 50%;
-        border: 3px solid rgba(14,20,109,0.16);
-        border-top-color: #0E146D;
-        animation: eqbpSpin 0.8s linear infinite;
-      }
-
-      .eqbp-upload-btn {
-        width: 100%;
-        height: 44px;
-        margin-top: 13px;
-        color: #FFFFFF;
-        background: linear-gradient(135deg, #0E146D, #060427);
-      }
-
-      .eqbp-logo-note {
-        margin-top: 12px;
-        color: #64748B;
-        font-size: 11.5px;
-        font-weight: 800;
-        line-height: 1.65;
-      }
-
-      .eqbp-actions {
-        display: grid;
-        grid-template-columns: 1fr auto;
-        gap: 10px;
-        align-items: center;
-        background: #F8FAFC;
-        border: 1px solid #E5E7EB;
-        border-radius: 18px;
-        padding: 12px;
-      }
-
-      .eqbp-save-btn,
-      .eqbp-close-btn {
-        min-height: 44px;
-        border-radius: 13px;
-        border: none;
-        font-weight: 1000;
-        cursor: pointer;
-        font-family: inherit;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-      }
-
-      .eqbp-save-btn {
-        background: linear-gradient(135deg, #0E146D, #060427);
-        color: #FFFFFF;
-      }
-
-      .eqbp-close-btn {
-        background: #EEF2FF;
-        color: #0E146D;
-        padding: 0 18px;
-      }
-
-      .eqbp-cropper-modal {
-        position: fixed;
-        inset: 0;
-        z-index: 1000000;
-        background: rgba(7, 2, 25, 0.68);
-        backdrop-filter: blur(8px);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 16px;
-      }
-
-      .eqbp-cropper-card {
-        width: min(420px, 100%);
-        background: #FFFFFF;
-        border-radius: 22px;
-        overflow: hidden;
-        box-shadow: 0 28px 80px rgba(0,0,0,0.36);
-        border: 1px solid rgba(226,232,240,0.9);
-      }
-
-      .eqbp-cropper-head {
-        padding: 14px 16px;
-        background: linear-gradient(135deg, #0E146D, #060427);
-        color: #FFFFFF;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .eqbp-cropper-title {
-        font-size: 15px;
-        font-weight: 1000;
-      }
-
-      .eqbp-cropper-body {
-        padding: 16px;
-        display: grid;
-        gap: 13px;
-        background: #F8FAFC;
-      }
-
-      .eqbp-canvas-wrap {
-        width: 252px;
-        height: 252px;
-        margin: 0 auto;
-        border-radius: 24px;
-        background: #111827;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        position: relative;
-        touch-action: none;
-      }
-
-      .eqbp-canvas-wrap::after {
-        content: "";
-        position: absolute;
-        inset: 16px;
-        border-radius: 50%;
-        border: 2px dashed rgba(244,210,138,0.9);
-        pointer-events: none;
-      }
-
-      #businessLogoCropCanvas {
-        width: 252px;
-        height: 252px;
-        display: block;
-        cursor: grab;
-      }
-
-      .eqbp-cropper-range {
-        display: grid;
-        gap: 7px;
-      }
-
-      .eqbp-cropper-range label {
-        font-size: 12px;
-        font-weight: 1000;
-        color: #334155;
-      }
-
-      .eqbp-cropper-range input {
-        width: 100%;
-      }
-
-      .eqbp-cropper-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 9px;
-      }
-
-      .eqbp-cropper-actions button {
-        min-height: 42px;
-        border-radius: 13px;
-        border: none;
-        cursor: pointer;
-        font-weight: 1000;
-        font-family: inherit;
-      }
-
-      .eqbp-apply-btn {
-        background: #0E146D;
-        color: #FFFFFF;
-      }
-
-      .eqbp-reset-btn {
-        background: #EEF2FF;
-        color: #0E146D;
-      }
-
-      .eqbp-cancel-btn {
-        background: #F1F5F9;
-        color: #475569;
-      }
-
-      @media (max-width: 900px) {
-        .eqbp-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .eqbp-logo-card {
-          position: static;
-        }
-      }
-
-      @media (max-width: 620px) {
-        .eqbp-form-grid {
-          grid-template-columns: 1fr;
-        }
-
-        .eqbp-actions {
-          grid-template-columns: 1fr;
-        }
-
-        .eqbp-close-btn {
-          width: 100%;
-        }
-      }
-    </style>
-
-    <div class="eqbp-page">
-      <div class="eqbp-shell">
-
-        <div class="eqbp-hero">
-          <div class="eqbp-hero-main">
-            <div class="eqbp-hero-icon">
-              <i class="fas fa-store"></i>
-            </div>
-            <div>
-              <div class="eqbp-hero-title">بيانات المطعم / الفرع</div>
-              <div class="eqbp-hero-subtitle">
-                عدّل الهوية الأساسية، معلومات التواصل، وشعار المطعم الذي يظهر في النظام وصفحة الحجز.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="eqbp-grid">
-
-          <div class="eqbp-left">
-
-            <div class="eqbp-card">
-              <div class="eqbp-card-title">
-                <i class="fas fa-id-card"></i>
-                الهوية الأساسية
-              </div>
-
-              <div class="eqbp-form-grid">
-                ${supportRefBlock}
-
-                <div class="eqbp-field">
-                  <label>اسم المطعم</label>
-                  <input type="text" id="businessProfileName" class="business-profile-input eqbp-input" placeholder="مثال: مطعم الأحلام">
-                </div>
-
-                <div class="eqbp-field">
-                  <label>اسم الفرع</label>
-                  <input type="text" id="businessProfileBranchName" class="business-profile-input eqbp-input" placeholder="مثال: فرع أبها الرئيسي">
-                </div>
-
-                <div class="eqbp-field">
-                  <label>المدينة</label>
-                  <input type="text" id="businessProfileCity" class="business-profile-input eqbp-input" placeholder="مثال: أبها">
-                </div>
-
-                <div class="eqbp-field">
-                  <label>العنوان المختصر</label>
-                  <input type="text" id="businessProfileAddress" class="business-profile-input eqbp-input" placeholder="مثال: حي النزهة - طريق الملك فهد">
-                </div>
-              </div>
-            </div>
-
-            <div class="eqbp-card">
-              <div class="eqbp-card-title">
-                <i class="fas fa-phone"></i>
-                التواصل والروابط
-              </div>
-
-              <div class="eqbp-form-grid">
-                <div class="eqbp-field">
-                  <label>رقم التواصل</label>
-                  <input type="text" id="businessProfilePhone" class="business-profile-input eqbp-input" placeholder="مثال: 05xxxxxxxx">
-                </div>
-
-                <div class="eqbp-field">
-                  <label>البريد الإلكتروني</label>
-                  <input type="email" id="businessProfileEmail" class="business-profile-input eqbp-input" placeholder="example@restaurant.com" style="direction:ltr; text-align:left;">
-                </div>
-
-                <div class="eqbp-field eqbp-field-wide">
-                  <label>رابط خرائط Google</label>
-                  <input type="text" id="businessProfileMapUrl" class="business-profile-input eqbp-input" placeholder="ضع رابط موقع المطعم من خرائط Google" style="direction:ltr; text-align:left;">
-                </div>
-
-                <div class="eqbp-field">
-                  <label>رابط إنستغرام</label>
-                  <input type="text" id="businessProfileInstagramUrl" class="business-profile-input eqbp-input" placeholder="https://instagram.com/restaurant" style="direction:ltr; text-align:left;">
-                </div>
-
-                <div class="eqbp-field">
-                  <label>رابط الموقع الإلكتروني</label>
-                  <input type="text" id="businessProfileWebsiteUrl" class="business-profile-input eqbp-input" placeholder="https://example.com" style="direction:ltr; text-align:left;">
-                </div>
-              </div>
-            </div>
-
+        <div class="business-profile-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-store-alt"></i>
+            ${businessProfileText('بيانات المطعم / الفرع', 'Restaurant / Branch Details')}
           </div>
 
-          <div class="eqbp-card eqbp-logo-card">
-            <div class="eqbp-card-title">
-              <i class="fas fa-image"></i>
-              شعار المطعم
-            </div>
+          <div class="business-profile-form">
 
-            <div class="eqbp-logo-box">
-              <div class="eqbp-logo-circle" id="businessLogoPreviewCircle">
-                <i class="fas fa-utensils" id="businessLogoDefaultIcon"></i>
-                <img id="businessLogoPreviewImg" src="" alt="Logo">
+            ${canViewSupportRef ? `
+              <div class="form-group">
+                <label>${businessProfileText('معرف المطعم للدعم', 'Restaurant Support ID')}</label>
 
-                <div class="eqbp-logo-overlay" id="businessLogoUploadOverlay">
-                  <div class="eqbp-logo-spinner"></div>
-                  <div>جاري رفع الشعار...</div>
+                <div style="
+                  display: flex;
+                  gap: 8px;
+                  align-items: stretch;
+                ">
+                  <input 
+                    type="text" 
+                    id="businessSupportRef" 
+                    class="business-profile-input" 
+                    readonly
+                    placeholder="EQ-XXXXXX"
+                    style="
+                      direction: ltr;
+                      text-align: center;
+                      font-weight: 900;
+                      letter-spacing: 1px;
+                      background: #F9FAFB;
+                      color: #0E146D;
+                    "
+                  >
+
+                  <button 
+                    type="button"
+                    onclick="copyBusinessSupportRef()"
+                    style="
+                      border: none;
+                      background: #0E146D;
+                      color: #FFFFFF;
+                      height: 43px;
+                      padding: 0 13px;
+                      border-radius: 10px;
+                      cursor: pointer;
+                      font-weight: 900;
+                      white-space: nowrap;
+                      display: inline-flex;
+                      align-items: center;
+                      justify-content: center;
+                      gap: 6px;
+                    "
+                  >
+                    <i class="fas fa-copy"></i>
+                    ${businessProfileText('نسخ', 'Copy')}
+                  </button>
+                </div>
+
+                <div style="
+                  margin-top: 7px;
+                  font-size: 11px;
+                  color: #6B7280;
+                  line-height: 1.6;
+                ">
+                  ${businessProfileText(
+                    'استخدم هذا المعرف عند التواصل مع دعم EASY-Q للوصول إلى حساب المطعم بسرعة.',
+                    'Use this ID when contacting EASY-Q support to quickly access the restaurant account.'
+                  )}
                 </div>
               </div>
+            ` : ''}
 
-              <div class="eqbp-upload-status" id="businessLogoUploadStatus">
-                لم يتم اختيار ملف
-              </div>
-
-              <input
-                type="file"
-                id="businessLogoFileInput"
-                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-                style="display:none;"
-                onchange="handleBusinessLogoFileSelected(event)"
-              >
-
-              <button
-                type="button"
-                class="eqbp-upload-btn"
-                onclick="document.getElementById('businessLogoFileInput').click()"
-              >
-                <i class="fas fa-upload"></i>
-                اختيار صورة وتعديلها
-              </button>
-
-              <div class="eqbp-logo-note">
-                بعد اختيار الصورة يمكنك تكبيرها وتحريكها داخل الإطار ثم رفعها. بعد الرفع اضغط “حفظ بيانات المطعم” لتثبيت الشعار.
-              </div>
-            </div>
-
-            <div class="eqbp-field" style="margin-top:13px;">
-              <label>رابط الشعار</label>
+            <div class="form-group">
+              <label>${businessProfileText('اسم المطعم', 'Restaurant Name')}</label>
               <input
                 type="text"
-                id="businessProfileLogoUrl"
-                class="business-profile-input eqbp-input"
-                placeholder="https://example.com/logo.png"
-                oninput="previewBusinessLogoFromInput()"
-                style="direction:ltr; text-align:left;"
+                id="businessProfileName"
+                class="business-profile-input"
+                placeholder="${businessProfileText('مثال: مطعم الأحلام', 'Example: Dream Restaurant')}"
               >
-              <div class="eqbp-help">
-                يمكنك لصق رابط مباشر أو استخدام الرفع من الجهاز.
-              </div>
+            </div>
+
+            <div class="form-group">
+              <label>${businessProfileText('اسم الفرع', 'Branch Name')}</label>
+              <input
+                type="text"
+                id="businessProfileBranchName"
+                class="business-profile-input"
+                placeholder="${businessProfileText('مثال: فرع أبها الرئيسي', 'Example: Main Abha Branch')}"
+              >
+            </div>
+
+            <div class="form-group">
+              <label>${businessProfileText('المدينة', 'City')}</label>
+              <input
+                type="text"
+                id="businessProfileCity"
+                class="business-profile-input"
+                placeholder="${businessProfileText('مثال: أبها', 'Example: Abha')}"
+              >
+            </div>
+
+            <div class="form-group">
+              <label>${businessProfileText('العنوان المختصر', 'Short Address')}</label>
+              <input
+                type="text"
+                id="businessProfileAddress"
+                class="business-profile-input"
+                placeholder="${businessProfileText('مثال: حي النزهة - طريق الملك فهد', 'Example: Al Nuzhah District - King Fahd Road')}"
+              >
+            </div>
+
+            <div class="form-group">
+              <label>${businessProfileText('رقم التواصل', 'Contact Number')}</label>
+              <input
+                type="text"
+                id="businessProfilePhone"
+                class="business-profile-input"
+                placeholder="${businessProfileText('مثال: 05xxxxxxxx', 'Example: 05xxxxxxxx')}"
+              >
+            </div>
+
+            <div class="form-group">
+              <label>${businessProfileText('البريد الإلكتروني', 'Email Address')}</label>
+              <input
+                type="email"
+                id="businessProfileEmail"
+                class="business-profile-input"
+                placeholder="example@restaurant.com"
+              >
+            </div>
+
+            <div class="form-group">
+              <label>${businessProfileText('رابط خرائط Google', 'Google Maps Link')}</label>
+              <input
+                type="text"
+                id="businessProfileMapUrl"
+                class="business-profile-input"
+                placeholder="${businessProfileText('ضع رابط موقع المطعم من خرائط Google', 'Paste the restaurant location link from Google Maps')}"
+              >
+            </div>
+
+            <div class="form-group">
+              <label>${businessProfileText('رابط إنستغرام', 'Instagram Link')}</label>
+              <input
+                type="text"
+                id="businessProfileInstagramUrl"
+                class="business-profile-input"
+                placeholder="https://instagram.com/restaurant"
+              >
+            </div>
+
+            <div class="form-group">
+              <label>${businessProfileText('رابط الموقع الإلكتروني', 'Website Link')}</label>
+              <input
+                type="text"
+                id="businessProfileWebsiteUrl"
+                class="business-profile-input"
+                placeholder="https://example.com"
+              >
+            </div>
+
+          </div>
+        </div>
+
+<div class="business-profile-card business-profile-logo-card">
+          <div class="business-profile-card-title">
+            <i class="fas fa-image"></i>
+            ${businessProfileText('شعار المطعم', 'Restaurant Logo')}
+          </div>
+
+          <div class="business-logo-preview">
+            <div class="business-logo-circle" id="businessLogoPreviewCircle">
+              <i class="fas fa-utensils" id="businessLogoDefaultIcon"></i>
+              <img
+                id="businessLogoPreviewImg"
+                src=""
+                alt="Logo"
+                style="display:none; width:100%; height:100%; object-fit:cover; border-radius:50%;"
+              >
+            </div>
+
+            <div class="business-logo-note">
+              ${businessProfileText(
+                'ضع رابط الشعار الآن، ولاحقًا يمكن ربطه برفع مباشر من الجهاز.',
+                'Add the logo link now. Direct upload from the device can be connected later.'
+              )}
             </div>
           </div>
 
-        </div>
-
-        <div class="eqbp-actions">
-          <button class="eqbp-save-btn" onclick="saveBusinessProfile()">
-            <i class="fas fa-save"></i>
-            حفظ بيانات المطعم
-          </button>
-
-          <button class="eqbp-close-btn" onclick="closeFullPagePanel()">
-            إغلاق
-          </button>
-        </div>
-
-      </div>
-    </div>
-
-    <div class="eqbp-cropper-modal" id="businessLogoCropperModal">
-      <div class="eqbp-cropper-card">
-        <div class="eqbp-cropper-head">
-          <div>
-            <div class="eqbp-cropper-title">تعديل الشعار قبل الرفع</div>
-            <div style="font-size:11.5px; color:rgba(255,255,255,0.7); margin-top:4px;">
-              حرّك الصورة داخل الإطار واضبط التكبير
-            </div>
-          </div>
-
-          <button type="button" class="eqbp-mini-btn" onclick="closeBusinessLogoCropper()" style="
-            width:32px;
-            height:32px;
-            background:rgba(255,255,255,0.12);
-            color:#FFFFFF;
-          ">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-
-        <div class="eqbp-cropper-body">
-          <div class="eqbp-canvas-wrap">
-            <canvas id="businessLogoCropCanvas" width="512" height="512"></canvas>
-          </div>
-
-          <div class="eqbp-cropper-range">
-            <label>تكبير الصورة</label>
-            <input
-              type="range"
-              id="businessLogoCropZoom"
-              min="1"
-              max="3"
-              step="0.05"
-              value="1"
-              oninput="setBusinessLogoCropZoom(this.value)"
+          <div class="form-group">
+            <label>${businessProfileText('رابط الشعار', 'Logo Link')}</label>
+            <input 
+              type="text" 
+              id="businessProfileLogoUrl" 
+              class="business-profile-input" 
+              placeholder="https://example.com/logo.png" 
+              oninput="previewBusinessLogoFromInput()"
             >
           </div>
 
-          <div class="eqbp-cropper-actions">
-            <button type="button" class="eqbp-apply-btn" onclick="applyBusinessLogoCropAndUpload()">
-              <i class="fas fa-cloud-upload-alt"></i>
-              تطبيق ورفع
-            </button>
+          <div class="form-group" style="margin-top: 12px;">
+            <label>${businessProfileText('أو ارفع شعار من الجهاز', 'Or upload a logo from your device')}</label>
 
-            <button type="button" class="eqbp-reset-btn" onclick="resetBusinessLogoCropper()">
-              إعادة ضبط
-            </button>
+            <div class="business-profile-upload-row">
+              <input 
+                type="file" 
+                id="businessLogoFileInput" 
+                accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" 
+                style="display: none;"
+                onchange="handleBusinessLogoFileSelected(event)"
+              >
 
-            <button type="button" class="eqbp-cancel-btn" onclick="closeBusinessLogoCropper()" style="grid-column:1 / -1;">
-              إلغاء
-            </button>
+              <button 
+                type="button" 
+                class="business-profile-upload-btn" 
+                onclick="document.getElementById('businessLogoFileInput').click()"
+              >
+                <i class="fas fa-upload"></i>
+                ${businessProfileText('اختيار شعار', 'Choose Logo')}
+              </button>
+
+              <span id="businessLogoUploadStatus" class="business-profile-upload-status">
+                ${businessProfileText('لم يتم اختيار ملف', 'No file selected')}
+              </span>
+            </div>
+
+            <div class="business-profile-upload-hint">
+              ${businessProfileText(
+                'الصيغ المدعومة: PNG, JPG, WEBP, SVG — يفضل شعار مربع أو دائري.',
+                'Supported formats: PNG, JPG, WEBP, SVG — square or circular logos are recommended.'
+              )}
+            </div>
           </div>
         </div>
+
       </div>
+
+      <div class="business-profile-actions">
+        <button class="business-profile-save-btn" onclick="saveBusinessProfile()">
+          <i class="fas fa-save"></i>
+          ${businessProfileText('حفظ بيانات المطعم', 'Save Restaurant Details')}
+        </button>
+
+        <button class="business-profile-cancel-btn" onclick="closeFullPagePanel()">
+          ${businessProfileText('إغلاق', 'Close')}
+        </button>
+      </div>
+
     </div>
   `;
 
   openFullPagePanel(
-    "بيانات المطعم / الفرع",
-    "إدارة الاسم، العنوان، الشعار، وبيانات الظهور في واجهة النظام وواجهة الحجز",
+    businessProfileText('بيانات المطعم / الفرع', 'Restaurant / Branch Details'),
+    businessProfileText(
+      'إدارة الاسم، العنوان، الشعار، وبيانات الظهور في واجهة النظام وواجهة الحجز',
+      'Manage name, address, logo, and display details in the system and booking page'
+    ),
     contentHtml
   );
+
+  applyBusinessProfilePanelPolish();
 
   const closeBtn = document.querySelector(".full-page-panel-close");
   if (closeBtn) {
@@ -2729,7 +2733,10 @@ async function loadBusinessProfile() {
   const businessId = currentUser?.business_id;
 
   if (!businessId) {
-    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    showAlert(businessProfileText(
+  'لم يتم العثور على مطعم المستخدم الحالي',
+  'Current user restaurant was not found'
+));
     return;
   }
 
@@ -2740,12 +2747,18 @@ async function loadBusinessProfile() {
 
   if (error) {
     console.error("❌ خطأ في تحميل بيانات المطعم:", error);
-    showAlert("فشل تحميل بيانات المطعم");
+    showAlert(businessProfileText(
+  'فشل تحميل بيانات المطعم',
+  'Failed to load restaurant details'
+));
     return;
   }
 
   if (!data) {
-    showAlert("لم يتم العثور على بيانات المطعم");
+    showAlert(businessProfileText(
+  'لم يتم العثور على بيانات المطعم',
+  'Restaurant details were not found'
+));
     return;
   }
 
@@ -2771,13 +2784,19 @@ function copyBusinessSupportRef() {
   const input = document.getElementById("businessSupportRef");
 
   if (!input || !input.value) {
-    showAlert("لا يوجد معرف مطعم لنسخه");
+    showAlert(businessProfileText(
+  'لا يوجد معرف مطعم لنسخه',
+  'There is no restaurant ID to copy'
+));
     return;
   }
 
   navigator.clipboard.writeText(input.value)
     .then(() => {
-      showSuccessNotification("✅ تم نسخ معرف المطعم");
+    showSuccessNotification(businessProfileText(
+  '✅ تم نسخ معرف المطعم',
+  '✅ Restaurant ID copied'
+));
     })
     .catch(() => {
       input.select();
@@ -2790,7 +2809,10 @@ async function saveBusinessProfile() {
   const businessId = currentUser?.business_id;
 
   if (!businessId) {
-    showAlert("لم يتم العثور على مطعم المستخدم الحالي");
+    showAlert(businessProfileText(
+  'لم يتم العثور على مطعم المستخدم الحالي',
+  'Current user restaurant was not found'
+));
     return;
   }
 
@@ -2806,7 +2828,10 @@ async function saveBusinessProfile() {
   const logoUrl = document.getElementById("businessProfileLogoUrl").value.trim();
 
   if (!name) {
-    showAlert("اسم المطعم مطلوب");
+    showAlert(businessProfileText(
+  'اسم المطعم مطلوب',
+  'Restaurant name is required'
+));
     return;
   }
 
@@ -2844,12 +2869,17 @@ async function saveBusinessProfile() {
 
   if (error) {
     console.error("❌ خطأ في حفظ بيانات المطعم:", error);
-    showAlert("فشل حفظ بيانات المطعم: " + error.message);
+    showAlert(
+  businessProfileText('فشل حفظ بيانات المطعم: ', 'Failed to save restaurant details: ') + error.message
+);
     return;
   }
 
   if (!data) {
-    showAlert("لم يتم تحديث أي بيانات");
+    showAlert(businessProfileText(
+  'لم يتم تحديث أي بيانات',
+  'No details were updated'
+));
     return;
   }
 
@@ -2865,7 +2895,10 @@ if (typeof renderFloorPlan === "function") {
 closeFullPagePanel();
 
 // إظهار إشعار نجاح بعد الإغلاق
-showSuccessNotification("✅ تم حفظ بيانات المطعم بنجاح");
+showSuccessNotification(businessProfileText(
+  '✅ تم حفظ بيانات المطعم بنجاح',
+  '✅ Restaurant details saved successfully'
+));
 }
 
 function previewBusinessLogoFromInput() {
@@ -3317,14 +3350,26 @@ async function uploadBusinessLogoBlob(blob, fileExt = 'png') {
   const businessId = currentUser?.business_id;
 
   if (!businessId) {
-    showAlert('لم يتم العثور على مطعم المستخدم الحالي');
+    showAlert(
+      businessProfileText(
+        'لم يتم العثور على مطعم المستخدم الحالي',
+        'Current user restaurant was not found'
+      )
+    );
     return;
   }
 
   try {
-    setBusinessLogoUploading(true, 'جاري رفع الشعار...');
+    setBusinessLogoUploading(
+      true,
+      businessProfileText('جاري رفع الشعار...', 'Uploading logo...')
+    );
 
-    const safeExt = String(fileExt || 'png').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'png';
+    const safeExt =
+      String(fileExt || 'png')
+        .replace(/[^a-z0-9]/gi, '')
+        .toLowerCase() || 'png';
+
     const filePath = `${businessId}/logo-${Date.now()}.${safeExt}`;
 
     const { error: uploadError } = await supabase.storage
@@ -3336,9 +3381,22 @@ async function uploadBusinessLogoBlob(blob, fileExt = 'png') {
 
     if (uploadError) {
       console.error('❌ خطأ رفع الشعار:', uploadError);
-      showAlert('فشل رفع الشعار: ' + uploadError.message);
-      setBusinessLogoUploading(false, 'فشل رفع الشعار');
-      setBusinessLogoUploadStatus('فشل رفع الشعار', 'error');
+
+      showAlert(
+        businessProfileText('فشل رفع الشعار: ', 'Failed to upload logo: ') +
+        uploadError.message
+      );
+
+      setBusinessLogoUploading(
+        false,
+        businessProfileText('فشل رفع الشعار', 'Upload failed')
+      );
+
+      setBusinessLogoUploadStatus(
+        businessProfileText('فشل رفع الشعار', 'Upload failed'),
+        'error'
+      );
+
       return;
     }
 
@@ -3349,9 +3407,23 @@ async function uploadBusinessLogoBlob(blob, fileExt = 'png') {
     const publicUrl = publicUrlData?.publicUrl;
 
     if (!publicUrl) {
-      showAlert('تم الرفع لكن لم يتم إنشاء رابط الشعار');
-      setBusinessLogoUploading(false, 'فشل إنشاء الرابط');
-      setBusinessLogoUploadStatus('فشل إنشاء الرابط', 'error');
+      showAlert(
+        businessProfileText(
+          'تم الرفع لكن لم يتم إنشاء رابط الشعار',
+          'Logo was uploaded, but the logo link was not created'
+        )
+      );
+
+      setBusinessLogoUploading(
+        false,
+        businessProfileText('فشل إنشاء الرابط', 'Failed to create link')
+      );
+
+      setBusinessLogoUploadStatus(
+        businessProfileText('فشل إنشاء الرابط', 'Failed to create link'),
+        'error'
+      );
+
       return;
     }
 
@@ -3362,16 +3434,45 @@ async function uploadBusinessLogoBlob(blob, fileExt = 'png') {
 
     previewBusinessLogo(publicUrl);
 
-    setBusinessLogoUploading(false, 'تم رفع الشعار بنجاح');
-    setBusinessLogoUploadStatus('تم رفع الشعار بنجاح — اضغط حفظ بيانات المطعم لتثبيته', 'success');
+    setBusinessLogoUploading(
+      false,
+      businessProfileText('تم رفع الشعار بنجاح', 'Logo uploaded successfully')
+    );
 
-    showSuccessNotification('✅ تم رفع الشعار، اضغط حفظ بيانات المطعم لتثبيته');
+    setBusinessLogoUploadStatus(
+      businessProfileText(
+        'تم رفع الشعار بنجاح — اضغط حفظ بيانات المطعم لتثبيته',
+        'Logo uploaded successfully — click Save Restaurant Details to apply it'
+      ),
+      'success'
+    );
+
+    showSuccessNotification(
+      businessProfileText(
+        '✅ تم رفع الشعار، اضغط حفظ بيانات المطعم لتثبيته',
+        '✅ Logo uploaded. Click Save Restaurant Details to apply it'
+      )
+    );
 
   } catch (err) {
     console.error('❌ خطأ غير متوقع في رفع الشعار:', err);
-    showAlert('حدث خطأ أثناء رفع الشعار: ' + err.message);
-    setBusinessLogoUploading(false, 'فشل رفع الشعار');
-    setBusinessLogoUploadStatus('فشل رفع الشعار', 'error');
+
+    showAlert(
+      businessProfileText(
+        'حدث خطأ أثناء رفع الشعار: ',
+        'An error occurred while uploading the logo: '
+      ) + err.message
+    );
+
+    setBusinessLogoUploading(
+      false,
+      businessProfileText('فشل رفع الشعار', 'Upload failed')
+    );
+
+    setBusinessLogoUploadStatus(
+      businessProfileText('فشل رفع الشعار', 'Upload failed'),
+      'error'
+    );
   }
 }
 

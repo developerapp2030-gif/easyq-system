@@ -28,13 +28,38 @@
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
   function lang() {
-    return String(window.currentLang || localStorage.getItem('easyq_lang') || 'ar')
+    return String(
+      window.currentLang ||
+      localStorage.getItem('easyq_lang') ||
+      localStorage.getItem('hajzak_lang') ||
+      'ar'
+    )
       .toLowerCase()
       .startsWith('en') ? 'en' : 'ar';
   }
 
   function isAr() {
     return lang() === 'ar';
+  }
+
+  function t(arText, enText) {
+    return isAr() ? arText : enText;
+  }
+
+  function panelTitle() {
+    return t('الطابور', 'Queue');
+  }
+
+  function panelSubtitle() {
+    return t('ملخص وتفاصيل طلبات الطابور', 'Queue requests summary and details');
+  }
+
+  function unknownText() {
+    return t('غير محدد', 'Unknown');
+  }
+
+  function dashText() {
+    return '—';
   }
 
   function esc(value) {
@@ -111,17 +136,17 @@
     const now = new Date();
 
     if (EQQ.range === 'today') {
-      return { start: startOfDay(now), end: endOfDay(now), label: 'اليوم' };
+      return { start: startOfDay(now), end: endOfDay(now), label: t('اليوم', 'Today') };
     }
 
     if (EQQ.range === 'last7') {
       const start = startOfDay(new Date(now.getTime() - (6 * 86400000)));
-      return { start, end: endOfDay(now), label: 'آخر 7 أيام' };
+      return { start, end: endOfDay(now), label: t('آخر 7 أيام', 'Last 7 days') };
     }
 
     if (EQQ.range === 'last30') {
       const start = startOfDay(new Date(now.getTime() - (29 * 86400000)));
-      return { start, end: endOfDay(now), label: 'آخر 30 يوم' };
+      return { start, end: endOfDay(now), label: t('آخر 30 يوم', 'Last 30 days') };
     }
 
     const fallbackStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -133,7 +158,7 @@
     return {
       start: Number.isNaN(customStart.getTime()) ? fallbackStart : customStart,
       end: Number.isNaN(customEnd.getTime()) ? fallbackEnd : customEnd,
-      label: 'فترة مخصصة'
+      label: t('فترة مخصصة', 'Custom range')
     };
   }
 
@@ -160,7 +185,7 @@
   }
 
   function statusLabel(key) {
-    const map = {
+    const mapAr = {
       waiting: 'انتظار',
       offered: 'جاهز للتعيين',
       reserved: 'محجوز',
@@ -172,7 +197,22 @@
       no_show: 'لم يحضر',
       unknown: 'غير محدد'
     };
-    return map[key] || key || 'غير محدد';
+
+    const mapEn = {
+      waiting: 'Waiting',
+      offered: 'Ready',
+      reserved: 'Reserved',
+      occupied: 'Seated',
+      cleaning: 'Cleaning',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+      expired: 'Expired',
+      no_show: 'No-show',
+      unknown: 'Unknown'
+    };
+
+    const map = isAr() ? mapAr : mapEn;
+    return map[key] || key || unknownText();
   }
 
   function statusBadgeClass(key) {
@@ -192,17 +232,26 @@
   }
 
   function sourceLabel(key) {
-    const map = {
+    const mapAr = {
       walk_in: 'محلي',
       online: 'أونلاين',
       restored: 'مسترجع',
       other: 'أخرى'
     };
-    return map[key] || 'أخرى';
+
+    const mapEn = {
+      walk_in: 'Local',
+      online: 'Online',
+      restored: 'Restored',
+      other: 'Other'
+    };
+
+    const map = isAr() ? mapAr : mapEn;
+    return map[key] || t('أخرى', 'Other');
   }
 
   function requestName(row) {
-    return row.customer_name_snapshot || row.customers?.name || 'ضيف';
+    return row.customer_name_snapshot || row.customers?.name || t('ضيف', 'Guest');
   }
 
   function requestPhone(row) {
@@ -246,8 +295,8 @@
     }
 
     const businessId = getBusinessId();
-    if (!businessId) throw new Error('لم يتم العثور على معرف المطعم الحالي');
-    if (!window.supabase) throw new Error('Supabase client غير متوفر');
+    if (!businessId) throw new Error(t('لم يتم العثور على معرف المطعم الحالي', 'Current restaurant ID was not found'));
+    if (!window.supabase) throw new Error(t('Supabase client غير متوفر', 'Supabase client is not available'));
 
     const bounds = rangeBounds();
 
@@ -353,7 +402,7 @@
       stats,
       sourceCounts: makeCountMap(rows, (r) => sourceLabel(r._sourceKey)),
       statusCounts: makeCountMap(rows, (r) => statusLabel(r._statusKey)),
-      zoneCounts: makeCountMap(rows, (r) => r.zone_name || 'غير محدد'),
+      zoneCounts: makeCountMap(rows, (r) => r.zone_name || unknownText()),
       loadedAt: new Date().toISOString()
     };
   }
@@ -361,7 +410,7 @@
   function makeCountMap(rows, fn) {
     const out = {};
     rows.forEach((row) => {
-      const key = fn(row) || 'غير محدد';
+      const key = fn(row) || unknownText();
       out[key] = (out[key] || 0) + 1;
     });
     return Object.entries(out).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
@@ -419,6 +468,8 @@
       .eqq-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.eqq-tab{background:#fff;border:1px solid #E5E7EB;color:#64748B;border-radius:999px}.eqq-tab.active{background:#0E146D;color:#fff;border-color:#0E146D}
       .eqq-table-wrap{overflow:auto;border:1px solid #EEF2F7;border-radius:16px}.eqq-table{width:100%;border-collapse:collapse;min-width:1040px;table-layout:fixed}.eqq-table th,.eqq-table td{padding:10px;border-bottom:1px solid #EEF2F7;text-align:right;font-size:12px;font-weight:850;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.eqq-table th{background:#F8FAFC;color:#64748B;font-weight:1000;position:sticky;top:0}.eqq-phone{direction:ltr;text-align:left!important;color:#0E146D;font-weight:1000}.eqq-code{direction:ltr;text-align:left!important;font-weight:1000;color:#111827}.eqq-badge{min-height:24px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:1000;display:inline-flex;align-items:center;justify-content:center}.eqq-badge.ok{background:#ECFDF5;color:#047857}.eqq-badge.bad{background:#FEF2F2;color:#B91C1C}.eqq-badge.wait{background:#EEF2FF;color:#0E146D}.eqq-badge.ready{background:#FFF7ED;color:#C2410C}.eqq-badge.muted{background:#F3F4F6;color:#6B7280}.eqq-badge.info{background:#EFF6FF;color:#1D4ED8}
       .eqq-bars{display:flex;flex-direction:column;gap:8px;margin-top:12px}.eqq-bar{display:grid;grid-template-columns:120px minmax(0,1fr) 44px;gap:8px;align-items:center;font-size:11px;font-weight:900;color:#475569}.eqq-track{height:9px;background:#EDF2FF;border-radius:999px;overflow:hidden}.eqq-fill{height:100%;background:linear-gradient(90deg,#0E146D,#60A5FA);border-radius:999px}.eqq-empty{padding:22px;text-align:center;color:#64748B;font-weight:900;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:16px}.eqq-loader{min-height:260px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#64748B;font-weight:1000}.eqq-spinner{width:34px;height:34px;border-radius:50%;border:4px solid rgba(14,20,109,.13);border-top-color:#0E146D;animation:eqqSpin .8s linear infinite}@keyframes eqqSpin{to{transform:rotate(360deg)}}
+      .eqq-page.eqq-ltr{direction:ltr;text-align:left}.eqq-page.eqq-ltr .eqq-table th,.eqq-page.eqq-ltr .eqq-table td{text-align:left}.eqq-page.eqq-ltr .eqq-phone,.eqq-page.eqq-ltr .eqq-code{text-align:left!important}.eqq-page.eqq-ltr .eqq-date{direction:ltr;text-align:left}.eqq-page.eqq-ltr .eqq-hero h2,.eqq-page.eqq-ltr .eqq-hero p{text-align:left}.eqq-page.eqq-ltr .eqq-bar{grid-template-columns:150px minmax(0,1fr) 44px}.eqq-page.eqq-ltr .eqq-bar>div:first-child{text-align:left}
+      .eqq-page.eqq-rtl{direction:rtl;text-align:right}.eqq-page.eqq-rtl .eqq-table th,.eqq-page.eqq-rtl .eqq-table td{text-align:right}
       @media(max-width:1180px){.eqq-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.eqq-hero{grid-template-columns:1fr}}@media(max-width:720px){.eqq-page{padding:12px}.eqq-grid{grid-template-columns:1fr}.eqq-card.wide{grid-column:span 1}.eqq-search{min-width:100%;width:100%}.eqq-date{width:calc(50% - 6px)}}
     `;
 
@@ -437,9 +488,11 @@
     if (!fallback) {
       fallback = document.createElement('div');
       fallback.id = 'eqqFallbackPanel';
-      fallback.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#F5F7FF;overflow:auto;direction:rtl;';
+      fallback.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#F5F7FF;overflow:auto;';
       document.body.appendChild(fallback);
     }
+
+    fallback.style.direction = isAr() ? 'rtl' : 'ltr';
 
     fallback.innerHTML = `
       <div style="padding:14px;background:#070219;color:white;display:flex;justify-content:space-between;align-items:center;gap:12px;">
@@ -455,10 +508,10 @@
 
   function loadingHtml() {
     return `
-      <div class="eqq-page">
+      <div class="eqq-page ${isAr() ? 'eqq-rtl' : 'eqq-ltr'}">
         <div class="eqq-loader">
           <div class="eqq-spinner"></div>
-          <div>جاري تحميل بيانات الطابور.</div>
+          <div>${t('جاري تحميل بيانات الطابور.', 'Loading queue data...')}</div>
         </div>
       </div>
     `;
@@ -466,9 +519,9 @@
 
   function errorHtml(message) {
     return `
-      <div class="eqq-page">
+      <div class="eqq-page ${isAr() ? 'eqq-rtl' : 'eqq-ltr'}">
         <div class="eqq-card full">
-          <div class="eqq-title"><i class="fas fa-triangle-exclamation"></i>تعذر فتح قسم الطابور</div>
+          <div class="eqq-title"><i class="fas fa-triangle-exclamation"></i>${t('تعذر فتح قسم الطابور', 'Unable to open queue section')}</div>
           <div class="eqq-sub">${esc(message || '')}</div>
         </div>
       </div>
@@ -504,57 +557,61 @@
   function shellHtml(data) {
     const b = data.bounds;
     const rangeText = `${fmtDateInput(b.start)} → ${fmtDateInput(b.end)}`;
+    const pageClass = isAr() ? 'eqq-rtl' : 'eqq-ltr';
 
     return `
-      <div class="eqq-page" id="eqQueueCenter">
+      <div class="eqq-page ${pageClass}" id="eqQueueCenter">
         <section class="eqq-hero">
           <div>
-            <h2>الطابور</h2>
-            <p>متابعة طلبات الانتظار والحجوزات حسب اليوم أو 7 أيام أو 30 يوم أو فترة مخصصة، مع بطاقات مختصرة وتفاصيل قابلة للفلترة.</p>
+            <h2>${t('الطابور', 'Queue')}</h2>
+            <p>${t(
+              'متابعة طلبات الانتظار والحجوزات حسب اليوم أو 7 أيام أو 30 يوم أو فترة مخصصة، مع بطاقات مختصرة وتفاصيل قابلة للفلترة.',
+              'Track waitlist and booking requests by today, 7 days, 30 days, or a custom range, with summary cards and filterable details.'
+            )}</p>
             <div class="eqq-row" style="margin-top:14px;">
-              <button class="eqq-btn primary" onclick="EQRestaurantQueue.refresh()"><i class="fas fa-sync-alt"></i>تحديث</button>
+              <button class="eqq-btn primary" onclick="EQRestaurantQueue.refresh()"><i class="fas fa-sync-alt"></i>${t('تحديث', 'Refresh')}</button>
               <span class="eqq-badge info">${esc(data.bounds.label)}</span>
               <span class="eqq-badge muted">${esc(rangeText)}</span>
-              <span class="eqq-badge muted">آخر تحديث: ${esc(fmtDate(data.loadedAt))}</span>
+              <span class="eqq-badge muted">${t('آخر تحديث:', 'Last updated:')} ${esc(fmtDate(data.loadedAt))}</span>
             </div>
           </div>
           <div class="eqq-health">
             <div class="eqq-health-num">${esc(data.stats.total)}</div>
-            <div class="eqq-health-label">إجمالي طلبات الفترة</div>
-            <div class="eqq-health-note">النطاق يؤثر على كل البطاقات والتفاصيل في هذه الصفحة.</div>
+            <div class="eqq-health-label">${t('إجمالي طلبات الفترة', 'Total requests in range')}</div>
+            <div class="eqq-health-note">${t('النطاق يؤثر على كل البطاقات والتفاصيل في هذه الصفحة.', 'The selected range affects all cards and details on this page.')}</div>
           </div>
         </section>
 
         <section class="eqq-toolbar">
           <div>
-            <div class="eqq-sub" style="margin-bottom:8px;">النطاق الزمني</div>
+            <div class="eqq-sub" style="margin-bottom:8px;">${t('النطاق الزمني', 'Date range')}</div>
             <div class="eqq-row">
-              ${rangeChip('today', 'اليوم')}
-              ${rangeChip('last7', '7 أيام')}
-              ${rangeChip('last30', '30 يوم')}
-              ${rangeChip('custom', 'فترة مخصصة')}
-                            <label style="display:flex; flex-direction:column; gap:5px; font-size:11px; font-weight:1000; color:#475569;">
-                من تاريخ
+              ${rangeChip('today', t('اليوم', 'Today'))}
+              ${rangeChip('last7', t('7 أيام', '7 days'))}
+              ${rangeChip('last30', t('30 يوم', '30 days'))}
+              ${rangeChip('custom', t('فترة مخصصة', 'Custom range'))}
+              <label style="display:flex; flex-direction:column; gap:5px; font-size:11px; font-weight:1000; color:#475569;">
+                ${t('من تاريخ', 'From date')}
                 <input class="eqq-date" type="date" id="eqqStartDate" value="${esc(EQQ.customStart || fmtDateInput(data.bounds.start))}" onchange="EQRestaurantQueue.setCustomStart(this.value)">
               </label>
 
               <label style="display:flex; flex-direction:column; gap:5px; font-size:11px; font-weight:1000; color:#475569;">
-                إلى تاريخ
+                ${t('إلى تاريخ', 'To date')}
                 <input class="eqq-date" type="date" id="eqqEndDate" value="${esc(EQQ.customEnd || fmtDateInput(data.bounds.end))}" onchange="EQRestaurantQueue.setCustomEnd(this.value)">
               </label>
-              <button class="eqq-btn dark" onclick="EQRestaurantQueue.applyCustomRange()"><i class="fas fa-calendar-check"></i>تطبيق الفترة</button>
+              <button class="eqq-btn dark" onclick="EQRestaurantQueue.applyCustomRange()"><i class="fas fa-calendar-check"></i>${t('تطبيق الفترة', 'Apply range')}</button>
             </div>
           </div>
           <div>
-            <div class="eqq-sub" style="margin-bottom:8px;">بحث سريع</div>
-            <input class="eqq-search" id="eqqSearchInput" value="${esc(EQQ.search)}" placeholder="اسم العميل، الجوال، كود الحجز، المنطقة..." oninput="EQRestaurantQueue.setSearch(this.value)">
+            <div class="eqq-sub" style="margin-bottom:8px;">${t('بحث سريع', 'Quick search')}</div>
+            <input class="eqq-search" id="eqqSearchInput" value="${esc(EQQ.search)}" placeholder="${esc(t('اسم العميل، الجوال، كود الحجز، المنطقة...', 'Customer name, phone, booking code, zone...'))}" oninput="EQRestaurantQueue.setSearch(this.value)">
           </div>
         </section>
 
         <nav class="eqq-tabs">
-          ${tabButton('overview', 'ملخص الطابور', 'fa-chart-pie')}
-          ${tabButton('details', 'تفاصيل الطلبات', 'fa-list')}
-          ${tabButton('sources', 'المصادر والمناطق', 'fa-chart-simple')}
+          ${tabButton('overview', t('ملخص الطابور', 'Queue Summary'), 'fa-chart-pie')}
+          ${tabButton('details', t('تفاصيل الطلبات', 'Request Details'), 'fa-list')}
+          ${tabButton('sources', t('المصادر والمناطق', 'Sources & Zones'), 'fa-chart-simple')}
         </nav>
 
         <div id="eqqContent"></div>
@@ -565,26 +622,26 @@
   function overviewHtml(data) {
     return `
       <div class="eqq-grid">
-        ${card('fa-list-check', 'إجمالي الطلبات', data.stats.total, 'كل طلبات الفترة', 'info')}
-        ${card('fa-hourglass-half', 'الانتظار الحالية', data.stats.waiting, 'حالة waiting', 'wait')}
-        ${card('fa-circle-check', 'تم الجلوس', data.stats.seated, 'مشغول / تنظيف / مكتمل', 'ok')}
-        ${card('fa-user-xmark', 'ملغي / لم يحضر', data.stats.noShowOrCancelled, 'cancelled + no_show', 'bad')}
-        ${card('fa-ban', 'غير مكتملة', data.stats.incomplete, 'ملغي / منتهي / لم يحضر', 'bad')}
-        ${card('fa-globe', 'حجوزات أونلاين', data.stats.online, 'من صفحة الحجز أو QR', 'info')}
-        ${card('fa-store', 'حجوزات محلي', data.stats.local, 'walk_in / manual', 'ok')}
-        ${card('fa-users', 'إجمالي الأشخاص', data.stats.totalParty, `متوسط المجموعة: ${data.stats.avgParty}`, 'warn')}
+        ${card('fa-list-check', t('إجمالي الطلبات', 'Total Requests'), data.stats.total, t('كل طلبات الفترة', 'All requests in selected range'), 'info')}
+        ${card('fa-hourglass-half', t('الانتظار الحالية', 'Current Waiting'), data.stats.waiting, t('حالة waiting', 'Waiting status'), 'wait')}
+        ${card('fa-circle-check', t('تم الجلوس', 'Seated'), data.stats.seated, t('مشغول / تنظيف / مكتمل', 'Occupied / cleaning / completed'), 'ok')}
+        ${card('fa-user-xmark', t('ملغي / لم يحضر', 'Cancelled / No-show'), data.stats.noShowOrCancelled, 'cancelled + no_show', 'bad')}
+        ${card('fa-ban', t('غير مكتملة', 'Incomplete'), data.stats.incomplete, t('ملغي / منتهي / لم يحضر', 'Cancelled / expired / no-show'), 'bad')}
+        ${card('fa-globe', t('حجوزات أونلاين', 'Online Bookings'), data.stats.online, t('من صفحة الحجز أو QR', 'From booking page or QR'), 'info')}
+        ${card('fa-store', t('حجوزات محلي', 'Local Bookings'), data.stats.local, 'walk_in / manual', 'ok')}
+        ${card('fa-users', t('إجمالي الأشخاص', 'Total Guests'), data.stats.totalParty, `${t('متوسط المجموعة:', 'Average party:')} ${data.stats.avgParty}`, 'warn')}
         <div class="eqq-card wide">
-          <div class="eqq-title"><i class="fas fa-filter"></i>فلاتر التفاصيل</div>
-          <div class="eqq-sub">اختر فلترًا ثم انتقل إلى تفاصيل الطلبات أو ابق في نفس الصفحة.</div>
+          <div class="eqq-title"><i class="fas fa-filter"></i>${t('فلاتر التفاصيل', 'Detail Filters')}</div>
+          <div class="eqq-sub">${t('اختر فلترًا ثم انتقل إلى تفاصيل الطلبات أو ابق في نفس الصفحة.', 'Choose a filter, then go to request details or stay on this page.')}</div>
           <div class="eqq-row" style="margin-top:12px;">${filtersHtml()}</div>
         </div>
         <div class="eqq-card wide">
-          <div class="eqq-title"><i class="fas fa-location-dot"></i>أعلى المناطق</div>
+          <div class="eqq-title"><i class="fas fa-location-dot"></i>${t('أعلى المناطق', 'Top Zones')}</div>
           ${barsHtml(data.zoneCounts.slice(0, 6), data.stats.total)}
         </div>
         <div class="eqq-card full">
-          <div class="eqq-title"><i class="fas fa-list"></i>آخر الطلبات</div>
-          <div class="eqq-sub">أحدث 12 طلب في الفترة المحددة.</div>
+          <div class="eqq-title"><i class="fas fa-list"></i>${t('آخر الطلبات', 'Latest Requests')}</div>
+          <div class="eqq-sub">${t('أحدث 12 طلب في الفترة المحددة.', 'Latest 12 requests in the selected range.')}</div>
           ${requestsTable((data.rows || []).slice(0, 12))}
         </div>
       </div>
@@ -593,15 +650,15 @@
 
   function filtersHtml() {
     return `
-      ${filterChip('all', 'الكل')}
-      ${filterChip('waiting', 'انتظار')}
-      ${filterChip('ready', 'جاهز')}
-      ${filterChip('reserved', 'محجوز')}
-      ${filterChip('seated', 'تم الجلوس')}
-      ${filterChip('incomplete', 'غير مكتملة')}
-      ${filterChip('cancelled', 'ملغي')}
-      ${filterChip('no_show', 'لم يحضر')}
-      ${filterChip('expired', 'منتهي')}
+      ${filterChip('all', t('الكل', 'All'))}
+      ${filterChip('waiting', t('انتظار', 'Waiting'))}
+      ${filterChip('ready', t('جاهز', 'Ready'))}
+      ${filterChip('reserved', t('محجوز', 'Reserved'))}
+      ${filterChip('seated', t('تم الجلوس', 'Seated'))}
+      ${filterChip('incomplete', t('غير مكتملة', 'Incomplete'))}
+      ${filterChip('cancelled', t('ملغي', 'Cancelled'))}
+      ${filterChip('no_show', t('لم يحضر', 'No-show'))}
+      ${filterChip('expired', t('منتهي', 'Expired'))}
     `;
   }
 
@@ -609,25 +666,25 @@
     return `
       <div class="eqq-grid">
         <div class="eqq-card wide">
-          <div class="eqq-title"><i class="fas fa-share-nodes"></i>مصادر الطلبات</div>
+          <div class="eqq-title"><i class="fas fa-share-nodes"></i>${t('مصادر الطلبات', 'Request Sources')}</div>
           ${barsHtml(data.sourceCounts, data.stats.total)}
         </div>
         <div class="eqq-card wide">
-          <div class="eqq-title"><i class="fas fa-location-dot"></i>المناطق الأكثر اختيارًا</div>
+          <div class="eqq-title"><i class="fas fa-location-dot"></i>${t('المناطق الأكثر اختيارًا', 'Most Selected Zones')}</div>
           ${barsHtml(data.zoneCounts, data.stats.total)}
         </div>
         <div class="eqq-card full">
-          <div class="eqq-title"><i class="fas fa-filter"></i>فلترة حسب المصدر</div>
+          <div class="eqq-title"><i class="fas fa-filter"></i>${t('فلترة حسب المصدر', 'Filter by Source')}</div>
           <div class="eqq-row" style="margin-top:12px;">
-            ${sourceChip('all', 'كل المصادر')}
-            ${sourceChip('walk_in', 'محلي')}
-            ${sourceChip('online', 'أونلاين')}
-            ${sourceChip('restored', 'مسترجع')}
-            ${sourceChip('other', 'أخرى')}
+            ${sourceChip('all', t('كل المصادر', 'All sources'))}
+            ${sourceChip('walk_in', t('محلي', 'Local'))}
+            ${sourceChip('online', t('أونلاين', 'Online'))}
+            ${sourceChip('restored', t('مسترجع', 'Restored'))}
+            ${sourceChip('other', t('أخرى', 'Other'))}
           </div>
         </div>
         <div class="eqq-card full">
-          <div class="eqq-title"><i class="fas fa-list"></i>تفاصيل المصدر المختار</div>
+          <div class="eqq-title"><i class="fas fa-list"></i>${t('تفاصيل المصدر المختار', 'Selected Source Details')}</div>
           ${detailsHtml(data, true)}
         </div>
       </div>
@@ -642,24 +699,31 @@
     const start = (EQQ.page - 1) * EQQ.pageSize;
     const pageRows = rows.slice(start, start + EQQ.pageSize);
 
+    const fromRow = start + (pageRows.length ? 1 : 0);
+    const toRow = start + pageRows.length;
+
     const body = `
       <div class="eqq-card full">
-        <div class="eqq-title"><i class="fas fa-filter"></i>فلاتر الطلبات</div>
+        <div class="eqq-title"><i class="fas fa-filter"></i>${t('فلاتر الطلبات', 'Request Filters')}</div>
         <div class="eqq-row" style="margin-top:12px;">${filtersHtml()}</div>
         <div class="eqq-row" style="margin-top:10px;">
-          ${sourceChip('all', 'كل المصادر')}
-          ${sourceChip('walk_in', 'محلي')}
-          ${sourceChip('online', 'أونلاين')}
-          ${sourceChip('restored', 'مسترجع')}
-          ${sourceChip('other', 'أخرى')}
+          ${sourceChip('all', t('كل المصادر', 'All sources'))}
+          ${sourceChip('walk_in', t('محلي', 'Local'))}
+          ${sourceChip('online', t('أونلاين', 'Online'))}
+          ${sourceChip('restored', t('مسترجع', 'Restored'))}
+          ${sourceChip('other', t('أخرى', 'Other'))}
         </div>
       </div>
 
       <div class="eqq-card full">
         <div class="eqq-row" style="justify-content:space-between;margin-bottom:12px;">
           <div>
-            <div class="eqq-title"><i class="fas fa-list"></i>تفاصيل الطلبات</div>
-            <div class="eqq-sub">المعروض ${esc(start + (pageRows.length ? 1 : 0))}-${esc(start + pageRows.length)} من ${esc(rows.length)} طلب</div>
+            <div class="eqq-title"><i class="fas fa-list"></i>${t('تفاصيل الطلبات', 'Request Details')}</div>
+            <div class="eqq-sub">
+              ${t('المعروض', 'Showing')} ${esc(fromRow)}-${esc(toRow)}
+              ${t('من', 'of')} ${esc(rows.length)}
+              ${t('طلب', 'requests')}
+            </div>
           </div>
           <div class="eqq-row">
             <button class="eqq-btn light" onclick="EQRestaurantQueue.prevPage()">‹</button>
@@ -675,32 +739,32 @@
   }
 
   function requestsTable(rows) {
-    if (!rows.length) return `<div class="eqq-empty">لا توجد طلبات مطابقة</div>`;
+    if (!rows.length) return `<div class="eqq-empty">${t('لا توجد طلبات مطابقة', 'No matching requests')}</div>`;
 
     return `
       <div class="eqq-table-wrap">
         <table class="eqq-table">
           <thead>
             <tr>
-              <th style="width:120px;">كود الحجز</th>
-              <th style="width:170px;">العميل</th>
-              <th style="width:135px;">الجوال</th>
-              <th style="width:80px;">الأشخاص</th>
-              <th style="width:105px;">المصدر</th>
-              <th style="width:120px;">المنطقة</th>
-              <th style="width:120px;">الحالة</th>
-              <th style="width:175px;">التاريخ</th>
+              <th style="width:120px;">${t('كود الحجز', 'Booking Code')}</th>
+              <th style="width:170px;">${t('العميل', 'Customer')}</th>
+              <th style="width:135px;">${t('الجوال', 'Phone')}</th>
+              <th style="width:80px;">${t('الأشخاص', 'Guests')}</th>
+              <th style="width:105px;">${t('المصدر', 'Source')}</th>
+              <th style="width:120px;">${t('المنطقة', 'Zone')}</th>
+              <th style="width:120px;">${t('الحالة', 'Status')}</th>
+              <th style="width:175px;">${t('التاريخ', 'Date')}</th>
             </tr>
           </thead>
           <tbody>
             ${rows.map((row) => `
               <tr title="${esc(row._customerName)} - ${esc(row.booking_code || '')}">
-                <td class="eqq-code">${esc(row.booking_code || '—')}</td>
-                <td>${esc(row._customerName || 'ضيف')}</td>
-                <td class="eqq-phone">${esc(row._phone || '—')}</td>
+                <td class="eqq-code">${esc(row.booking_code || dashText())}</td>
+                <td>${esc(row._customerName || t('ضيف', 'Guest'))}</td>
+                <td class="eqq-phone">${esc(row._phone || dashText())}</td>
                 <td>${esc(row._party || 1)}</td>
                 <td><span class="eqq-badge info">${esc(sourceLabel(row._sourceKey))}</span></td>
-                <td>${esc(row.zone_name || 'غير محدد')}</td>
+                <td>${esc(row.zone_name || unknownText())}</td>
                 <td><span class="eqq-badge ${statusBadgeClass(row._statusKey)}">${esc(statusLabel(row._statusKey))}</span></td>
                 <td>${esc(fmtDate(row.created_at))}</td>
               </tr>
@@ -713,7 +777,7 @@
 
   function barsHtml(items, total) {
     const list = (items || []).filter((item) => n(item.value) > 0);
-    if (!list.length) return `<div class="eqq-empty">لا توجد بيانات</div>`;
+    if (!list.length) return `<div class="eqq-empty">${t('لا توجد بيانات', 'No data available')}</div>`;
 
     const max = Math.max(1, ...list.map((item) => n(item.value)));
 
@@ -782,19 +846,31 @@
       const overview = document.createElement('div');
       overview.className = 'sub-menu-item';
       overview.setAttribute('data-view', 'queue-overview');
-      overview.innerHTML = '<i class="fas fa-chart-pie"></i> <span>ملخص الطابور</span>';
+      overview.innerHTML = `<i class="fas fa-chart-pie"></i> <span>${t('ملخص الطابور', 'Queue Summary')}</span>`;
       submenu.insertBefore(overview, submenu.firstChild);
+    } else {
+      const overview = submenu.querySelector('[data-view="queue-overview"] span');
+      if (overview) overview.textContent = t('ملخص الطابور', 'Queue Summary');
     }
 
     if (!submenu.querySelector('[data-view="queue-details"]')) {
       const details = document.createElement('div');
       details.className = 'sub-menu-item';
       details.setAttribute('data-view', 'queue-details');
-      details.innerHTML = '<i class="fas fa-list"></i> <span>تفاصيل الطلبات</span>';
+      details.innerHTML = `<i class="fas fa-list"></i> <span>${t('تفاصيل الطلبات', 'Request Details')}</span>`;
 
       const firstOld = submenu.querySelector('[data-view="queue-cancelled"]') || null;
       submenu.insertBefore(details, firstOld);
+    } else {
+      const details = submenu.querySelector('[data-view="queue-details"] span');
+      if (details) details.textContent = t('تفاصيل الطلبات', 'Request Details');
     }
+
+    const cancelled = submenu.querySelector('[data-view="queue-cancelled"] span');
+    if (cancelled) cancelled.textContent = t('ملغي / لم يحضر', 'Cancelled / No-show');
+
+    const seated = submenu.querySelector('[data-view="queue-seated"] span');
+    if (seated) seated.textContent = t('تم الجلوس', 'Seated');
   }
 
   function bindSidebar() {
@@ -836,23 +912,23 @@
 
   async function openQueue(view = 'overview', force = false) {
     if (!canOpenQueue()) {
-      openPanel('الطابور', 'ملخص وتفاصيل طلبات الطابور', errorHtml('ليس لديك صلاحية لفتح قسم الطابور'));
+      openPanel(panelTitle(), panelSubtitle(), errorHtml(t('ليس لديك صلاحية لفتح قسم الطابور', 'You do not have permission to open the queue section')));
       return;
     }
 
     EQQ.view = view || EQQ.view || 'overview';
     setActiveSidebar(EQQ.view);
-    openPanel('الطابور', 'ملخص وتفاصيل طلبات الطابور', loadingHtml());
+    openPanel(panelTitle(), panelSubtitle(), loadingHtml());
 
     try {
       const data = await loadQueueData(force);
-      openPanel('الطابور', 'ملخص وتفاصيل طلبات الطابور', shellHtml(data));
+      openPanel(panelTitle(), panelSubtitle(), shellHtml(data));
       renderContent();
       updateButtons();
     } catch (err) {
       console.error('[EASY-Q Queue] open failed:', err);
       EQQ.lastError = err.message || String(err);
-      openPanel('الطابور', 'ملخص وتفاصيل طلبات الطابور', errorHtml(EQQ.lastError));
+      openPanel(panelTitle(), panelSubtitle(), errorHtml(EQQ.lastError));
     }
   }
 

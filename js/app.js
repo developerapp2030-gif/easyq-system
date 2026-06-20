@@ -11,24 +11,75 @@ document.addEventListener('DOMContentLoaded', function () {
 // SETTINGS FUNCTIONS
 // ============================================================
 
+function getEqModalLang() {
+  const lang =
+    (typeof currentLang !== 'undefined' && currentLang) ||
+    localStorage.getItem("hajzak_lang") ||
+    "ar";
+
+  return String(lang).toLowerCase().startsWith("en") ? "en" : "ar";
+}
+
+function eqModalText(arText, enText) {
+  return getEqModalLang() === "ar" ? arText : enText;
+}
+
+function setEqModalDirection(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+
+  const isArabic = getEqModalLang() === "ar";
+  modal.setAttribute("dir", isArabic ? "rtl" : "ltr");
+  modal.style.direction = isArabic ? "rtl" : "ltr";
+}
+
+function setEqElementHTML(selectorOrElement, html) {
+  const el =
+    typeof selectorOrElement === "string"
+      ? document.querySelector(selectorOrElement)
+      : selectorOrElement;
+
+  if (!el) return;
+  el.innerHTML = html;
+}
+
+function setEqElementText(selectorOrElement, text) {
+  const el =
+    typeof selectorOrElement === "string"
+      ? document.querySelector(selectorOrElement)
+      : selectorOrElement;
+
+  if (!el) return;
+  el.textContent = text;
+}
+
 function openSettingsModal() {
   if (!canDo('manage_alerts') && !canDo('manage_timers')) {
-    showAlert('ليس لديك صلاحية لإعدادات التنبيهات والمؤقتات');
+    showAlert(eqModalText(
+      'ليس لديك صلاحية لإعدادات التنبيهات والمؤقتات',
+      'You do not have permission to manage alerts and timers'
+    ));
     return;
   }
 
   settingsDraft = { ...settings };
   renderSettingsModal();
-  document.getElementById("settingsModal").classList.add("show");
+
+  const modal = document.getElementById("settingsModal");
+  if (modal) modal.classList.add("show");
 }
 
 function closeSettingsModal() {
-  document.getElementById("settingsModal").classList.remove("show");
+  const modal = document.getElementById("settingsModal");
+  if (modal) modal.classList.remove("show");
 }
 
+/*
+  إبقاء هذه الدالة حتى لا ينكسر أي زر قديم.
+  قواعد الطابور الجديدة تحفظ من مودل قواعد الطابور.
+*/
 function setReadyMode(mode) {
-  settingsDraft.ready_mode = mode;
-  renderSettingsModal();
+  setQueueReadyMode(mode);
 }
 
 function setBoolSetting(key, val) {
@@ -39,183 +90,210 @@ function setBoolSetting(key, val) {
 function changeNumberSetting(key, delta, min, max) {
   let cur = Number(settingsDraft[key] ?? settings[key] ?? min);
   cur += delta;
+
   if (cur < min) cur = min;
   if (cur > max) cur = max;
+
   settingsDraft[key] = cur;
   renderSettingsModal();
 }
 
 function renderSettingsModal() {
-  const panelTitle = document.getElementById("settingsPanelTitle");
-  if (panelTitle) {
-    panelTitle.innerHTML = currentLang === "ar"
-      ? "إعدادات التنبيهات والمؤقتات"
-      : "Alerts & Timers Settings";
+  setEqModalDirection("settingsModal");
+
+  const draft = settingsDraft || settings || {};
+
+  // العنوان والوصف
+  setEqElementText(
+    "#settingsModal .eq-settings-compact-title",
+    eqModalText("إعدادات التنبيهات والمؤقتات", "Alerts & Timers Settings")
+  );
+
+  setEqElementText(
+    "#settingsModal .eq-settings-compact-subtitle",
+    eqModalText(
+      "الأصوات، الاهتزاز، والمؤقتات الأساسية",
+      "Sounds, vibration, and basic timers"
+    )
+  );
+
+  // عناوين البطاقات
+  const cardTitles = document.querySelectorAll("#settingsModal .eq-settings-compact-card-title");
+
+  if (cardTitles[0]) {
+    cardTitles[0].innerHTML = `
+      <i class="fas fa-volume-high"></i>
+      ${eqModalText("التنبيهات", "Alerts")}
+    `;
   }
 
-  const readyModeLabel = document.getElementById("readyModeLabel");
-  if (readyModeLabel) {
-    readyModeLabel.innerHTML = currentLang === "ar"
-      ? "سياسة التعيين التلقائي"
-      : "Auto Assignment Policy";
+  if (cardTitles[1]) {
+    cardTitles[1].innerHTML = `
+      <i class="fas fa-stopwatch"></i>
+      ${eqModalText("مؤقتات وإعدادات", "Timers & Settings")}
+    `;
   }
 
-  const modeAnyBtn = document.getElementById("modeAnyBtn");
-  const modeQueueBtn = document.getElementById("modeQueueBtn");
+  // تسميات الصفوف حسب ترتيبها الحالي في المودل
+  const labels = document.querySelectorAll("#settingsModal .eq-settings-compact-label");
 
-  if (modeAnyBtn) {
-    modeAnyBtn.innerHTML = currentLang === "ar"
-      ? "الأول المناسب"
-      : "First Match";
-  }
-
-  if (modeQueueBtn) {
-    modeQueueBtn.innerHTML = currentLang === "ar"
-      ? "حسب أولوية الطابور"
-      : "Queue Priority";
-  }
-  const settingsLabelTranslations = [
+  const labelTranslations = [
     {
-      icon: 'fa-bell',
-      ar: 'صوت تنبيه جاهزية الطاولة',
-      en: 'Ready Alert Sound'
+      icon: "fa-bell",
+      ar: "تنبيه الجاهزية",
+      en: "Ready Alert"
     },
     {
-      icon: 'fa-mobile-alt',
-      ar: 'اهتزاز تنبيه الجاهزية',
-      en: 'Ready Alert Vibration'
+      icon: "fa-mobile-alt",
+      ar: "اهتزاز الجاهزية",
+      en: "Ready Vibration"
     },
     {
-      icon: 'fa-hourglass-end',
-      ar: 'صوت انتهاء الحجز',
-      en: 'Expired Alert Sound'
+      icon: "fa-hourglass-end",
+      ar: "صوت انتهاء الحجز",
+      en: "Expired Booking Sound"
     },
     {
-      icon: 'fa-mobile-alt',
-      ar: 'اهتزاز انتهاء الحجز',
-      en: 'Expired Alert Vibration'
+      icon: "fa-mobile-alt",
+      ar: "اهتزاز انتهاء الحجز",
+      en: "Expired Booking Vibration"
     },
     {
-      icon: 'fa-list',
-      ar: 'إظهار قائمة المنتهية',
-      en: 'Show Expired Panel'
+      icon: "fa-list",
+      ar: "لوحة المنتهية",
+      en: "Expired Panel"
     },
     {
-      icon: 'fa-list-ol',
-      ar: 'عدد الحجوزات المنتهية المعروضة',
-      en: 'Expired List Limit'
+      icon: "fa-list-ol",
+      ar: "عدد الطلبات المنتهية",
+      en: "Expired Requests Limit"
     },
     {
-      icon: 'fa-clock',
-      ar: 'مدة انتظار العميل بعد تعيين الطاولة',
-      en: 'Reservation Hold Minutes'
+      icon: "fa-clock",
+      ar: "مدة الحجز",
+      en: "Reservation Hold Time"
     },
     {
-      icon: 'fa-hourglass-start',
-      ar: 'مدة تعليق طاولة',
-      en: 'Pending Hold Minutes'
+      icon: "fa-hourglass-start",
+      ar: "مدة الانتظار المؤقت",
+      en: "Temporary Hold Time"
     },
     {
-      icon: 'fa-broom',
-      ar: 'مدة تنظيف الطاولة',
-      en: 'Cleaning Hold Minutes'
+      icon: "fa-broom",
+      ar: "مدة التنظيف",
+      en: "Cleaning Time"
     }
   ];
 
-  document
-    .querySelectorAll('#settingsModal .settings-section .settings-row .settings-label')
-    .forEach((label, index) => {
-      if (label.id === 'readyModeLabel') return;
+  labels.forEach((label, index) => {
+    const item = labelTranslations[index];
+    if (!item) return;
 
-      const item = settingsLabelTranslations[index - 1];
-      if (!item) return;
+    label.innerHTML = `
+      <i class="fas ${item.icon}"></i>
+      ${eqModalText(item.ar, item.en)}
+    `;
+  });
 
-      label.innerHTML = `
-        <i class="fas ${item.icon}"></i>
-        ${currentLang === "ar" ? item.ar : item.en}
-      `;
-    });
+  // أزرار التشغيل والإيقاف
+  const buttonTranslations = [
+    ["soundOnBtn", "تشغيل", "ON"],
+    ["soundOffBtn", "إيقاف", "OFF"],
+    ["vibrationOnBtn", "تشغيل", "ON"],
+    ["vibrationOffBtn", "إيقاف", "OFF"],
+    ["expiredSoundOnBtn", "تشغيل", "ON"],
+    ["expiredSoundOffBtn", "إيقاف", "OFF"],
+    ["expiredVibrationOnBtn", "تشغيل", "ON"],
+    ["expiredVibrationOffBtn", "إيقاف", "OFF"],
+    ["expiredPanelOnBtn", "إظهار", "Show"],
+    ["expiredPanelOffBtn", "إخفاء", "Hide"]
+  ];
 
-  document
-    .querySelectorAll('#settingsModal .toggle-group .toggle-btn')
-    .forEach(btn => {
-      const text = btn.innerText.trim().toUpperCase();
+  buttonTranslations.forEach(([id, ar, en]) => {
+    const btn = document.getElementById(id);
+    if (btn) btn.innerHTML = eqModalText(ar, en);
+  });
 
-      if (text === 'ON' || text === 'تشغيل') {
-        btn.innerHTML = currentLang === "ar" ? "تشغيل" : "ON";
-      }
-
-      if (text === 'OFF' || text === 'إيقاف') {
-        btn.innerHTML = currentLang === "ar" ? "إيقاف" : "OFF";
-      }
-    });
-
-  const saveSettingsBtn = document.querySelector('#settingsModal .settings-save');
+  // أزرار الحفظ والإغلاق
+  const saveSettingsBtn = document.querySelector("#settingsModal .settings-save");
   if (saveSettingsBtn) {
-    saveSettingsBtn.innerHTML = currentLang === "ar" ? "حفظ" : "Save";
+    saveSettingsBtn.innerHTML = `
+      <i class="fas fa-save"></i>
+      ${eqModalText("حفظ", "Save")}
+    `;
   }
 
-  const closeSettingsBtn = document.querySelector('#settingsModal .settings-close');
+  const closeSettingsBtn = document.querySelector("#settingsModal .settings-close");
   if (closeSettingsBtn) {
-    closeSettingsBtn.innerHTML = currentLang === "ar" ? "إلغاء" : "Cancel";
+    closeSettingsBtn.innerHTML = eqModalText("إغلاق", "Close");
   }
 
-  if (modeAnyBtn) modeAnyBtn.classList.toggle("active", settingsDraft.ready_mode === "any_match");
-  if (modeQueueBtn) modeQueueBtn.classList.toggle("active", settingsDraft.ready_mode === "queue_priority");
-  
+  // تفعيل الأزرار حسب القيم الحالية
   const soundOnBtn = document.getElementById("soundOnBtn");
   const soundOffBtn = document.getElementById("soundOffBtn");
-  if (soundOnBtn) soundOnBtn.classList.toggle("active", settingsDraft.alert_sound_enabled === true);
-  if (soundOffBtn) soundOffBtn.classList.toggle("active", settingsDraft.alert_sound_enabled === false);
-  
+  if (soundOnBtn) soundOnBtn.classList.toggle("active", draft.alert_sound_enabled === true);
+  if (soundOffBtn) soundOffBtn.classList.toggle("active", draft.alert_sound_enabled === false);
+
   const vibrationOnBtn = document.getElementById("vibrationOnBtn");
   const vibrationOffBtn = document.getElementById("vibrationOffBtn");
-  if (vibrationOnBtn) vibrationOnBtn.classList.toggle("active", settingsDraft.alert_vibration_enabled === true);
-  if (vibrationOffBtn) vibrationOffBtn.classList.toggle("active", settingsDraft.alert_vibration_enabled === false);
-  
+  if (vibrationOnBtn) vibrationOnBtn.classList.toggle("active", draft.alert_vibration_enabled === true);
+  if (vibrationOffBtn) vibrationOffBtn.classList.toggle("active", draft.alert_vibration_enabled === false);
+
   const expiredSoundOnBtn = document.getElementById("expiredSoundOnBtn");
   const expiredSoundOffBtn = document.getElementById("expiredSoundOffBtn");
-  if (expiredSoundOnBtn) expiredSoundOnBtn.classList.toggle("active", settingsDraft.expired_sound_enabled === true);
-  if (expiredSoundOffBtn) expiredSoundOffBtn.classList.toggle("active", settingsDraft.expired_sound_enabled === false);
-  
+  if (expiredSoundOnBtn) expiredSoundOnBtn.classList.toggle("active", draft.expired_sound_enabled === true);
+  if (expiredSoundOffBtn) expiredSoundOffBtn.classList.toggle("active", draft.expired_sound_enabled === false);
+
   const expiredVibrationOnBtn = document.getElementById("expiredVibrationOnBtn");
   const expiredVibrationOffBtn = document.getElementById("expiredVibrationOffBtn");
-  if (expiredVibrationOnBtn) expiredVibrationOnBtn.classList.toggle("active", settingsDraft.expired_vibration_enabled === true);
-  if (expiredVibrationOffBtn) expiredVibrationOffBtn.classList.toggle("active", settingsDraft.expired_vibration_enabled === false);
-  
+  if (expiredVibrationOnBtn) expiredVibrationOnBtn.classList.toggle("active", draft.expired_vibration_enabled === true);
+  if (expiredVibrationOffBtn) expiredVibrationOffBtn.classList.toggle("active", draft.expired_vibration_enabled === false);
+
   const expiredPanelOnBtn = document.getElementById("expiredPanelOnBtn");
   const expiredPanelOffBtn = document.getElementById("expiredPanelOffBtn");
-  if (expiredPanelOnBtn) expiredPanelOnBtn.classList.toggle("active", settingsDraft.expired_panel_enabled === true);
-  if (expiredPanelOffBtn) expiredPanelOffBtn.classList.toggle("active", settingsDraft.expired_panel_enabled === false);
-  
+  if (expiredPanelOnBtn) expiredPanelOnBtn.classList.toggle("active", draft.expired_panel_enabled === true);
+  if (expiredPanelOffBtn) expiredPanelOffBtn.classList.toggle("active", draft.expired_panel_enabled === false);
+
+  // القيم الرقمية
   const expiredListLimit = document.getElementById("expired_list_limit_value");
-  if (expiredListLimit) expiredListLimit.innerText = settingsDraft.expired_list_limit ?? 5;
-  
+  if (expiredListLimit) expiredListLimit.innerText = draft.expired_list_limit ?? 5;
+
   const reservationHold = document.getElementById("reservation_hold_minutes_value");
-  if (reservationHold) reservationHold.innerText = settingsDraft.reservation_hold_minutes ?? 10;
-  
+  if (reservationHold) reservationHold.innerText = draft.reservation_hold_minutes ?? 10;
+
   const pendingHold = document.getElementById("pending_hold_minutes_value");
-  if (pendingHold) pendingHold.innerText = settingsDraft.pending_hold_minutes ?? 5;
-  
+  if (pendingHold) pendingHold.innerText = draft.pending_hold_minutes ?? 5;
+
   const cleaningHold = document.getElementById("cleaning_hold_minutes_value");
-  if (cleaningHold) cleaningHold.innerText = settingsDraft.cleaning_hold_minutes ?? 10;
+  if (cleaningHold) cleaningHold.innerText = draft.cleaning_hold_minutes ?? 10;
 }
 
 async function saveSettings() {
   if (!canDo('manage_alerts') && !canDo('manage_timers')) {
-    showAlert('ليس لديك صلاحية لحفظ إعدادات التنبيهات والمؤقتات');
+    showAlert(eqModalText(
+      'ليس لديك صلاحية لحفظ إعدادات التنبيهات والمؤقتات',
+      'You do not have permission to save alerts and timers'
+    ));
     return;
   }
 
   const businessId = currentUser?.business_id;
 
   if (!businessId || !settings?.id) {
-    alert("Settings not found");
+    showAlert(eqModalText(
+      "لم يتم العثور على إعدادات المطعم الحالي",
+      "Restaurant settings were not found"
+    ));
     return;
   }
 
   const payload = {
-    ready_mode: settingsDraft.ready_mode,
+    /*
+      لا نغيّر ready_mode من مودل التنبيهات والمؤقتات.
+      قواعد الطابور تحفظ من مودل قواعد الطابور فقط.
+    */
+    ready_mode: settings?.ready_mode || settingsDraft.ready_mode || 'any_match',
+
     alert_sound_enabled: settingsDraft.alert_sound_enabled,
     alert_vibration_enabled: settingsDraft.alert_vibration_enabled,
     expired_sound_enabled: settingsDraft.expired_sound_enabled,
@@ -226,21 +304,29 @@ async function saveSettings() {
     pending_hold_minutes: settingsDraft.pending_hold_minutes,
     cleaning_hold_minutes: settingsDraft.cleaning_hold_minutes
   };
+
   const { error } = await supabase
-  .from("business_settings")
-  .update(payload)
-  .eq("id", settings.id)
-  .eq("business_id", businessId);
+    .from("business_settings")
+    .update(payload)
+    .eq("id", settings.id)
+    .eq("business_id", businessId);
+
   if (error) {
-    console.log(error);
-    alert("Save failed");
+    console.error("Save settings error:", error);
+    showAlert(eqModalText("فشل حفظ الإعدادات", "Failed to save settings"));
     return;
   }
+
   settings = { ...settings, ...payload };
+
   closeSettingsModal();
   renderWaitingList();
   renderExpiredList();
   processReadyAlerts();
+
+  if (typeof showSuccessNotification === "function") {
+    showSuccessNotification(eqModalText("✅ تم حفظ الإعدادات", "✅ Settings saved"));
+  }
 }
 
 // ============================================================
@@ -249,7 +335,10 @@ async function saveSettings() {
 
 function openQueueRulesModal() {
   if (!canDo('manage_alerts') && !canDo('manage_timers')) {
-    showAlert('ليس لديك صلاحية لتعديل قواعد الطابور');
+    showAlert(eqModalText(
+      'ليس لديك صلاحية لتعديل قواعد الطابور',
+      'You do not have permission to edit queue rules'
+    ));
     return;
   }
 
@@ -257,16 +346,12 @@ function openQueueRulesModal() {
   renderQueueRulesModal();
 
   const modal = document.getElementById('queueRulesModal');
-  if (modal) {
-    modal.classList.add('show');
-  }
+  if (modal) modal.classList.add('show');
 }
 
 function closeQueueRulesModal() {
   const modal = document.getElementById('queueRulesModal');
-  if (modal) {
-    modal.classList.remove('show');
-  }
+  if (modal) modal.classList.remove('show');
 }
 
 function setQueueReadyMode(mode) {
@@ -275,36 +360,154 @@ function setQueueReadyMode(mode) {
 }
 
 function renderQueueRulesModal() {
+  setEqModalDirection("queueRulesModal");
+
+  const draft = settingsDraft || settings || {};
+  const currentMode = draft.ready_mode || settings?.ready_mode || 'any_match';
+
+  // العنوان والوصف
+  setEqElementText(
+    "#queueRulesModal .eq-queue-rules-title",
+    eqModalText("قواعد الطابور", "Queue Rules")
+  );
+
+  setEqElementText(
+    "#queueRulesModal .eq-queue-rules-subtitle",
+    eqModalText(
+      "اختر طريقة السماح بالتعيين اليدوي عند توفر الطاولات",
+      "Choose how manual assignment is allowed when tables become available"
+    )
+  );
+
+  const policyCards = document.querySelectorAll("#queueRulesModal .eq-queue-policy-card");
+
+  // وضع الانضباط
+  if (policyCards[0]) {
+    setEqElementHTML(
+      policyCards[0].querySelector(".eq-queue-policy-title"),
+      `
+        <i class="fas fa-shield-alt"></i>
+        ${eqModalText("وضع الانضباط", "Strict Mode")}
+      `
+    );
+
+    setEqElementHTML(
+      policyCards[0].querySelector(".eq-queue-policy-tag"),
+      `
+        <i class="fas fa-user-check"></i>
+        ${eqModalText("سحب البطاقة الذهبية فقط", "Drag only the golden card")}
+      `
+    );
+
+    setEqElementText(
+      policyCards[0].querySelector(".eq-queue-policy-desc"),
+      eqModalText(
+        "يعرض النظام أول عميل جاهز بإطار ذهبي، ويسمح بسحب هذه البطاقة فقط للحفاظ على ترتيب الطابور وتقليل أخطاء التعيين.",
+        "The system highlights the first ready customer with a golden frame and allows dragging only that card to preserve queue order and reduce assignment mistakes."
+      )
+    );
+
+    setEqElementText(
+      policyCards[0].querySelector(".eq-queue-policy-example"),
+      eqModalText(
+        "مناسب للمطاعم التي تريد أن يقود النظام قرار التعيين. أكثر عدلًا وتنظيمًا، ولكنه يقلل مرونة الموظف في اختيار مجموعة أكبر أو عميل آخر مناسب.",
+        "Best for restaurants that want the system to lead the assignment decision. It is fairer and more organized, but reduces staff flexibility to choose a larger or different suitable group."
+      )
+    );
+  }
+
+  // وضع المرونة
+  if (policyCards[1]) {
+    setEqElementHTML(
+      policyCards[1].querySelector(".eq-queue-policy-title"),
+      `
+        <i class="fas fa-hand-pointer"></i>
+        ${eqModalText("وضع المرونة", "Flexible Mode")}
+      `
+    );
+
+    setEqElementHTML(
+      policyCards[1].querySelector(".eq-queue-policy-tag"),
+      `
+        <i class="fas fa-arrows-alt"></i>
+        ${eqModalText("سحب أي بطاقة مناسبة", "Drag any suitable card")}
+      `
+    );
+
+    setEqElementText(
+      policyCards[1].querySelector(".eq-queue-policy-desc"),
+      eqModalText(
+        "يقترح النظام أول عميل جاهز بإطار ذهبي، لكن يسمح للموظف بسحب أي بطاقة أخرى يدويًا إذا كانت مناسبة للطاولة.",
+        "The system still suggests the first ready customer with a golden frame, but staff can manually drag another suitable card when needed."
+      )
+    );
+
+    setEqElementText(
+      policyCards[1].querySelector(".eq-queue-policy-example"),
+      eqModalText(
+        "مناسب وقت الزحام أو عندما يريد الموظف اختيار مجموعة أكبر أو استغلال الطاولات بطريقة أفضل. يعطي مرونة أعلى، ويحتاج موظفًا واعيًا حتى لا يخل بترتيب الطابور.",
+        "Useful during rush hours or when staff want to seat a larger group or use tables more efficiently. It gives more flexibility, but requires careful staff judgment to avoid unfair queue skipping."
+      )
+    );
+  }
+
+  // الملاحظة
+  setEqElementHTML(
+    "#queueRulesModal .eq-queue-rules-note span",
+    eqModalText(
+      "في الوضعين يظهر الإطار الذهبي على أول عميل جاهز فقط، وزر التعيين التلقائي يعيّن العميل الجاهز الأول. الفرق فقط في السماح أو منع السحب اليدوي لغير البطاقة الذهبية.",
+      "In both modes, the golden frame appears only on the first ready customer, and auto assignment still assigns that first ready customer. The only difference is whether manual dragging of other suitable cards is allowed or blocked."
+    )
+  );
+
+  // الأزرار
   const anyBtn = document.getElementById('queueRuleAnyBtn');
   const priorityBtn = document.getElementById('queueRulePriorityBtn');
-
-  const currentMode = settingsDraft.ready_mode || settings.ready_mode || 'any_match';
-
-  if (anyBtn) {
-    anyBtn.classList.toggle('active', currentMode === 'any_match');
-    anyBtn.innerHTML = currentMode === 'any_match'
-      ? '<i class="fas fa-check"></i> محدد'
-      : 'اختيار';
-  }
 
   if (priorityBtn) {
     priorityBtn.classList.toggle('active', currentMode === 'queue_priority');
     priorityBtn.innerHTML = currentMode === 'queue_priority'
-      ? '<i class="fas fa-check"></i> محدد'
-      : 'اختيار';
+      ? `<i class="fas fa-check"></i> ${eqModalText("محدد", "Selected")}`
+      : eqModalText("اختيار", "Choose");
+  }
+
+  if (anyBtn) {
+    anyBtn.classList.toggle('active', currentMode === 'any_match');
+    anyBtn.innerHTML = currentMode === 'any_match'
+      ? `<i class="fas fa-check"></i> ${eqModalText("محدد", "Selected")}`
+      : eqModalText("اختيار", "Choose");
+  }
+
+  const saveBtn = document.querySelector("#queueRulesModal .settings-save");
+  if (saveBtn) {
+    saveBtn.innerHTML = `
+      <i class="fas fa-save"></i>
+      ${eqModalText("حفظ", "Save")}
+    `;
+  }
+
+  const closeBtn = document.querySelector("#queueRulesModal .settings-close");
+  if (closeBtn) {
+    closeBtn.innerHTML = eqModalText("إغلاق", "Close");
   }
 }
 
 async function saveQueueRulesSettings() {
   if (!canDo('manage_alerts') && !canDo('manage_timers')) {
-    showAlert('ليس لديك صلاحية لحفظ قواعد الطابور');
+    showAlert(eqModalText(
+      'ليس لديك صلاحية لحفظ قواعد الطابور',
+      'You do not have permission to save queue rules'
+    ));
     return;
   }
 
   const businessId = currentUser?.business_id;
 
   if (!businessId || !settings?.id) {
-    showAlert('لم يتم العثور على إعدادات المطعم الحالي');
+    showAlert(eqModalText(
+      'لم يتم العثور على إعدادات المطعم الحالي',
+      'Restaurant settings were not found'
+    ));
     return;
   }
 
@@ -320,7 +523,7 @@ async function saveQueueRulesSettings() {
 
   if (error) {
     console.error('Queue rules save error:', error);
-    showAlert('فشل حفظ قواعد الطابور');
+    showAlert(eqModalText('فشل حفظ قواعد الطابور', 'Failed to save queue rules'));
     return;
   }
 
@@ -340,7 +543,9 @@ async function saveQueueRulesSettings() {
   renderExpiredList();
   processReadyAlerts();
 
-  showSuccessNotification('✅ تم حفظ قواعد الطابور');
+  if (typeof showSuccessNotification === "function") {
+    showSuccessNotification(eqModalText("✅ تم حفظ قواعد الطابور", "✅ Queue rules saved"));
+  }
 }
 
 // ============================================================
@@ -349,42 +554,63 @@ async function saveQueueRulesSettings() {
 
 function openTimerSettingsModal() {
   if (!canDo('manage_timers')) {
-    showAlert('ليس لديك صلاحية لإعدادات المؤقتات');
+    showAlert(eqModalText(
+      'ليس لديك صلاحية لإعدادات المؤقتات',
+      'You do not have permission to manage timers'
+    ));
     return;
   }
 
   const reservationDisplay = document.getElementById('reservation_hold_minutes_display');
   const cleaningDisplay = document.getElementById('cleaning_hold_minutes_display');
+
   if (reservationDisplay) reservationDisplay.innerText = settings.reservation_hold_minutes || 10;
   if (cleaningDisplay) cleaningDisplay.innerText = settings.cleaning_hold_minutes || 10;
-  document.getElementById('timerSettingsModal').classList.add('show');
+
+  const modal = document.getElementById('timerSettingsModal');
+  if (modal) modal.classList.add('show');
 }
 
 function closeTimerSettingsModal() {
-  document.getElementById('timerSettingsModal').classList.remove('show');
+  const modal = document.getElementById('timerSettingsModal');
+  if (modal) modal.classList.remove('show');
 }
 
 function changeTimerSetting(key, delta, min, max) {
-  let current = parseInt(document.getElementById(key + '_display').innerText) || min;
+  const display = document.getElementById(key + '_display');
+  if (!display) return;
+
+  let current = parseInt(display.innerText) || min;
   let newValue = current + delta;
+
   if (newValue < min) newValue = min;
   if (newValue > max) newValue = max;
-  document.getElementById(key + '_display').innerText = newValue;
+
+  display.innerText = newValue;
 }
 
 async function saveTimerSettings() {
   if (!canDo('manage_timers')) {
-    showAlert('ليس لديك صلاحية لحفظ إعدادات المؤقتات');
+    showAlert(eqModalText(
+      'ليس لديك صلاحية لحفظ إعدادات المؤقتات',
+      'You do not have permission to save timer settings'
+    ));
     return;
   }
 
-  const newReservationHold = parseInt(document.getElementById('reservation_hold_minutes_display').innerText);
-  const newCleaningHold = parseInt(document.getElementById('cleaning_hold_minutes_display').innerText);
+  const reservationDisplay = document.getElementById('reservation_hold_minutes_display');
+  const cleaningDisplay = document.getElementById('cleaning_hold_minutes_display');
+
+  const newReservationHold = parseInt(reservationDisplay?.innerText);
+  const newCleaningHold = parseInt(cleaningDisplay?.innerText);
 
   const businessId = currentUser?.business_id || settings?.business_id;
 
   if (!businessId || !settings?.id) {
-    showAlert("لم يتم العثور على إعدادات المطعم الحالي");
+    showAlert(eqModalText(
+      "لم يتم العثور على إعدادات المطعم الحالي",
+      "Restaurant settings were not found"
+    ));
     return;
   }
 
@@ -401,12 +627,15 @@ async function saveTimerSettings() {
 
   if (error) {
     console.error("Error saving timer settings:", error);
-    showAlert("فشل حفظ إعدادات المؤقتات");
+    showAlert(eqModalText("فشل حفظ إعدادات المؤقتات", "Failed to save timer settings"));
     return;
   }
 
   if (!data) {
-    showAlert("لم يتم تحديث أي سجل. تأكد أن الإعدادات تخص المطعم الحالي");
+    showAlert(eqModalText(
+      "لم يتم تحديث أي سجل. تأكد أن الإعدادات تخص المطعم الحالي",
+      "No record was updated. Make sure these settings belong to the current restaurant."
+    ));
     return;
   }
 
@@ -415,7 +644,10 @@ async function saveTimerSettings() {
   settings.pending_hold_minutes = data.pending_hold_minutes;
 
   closeTimerSettingsModal();
-  showSuccessNotification("✅ تم حفظ إعدادات المؤقتات");
+
+  if (typeof showSuccessNotification === "function") {
+    showSuccessNotification(eqModalText("✅ تم حفظ إعدادات المؤقتات", "✅ Timer settings saved"));
+  }
 }
 
 // ============================================================
@@ -767,14 +999,130 @@ async function loadWaitingList() {
 // ZONE & FLOOR MANAGEMENT
 // ============================================================
 
+function zoneFloorText(arText, enText) {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    currentLang ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? enText : arText;
+}
+
+function getZoneFloorLang() {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    currentLang ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function getZoneDisplayNameById(zoneId) {
+  const zone = DEFAULT_ZONES.find(z => z.id === zoneId);
+  if (!zone) return zoneId || '-';
+
+  return getZoneFloorLang() === 'ar'
+    ? zone.nameAr
+    : zone.nameEn;
+}
+
+function getFloorDisplayNameById(floorId) {
+  const floor = DEFAULT_FLOORS.find(f => String(f.id) === String(floorId));
+  if (!floor) return floorId || '-';
+
+  return getZoneFloorLang() === 'ar'
+    ? floor.nameAr
+    : floor.nameEn;
+}
+
+function applyZonesModalStaticText() {
+  const modal = document.getElementById('zonesModal');
+  if (!modal) return;
+
+  const isEnglish = getZoneFloorLang() === 'en';
+
+  modal.setAttribute('dir', isEnglish ? 'ltr' : 'rtl');
+  modal.style.direction = isEnglish ? 'ltr' : 'rtl';
+
+  const title = modal.querySelector('.modal-title');
+  if (title) {
+    title.textContent = zoneFloorText('إدارة المناطق', 'Manage Zones');
+  }
+
+  const sub = modal.querySelector('.modal-sub');
+  if (sub) {
+    sub.textContent = zoneFloorText(
+      'تفعيل أو تعطيل المناطق في المطعم',
+      'Enable or disable restaurant zones'
+    );
+  }
+
+  const saveBtn = modal.querySelector('button[onclick="saveZonePreferences()"]');
+  if (saveBtn) {
+    saveBtn.innerHTML = `
+      <i class="fas fa-save"></i>
+      ${zoneFloorText('حفظ التغييرات', 'Save Changes')}
+    `;
+  }
+
+  const closeBtn = modal.querySelector('button[onclick="closeZonesModal()"]');
+  if (closeBtn) {
+    closeBtn.textContent = zoneFloorText('إغلاق', 'Close');
+  }
+}
+
+function applyFloorsModalStaticText() {
+  const modal = document.getElementById('floorsModal');
+  if (!modal) return;
+
+  const isEnglish = getZoneFloorLang() === 'en';
+
+  modal.setAttribute('dir', isEnglish ? 'ltr' : 'rtl');
+  modal.style.direction = isEnglish ? 'ltr' : 'rtl';
+
+  const title = modal.querySelector('.modal-title');
+  if (title) {
+    title.textContent = zoneFloorText('إدارة الطوابق', 'Manage Floors');
+  }
+
+  const sub = modal.querySelector('.modal-sub');
+  if (sub) {
+    sub.textContent = zoneFloorText(
+      'تفعيل أو تعطيل الطوابق في المطعم',
+      'Enable or disable restaurant floors'
+    );
+  }
+
+  const saveBtn = modal.querySelector('button[onclick="saveFloorPreferences()"]');
+  if (saveBtn) {
+    saveBtn.innerHTML = `
+      <i class="fas fa-save"></i>
+      ${zoneFloorText('حفظ التغييرات', 'Save Changes')}
+    `;
+  }
+
+  const closeBtn = modal.querySelector('button[onclick="closeFloorsModal()"]');
+  if (closeBtn) {
+    closeBtn.textContent = zoneFloorText('إغلاق', 'Close');
+  }
+}
+
 async function openZonesModal() {
   if (!canDo('manage_zones')) {
-    showAlert('ليس لديك صلاحية لإدارة المناطق');
+    showAlert(zoneFloorText(
+      'ليس لديك صلاحية لإدارة المناطق',
+      'You do not have permission to manage zones'
+    ));
     return;
   }
 
-  // تحميل آخر إعدادات المناطق من قاعدة البيانات قبل عرض المودل
   await loadActiveSettings();
+
+  applyZonesModalStaticText();
 
   document.getElementById('zonesModal').classList.add('show');
   loadZones();
@@ -785,13 +1133,15 @@ function closeZonesModal() {
 }
 
 function loadZones() {
+  applyZonesModalStaticText();
+
   const activeZones = globalActiveZones;
   const container = document.getElementById('zonesList');
   if (!container) return;
-  
+
   container.innerHTML = DEFAULT_ZONES.map(zone => `
     <div class="zone-item">
-      <span>${currentLang === 'ar' ? zone.nameAr : zone.nameEn}</span>
+      <span>${getZoneDisplayNameById(zone.id)}</span>
       <button class="toggle-switch ${activeZones.includes(zone.id) ? 'active' : ''}" 
               onclick="this.classList.toggle('active')" 
               data-zone="${zone.id}">
@@ -803,57 +1153,68 @@ function loadZones() {
 async function saveZonePreferences() {
   const buttons = document.querySelectorAll('#zonesList .toggle-switch');
   const activeZones = [];
+
   buttons.forEach(btn => {
     if (btn.classList.contains('active')) {
       activeZones.push(btn.getAttribute('data-zone'));
     }
   });
-  
-    // ============================================================
-  // PACKAGE LIMIT CHECK - ZONES
-  // فحص حد المناطق حسب باقة الاشتراك
-  // null في max_zones يعني بدون حد
-  // ============================================================
+
   const { data: usageRows, error: usageError } = await supabase
     .rpc('get_my_license_usage');
 
   if (usageError) {
     console.error('License usage check error:', usageError);
-    showAlert('تعذر التحقق من حدود الباقة. حاول مرة أخرى.');
+    showAlert(zoneFloorText(
+      'تعذر التحقق من حدود الباقة. حاول مرة أخرى.',
+      'Could not verify your plan limits. Please try again.'
+    ));
     return;
   }
 
   const usage = Array.isArray(usageRows) ? usageRows[0] : null;
 
   if (!usage) {
-    showAlert('لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.');
+    showAlert(zoneFloorText(
+      'لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.',
+      'Could not read the subscription limits for this restaurant.'
+    ));
     return;
   }
 
-if (usage.max_zones !== null && activeZones.length > Number(usage.max_zones)) {
-  showAlert(`لا يمكن تفعيل أكثر من ${usage.max_zones} مناطق في باقتك الحالية. المناطق المحددة الآن: ${activeZones.length}.`);
+  if (usage.max_zones !== null && activeZones.length > Number(usage.max_zones)) {
+    showAlert(zoneFloorText(
+      `لا يمكن تفعيل أكثر من ${usage.max_zones} مناطق في باقتك الحالية. المناطق المحددة الآن: ${activeZones.length}.`,
+      `You cannot enable more than ${usage.max_zones} zones on your current plan. Selected zones now: ${activeZones.length}.`
+    ));
 
-  // إرجاع أزرار المودل إلى آخر حالة محفوظة فعليًا
-  await loadActiveSettings();
-  loadZones();
+    await loadActiveSettings();
+    loadZones();
 
-  return;
-}
+    return;
+  }
 
   const oldZones = JSON.parse(localStorage.getItem('easyq_zones') || '["Indoor","Outdoor","VIP","Family","Smoking"]');
   const disabledZones = oldZones.filter(z => !activeZones.includes(z));
+
   for (const zone of disabledZones) {
     const tablesCount = floorData.filter(t => t.zone_name === zone && t.status === 'available').length;
+
     if (tablesCount > 0) {
-      showAlert(`⚠️ لا يمكن تعطيل منطقة "${zone}" لأن بها ${tablesCount} طاولة متاحة.\nالرجاء تعطيل الطاولات أولاً.`);
+      const zoneName = getZoneDisplayNameById(zone);
+
+      showAlert(zoneFloorText(
+        `⚠️ لا يمكن تعطيل منطقة "${zoneName}" لأن بها ${tablesCount} طاولة متاحة.\nالرجاء تعطيل الطاولات أولاً.`,
+        `⚠️ You cannot disable "${zoneName}" because it has ${tablesCount} available tables.\nPlease disable the tables first.`
+      ));
       return;
     }
   }
-  
+
   localStorage.setItem('easyq_zones', JSON.stringify(activeZones));
 
-// تحديث المناطق المفعلة داخل الذاكرة حتى يظهر المودل صحيح عند فتحه مرة أخرى
-globalActiveZones = activeZones;
+  globalActiveZones = activeZones;
+
   if (currentUser && currentUser.business_id && currentUser.id) {
     const { error } = await supabase.rpc('save_restaurant_setting', {
       p_business_id: currentUser.business_id,
@@ -861,33 +1222,52 @@ globalActiveZones = activeZones;
       p_setting_value: JSON.stringify(activeZones),
       p_updated_by: currentUser.id
     });
+
     if (error) {
       console.error("RPC error:", error);
-      showAlert("فشل حفظ الإعدادات في قاعدة البيانات");
+      showAlert(zoneFloorText(
+        'فشل حفظ الإعدادات في قاعدة البيانات',
+        'Failed to save settings to the database'
+      ));
       return;
     }
   }
+
   if (!activeZones.includes(currentZone) && currentZone !== "all") {
     currentZone = activeZones[0] || "all";
     const zoneNames = ZONE_NAMES;
-    document.getElementById('currentZoneLabel').innerHTML = zoneNames[currentZone]?.icon + ' ' + (zoneNames[currentZone]?.[currentLang === 'ar' ? 'ar' : 'en'] || currentZone);
+    const zoneLang = getZoneFloorLang();
+
+    document.getElementById('currentZoneLabel').innerHTML =
+      zoneNames[currentZone]?.icon + ' ' +
+      (zoneNames[currentZone]?.[zoneLang] || currentZone);
   }
+
   closeZonesModal();
   updateZoneDropdowns();
   await loadFloorPlan();
   renderFloorPlan();
   renderStatusSummary();
   loadZoneDropdown();
-  showSuccessNotification('تم حفظ تفضيلات المناطق');
+
+  showSuccessNotification(zoneFloorText(
+    '✅ تم حفظ تفضيلات المناطق بنجاح',
+    '✅ Zone preferences saved successfully'
+  ));
 }
 
 async function openFloorsModal() {
-    if (!canDo('manage_floors')) {
-    showAlert('ليس لديك صلاحية لإدارة الطوابق');
+  if (!canDo('manage_floors')) {
+    showAlert(zoneFloorText(
+      'ليس لديك صلاحية لإدارة الطوابق',
+      'You do not have permission to manage floors'
+    ));
     return;
   }
-  // تحميل آخر إعدادات الطوابق من قاعدة البيانات قبل عرض المودل
+
   await loadActiveSettings();
+
+  applyFloorsModalStaticText();
 
   document.getElementById('floorsModal').classList.add('show');
   loadFloors();
@@ -898,13 +1278,15 @@ function closeFloorsModal() {
 }
 
 function loadFloors() {
+  applyFloorsModalStaticText();
+
   const activeFloors = globalActiveFloors;
   const container = document.getElementById('floorsList');
   if (!container) return;
-  
+
   container.innerHTML = DEFAULT_FLOORS.map(floor => `
     <div class="zone-item">
-      <span>${currentLang === 'ar' ? floor.nameAr : floor.nameEn}</span>
+      <span>${getFloorDisplayNameById(floor.id)}</span>
       <button class="toggle-switch ${activeFloors.includes(floor.id) ? 'active' : ''}" 
               onclick="this.classList.toggle('active')" 
               data-floor="${floor.id}">
@@ -916,59 +1298,74 @@ function loadFloors() {
 async function saveFloorPreferences() {
   const buttons = document.querySelectorAll('#floorsList .toggle-switch');
   const activeFloors = [];
+
   buttons.forEach(btn => {
     if (btn.classList.contains('active')) {
       activeFloors.push(btn.getAttribute('data-floor'));
     }
   });
+
   if (activeFloors.length === 0) {
-    showAlert('يجب تفعيل طابق واحد على الأقل');
+    showAlert(zoneFloorText(
+      'يجب تفعيل طابق واحد على الأقل',
+      'At least one floor must be enabled'
+    ));
     return;
   }
-  
-  // ============================================================
-  // PACKAGE LIMIT CHECK - FLOORS
-  // فحص حد الأدوار حسب باقة الاشتراك
-  // null في max_floors يعني بدون حد
-  // ============================================================
+
   const { data: usageRows, error: usageError } = await supabase
     .rpc('get_my_license_usage');
 
   if (usageError) {
     console.error('License usage check error:', usageError);
-    showAlert('تعذر التحقق من حدود الباقة. حاول مرة أخرى.');
+    showAlert(zoneFloorText(
+      'تعذر التحقق من حدود الباقة. حاول مرة أخرى.',
+      'Could not verify your plan limits. Please try again.'
+    ));
     return;
   }
 
   const usage = Array.isArray(usageRows) ? usageRows[0] : null;
 
   if (!usage) {
-    showAlert('لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.');
+    showAlert(zoneFloorText(
+      'لا يمكن قراءة حدود باقة الاشتراك لهذا المطعم.',
+      'Could not read the subscription limits for this restaurant.'
+    ));
     return;
   }
 
-if (usage.max_floors !== null && activeFloors.length > Number(usage.max_floors)) {
-  showAlert(`لا يمكن تفعيل أكثر من ${usage.max_floors} أدوار في باقتك الحالية. الأدوار المحددة الآن: ${activeFloors.length}.`);
+  if (usage.max_floors !== null && activeFloors.length > Number(usage.max_floors)) {
+    showAlert(zoneFloorText(
+      `لا يمكن تفعيل أكثر من ${usage.max_floors} طوابق في باقتك الحالية. الطوابق المحددة الآن: ${activeFloors.length}.`,
+      `You cannot enable more than ${usage.max_floors} floors on your current plan. Selected floors now: ${activeFloors.length}.`
+    ));
 
-  // إرجاع أزرار المودل إلى آخر حالة محفوظة فعليًا
-  await loadActiveSettings();
-  loadFloors();
+    await loadActiveSettings();
+    loadFloors();
 
-  return;
-}
+    return;
+  }
 
   const oldFloors = JSON.parse(localStorage.getItem('easyq_floors') || '["1","2","3"]');
   const disabledFloors = oldFloors.filter(f => !activeFloors.includes(f));
+
   for (const floor of disabledFloors) {
     const tablesCount = floorData.filter(t => String(t.floor_number) === floor && t.status === 'available').length;
+
     if (tablesCount > 0) {
-      const floorName = floor === '1' ? 'أرضي' : floor === '2' ? 'أول' : 'ثاني';
-      showAlert(`⚠️ لا يمكن تعطيل الطابق "${floorName}" لأن به ${tablesCount} طاولة متاحة.\nالرجاء تعطيل الطاولات أولاً.`);
+      const floorName = getFloorDisplayNameById(floor);
+
+      showAlert(zoneFloorText(
+        `⚠️ لا يمكن تعطيل الطابق "${floorName}" لأن به ${tablesCount} طاولة متاحة.\nالرجاء تعطيل الطاولات أولاً.`,
+        `⚠️ You cannot disable "${floorName}" because it has ${tablesCount} available tables.\nPlease disable the tables first.`
+      ));
       return;
     }
   }
-  
+
   localStorage.setItem('easyq_floors', JSON.stringify(activeFloors));
+
   if (currentUser && currentUser.business_id && currentUser.id) {
     const { error } = await supabase.rpc('save_restaurant_setting', {
       p_business_id: currentUser.business_id,
@@ -976,26 +1373,39 @@ if (usage.max_floors !== null && activeFloors.length > Number(usage.max_floors))
       p_setting_value: JSON.stringify(activeFloors),
       p_updated_by: currentUser.id
     });
+
     if (error) {
       console.error("RPC error:", error);
-      showAlert("فشل حفظ الإعدادات في قاعدة البيانات");
+      showAlert(zoneFloorText(
+        'فشل حفظ الإعدادات في قاعدة البيانات',
+        'Failed to save settings to the database'
+      ));
       return;
     }
   }
+
   if (!activeFloors.includes(String(currentFloor))) {
     currentFloor = parseInt(activeFloors[0]);
     const floorNames = FLOOR_NAMES;
-    document.getElementById('currentFloorLabel').innerHTML = floorNames[String(currentFloor)]?.icon + ' ' + (floorNames[String(currentFloor)]?.[currentLang === 'ar' ? 'ar' : 'en'] || currentFloor);
+    const floorLang = getZoneFloorLang();
+
+    document.getElementById('currentFloorLabel').innerHTML =
+      floorNames[String(currentFloor)]?.icon + ' ' +
+      (floorNames[String(currentFloor)]?.[floorLang] || currentFloor);
   }
+
   closeFloorsModal();
   await loadFloorPlan();
   renderFloorPlan();
   renderStatusSummary();
   loadFloorDropdown();
   await loadActiveSettings();
-  showSuccessNotification('تم حفظ تفضيلات الطوابق');
-}
 
+  showSuccessNotification(zoneFloorText(
+    '✅ تم حفظ تفضيلات الطوابق بنجاح',
+    '✅ Floor preferences saved successfully'
+  ));
+}
 // ============================================================
 // DROPDOWN FUNCTIONS
 // ============================================================

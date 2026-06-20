@@ -595,9 +595,9 @@ btn.onclick = function(e) {
         <i class="fas fa-chevron-right toggle-icon"></i>
       </div>
       <div class="sub-menu" data-submenu="settings">
-        <div class="sub-menu-item" onclick="openSettingsModal()">
-          <i class="fas fa-bell"></i> <span>إعدادات التنبيهات والمؤقتات</span>
-        </div>
+        <div class="sub-menu-item" data-view="settings-alerts-timers" onclick="openSettingsModal()">
+  <i class="fas fa-bell"></i> <span>إعدادات التنبيهات والمؤقتات</span>
+</div>
 <div class="sub-menu-item" data-view="settings-queue" onclick="openQueueRulesModal()">
   <i class="fas fa-clock"></i> <span>قواعد الطابور</span>
 </div>
@@ -621,12 +621,12 @@ btn.onclick = function(e) {
         <i class="fas fa-chevron-right toggle-icon"></i>
       </div>
       <div class="sub-menu" data-submenu="staff">
-        <div class="sub-menu-item" onclick="openUsersModal()">
-          <i class="fas fa-users"></i> <span>قائمة الموظفين</span>
-        </div>
-        <div class="sub-menu-item" onclick="openPermissionsModal()">
-          <i class="fas fa-lock"></i> <span>الصلاحيات</span>
-        </div>
+<div class="sub-menu-item" data-view="staff-list" onclick="openUsersModal()">
+  <i class="fas fa-users"></i> <span>قائمة الموظفين</span>
+</div>
+<div class="sub-menu-item" data-view="staff-permissions" onclick="openPermissionsModal()">
+  <i class="fas fa-lock"></i> <span>الصلاحيات</span>
+</div>
 <div class="sub-menu-item" data-view="staff-log" onclick="openActivityLogModal()">
   <i class="fas fa-history"></i> <span>سجل النشاط</span>
 </div>
@@ -645,25 +645,25 @@ btn.onclick = function(e) {
   </div>
 <div class="sub-menu" data-submenu="branch">
 
-  <div class="sub-menu-item" onclick="openBusinessProfileModal()">
-    <i class="fas fa-store-alt"></i> <span>بيانات المطعم / الفرع</span>
-  </div>
+<div class="sub-menu-item" data-view="branch-business-profile" onclick="openBusinessProfileModal()">
+  <i class="fas fa-store-alt"></i> <span>بيانات المطعم - الفرع</span>
+</div>
 
-  <div class="sub-menu-item" onclick="openBookingSettingsModal()">
-    <i class="fas fa-sliders-h"></i> <span>إعدادات واجهة الحجز</span>
-  </div>
+<div class="sub-menu-item" data-view="branch-floors" onclick="openFloorsModal()">
+  <i class="fas fa-building"></i> <span>إدارة الطوابق</span>
+</div>
 
-  <div class="sub-menu-item" onclick="openZonesModal()">
-    <i class="fas fa-map"></i> <span>إدارة المناطق</span>
-  </div>
+<div class="sub-menu-item" data-view="branch-zones" onclick="openZonesModal()">
+  <i class="fas fa-map"></i> <span>إدارة المناطق</span>
+</div>
 
-  <div class="sub-menu-item" onclick="openFloorsModal()">
-    <i class="fas fa-building"></i> <span>إدارة الطوابق</span>
-  </div>
+<div class="sub-menu-item" data-view="branch-booking-settings" onclick="openBookingSettingsModal()">
+  <i class="fas fa-sliders-h"></i> <span>إعداد صفحة الحجز</span>
+</div>
 
-  <div class="sub-menu-item" onclick="openBookingPage()" style="background: rgba(139,0,0,0.1); margin-top: 5px;">
-    <i class="fas fa-qrcode"></i> <span>📱 فتح واجهة الحجز (QR)</span>
-  </div>
+<div class="sub-menu-item" data-view="branch-booking-page" onclick="openBookingPage()" style="background: rgba(139,0,0,0.1); margin-top: 5px;">
+  <i class="fas fa-qrcode"></i> <span>فتح صفحة الحجز</span>
+</div>
 
 <div class="sub-menu-item" data-view="branch-account" onclick="openBranchAccountModal()">
   <i class="fas fa-credit-card"></i> <span>إدارة الحساب والاشتراكات</span>
@@ -2561,6 +2561,37 @@ let syncTimeout = null;
 let isCurrentlySyncing = false;
 let autoRefreshInterval = null;
 
+function normalizeEasyQLang(value) {
+  return String(value || '').toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function getSavedEasyQLang() {
+  const saved = normalizeEasyQLang(
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar'
+  );
+
+  localStorage.setItem('hajzak_lang', saved);
+  localStorage.setItem('easyq_lang', saved);
+
+  currentLang = saved;
+  window.currentLang = saved;
+
+  return saved;
+}
+
+function setLanguageButtonLabel(lang) {
+  const safeLang = normalizeEasyQLang(lang);
+  const langBtn = document.getElementById('langToggleBtn');
+
+  if (!langBtn) return;
+
+  langBtn.innerText = safeLang === 'ar' ? 'ع' : 'EN';
+  langBtn.title = safeLang === 'ar' ? 'تغيير اللغة إلى الإنجليزية' : 'Switch language to Arabic';
+  langBtn.setAttribute('aria-label', safeLang === 'ar' ? 'تغيير اللغة' : 'Switch language');
+}
+
 function toggleLanguage() {
   const newLang = currentLang === 'en' ? 'ar' : 'en';
   currentLang = newLang;
@@ -2699,117 +2730,122 @@ if (editZoneSelect) {
   console.log("✅ Language changed to:", newLang);
 }
 
-function updateSidebarTexts(lang) {
-  // ترجمة من عربية إلى إنجليزية
-  const arToEn = {
-    'لوحة البيانات': 'Dashboard',
-    'الطابور': 'Queue',
-    'الطاولات': 'Tables',
-    'الحجوزات': 'Reservations',
-    'العملاء': 'Customers',
-    'التقارير': 'Reports',
-    'الإشعارات': 'Notifications',
-    'الفروع والمناطق': 'Branches & Zones',
-    'المستخدمين': 'Users',
-    'الإعدادات': 'Settings',
-    'المؤقتات': 'Timers',
-    'نظرة عامة': 'Overview',
-    'ملخص اليوم': 'Today Summary',
-    'تنبيهات': 'Alerts',
-    'ملغي / لم يحضر': 'Cancelled/No-show',
-    'تم الجلوس': 'Seated',
-    'قائمة الطاولات': 'Tables List',
-    'حالة الطاولات': 'Tables Status',
-    'عرض التقويم': 'Calendar View',
-    'القادمة': 'Upcoming',
-    'المؤكدة': 'Confirmed',
-    'إضافة حجز': 'Add Reservation',
-    'قائمة العملاء': 'Customer List',
-    'ملفات العملاء': 'Customer Profiles',
-    'شرائح العملاء': 'Customer Segments',
-    'برنامج الولاء': 'Loyalty Program',
-    'تحليل وقت الانتظار': 'Wait Time Analysis',
-    'ساعات الذروة': 'Peak Hours',
-    'استغلال الطاولات': 'Table Utilization',
-    'أداء الموظفين': 'Staff Performance',
-    'تصدير التقارير': 'Export Reports',
-    'واتساب API': 'WhatsApp API',
-    'قوالب الرسائل': 'Message Templates',
-    'تنبيهات الطابور': 'Queue Alerts',
-    'مؤقتات تلقائية': 'Auto Timers',
-    'إدارة الفروع': 'Branch Management',
-    'إدارة المناطق': 'Zones Management',
-    'إدارة الطوابق': 'Floors Management',
-    'قائمة الموظفين': 'Staff List',
-    'الصلاحيات': 'Permissions',
-    'سجل النشاط': 'Activity Log',
-    'الإعدادات العامة': 'General Settings',
-    'قواعد الطابور': 'Queue Rules',
-    'أنواع الطاولات': 'Table Types',
-    'تفضيلات النظام': 'System Preferences',
-    'إعدادات المؤقتات': 'Timer Settings'
+function updateSidebarTexts(lang, runDelayed = true) {
+  const current = String(
+    lang ||
+    window.currentLang ||
+    localStorage.getItem("hajzak_lang") ||
+    "ar"
+  ).toLowerCase().startsWith("en") ? "en" : "ar";
+
+  const labels = {
+    menus: {
+      dashboard: { ar: "لوحة البيانات", en: "Dashboard" },
+      queue: { ar: "الطابور", en: "Queue" },
+      tables: { ar: "الطاولات", en: "Tables" },
+      reservations: { ar: "الحجوزات", en: "Reservations" },
+      customers: { ar: "العملاء", en: "Customers" },
+      reports: { ar: "التقارير", en: "Reports" },
+      settings: { ar: "الإعدادات", en: "Settings" },
+      staff: { ar: "الموظفين", en: "Staff" },
+      branch: { ar: "إدارة الفرع", en: "Branch Management" }
+    },
+
+    views: {
+      "dashboard-overview": { ar: "نظرة عامة", en: "Overview" },
+      "dashboard-today": { ar: "ملخص اليوم", en: "Today Summary" },
+
+      "queue-overview": { ar: "ملخص الطابور", en: "Queue Summary" },
+      "queue-details": { ar: "تفاصيل الطلبات", en: "Request Details" },
+      "queue-cancelled": { ar: "ملغي / لم يحضر", en: "Cancelled / No-show" },
+      "queue-seated": { ar: "تم الجلوس", en: "Seated" },
+
+      "tables-list": { ar: "قائمة الطاولات", en: "Tables List" },
+      "tables-status": { ar: "حالة الطاولات", en: "Tables Status" },
+
+      "res-calendar": { ar: "عرض التقويم", en: "Calendar View" },
+      "res-upcoming": { ar: "القادمة", en: "Upcoming" },
+      "res-confirmed": { ar: "المؤكدة", en: "Confirmed" },
+      "res-add": { ar: "إضافة حجز", en: "Add Reservation" },
+
+      "customers-list": { ar: "قائمة العملاء", en: "Customer List" },
+      "customers-profiles": { ar: "ملفات العملاء", en: "Customer Profiles" },
+      "customers-segments": { ar: "شرائح العملاء", en: "Customer Segments" },
+      "customers-loyalty": { ar: "برنامج الولاء", en: "Loyalty Program" },
+
+      "reports-waiting": { ar: "تحليل وقت الانتظار", en: "Wait Time Analysis" },
+      "reports-peak": { ar: "ساعات الذروة", en: "Peak Hours" },
+      "reports-tables": { ar: "استغلال الطاولات", en: "Table Utilization" },
+      "reports-staff": { ar: "أداء الموظفين", en: "Staff Performance" },
+      "reports-export": { ar: "تصدير التقارير", en: "Export Reports" },
+
+      "settings-alerts-timers": { ar: "إعدادات التنبيهات والمؤقتات", en: "Alerts & Timers Settings" },
+      "settings-queue": { ar: "قواعد الطابور", en: "Queue Rules" },
+      "settings-tables": { ar: "أنواع الطاولات", en: "Table Types" },
+      "settings-preferences": { ar: "تفضيلات النظام", en: "System Preferences" },
+      "staff-list": { ar: "قائمة الموظفين", en: "Staff List" },
+      "staff-permissions": { ar: "الصلاحيات", en: "Permissions" },
+      "staff-log": { ar: "سجل النشاط", en: "Activity Log" },
+
+      "branch-business-profile": { ar: "بيانات المطعم - الفرع", en: "Restaurant - Branch Details" },
+"branch-floors": { ar: "إدارة الطوابق", en: "Manage Floors" },
+"branch-zones": { ar: "إدارة المناطق", en: "Manage Zones" },
+"branch-booking-settings": { ar: "إعداد صفحة الحجز", en: "Booking Page Setup" },
+"branch-booking-page": { ar: "فتح صفحة الحجز", en: "Open Booking Page" },
+
+      "branch-account": { ar: "إدارة الحساب والاشتراكات", en: "Account & Subscription" },
+      "business-support": { ar: "الدعم الحي", en: "Live Support" }
+    },
+
+    ids: {
+      addTableBtn: { ar: "➕ إضافة طاولة", en: "➕ Add Table" },
+      editTableBtn: { ar: "تعديل طاولة", en: "Edit Table" },
+      deleteTableBtn: { ar: "حذف طاولة", en: "Delete Table" },
+      moveTableBtn: { ar: "تحريك طاولات", en: "Move Tables" },
+      savePositionsBtn: { ar: "حفظ المواقع", en: "Save Positions" },
+      myAccountBtn: { ar: "حسابي", en: "My Account" },
+      logoutBtn: { ar: "تسجيل الخروج", en: "Logout" },
+      businessSupportSidebarBtn: { ar: "الدعم الحي", en: "Live Support" }
+    }
   };
-  
-  // ترجمة من إنجليزية إلى عربية
-  const enToAr = {
-    'Dashboard': 'لوحة البيانات',
-    'Queue': 'الطابور',
-    'Tables': 'الطاولات',
-    'Reservations': 'الحجوزات',
-    'Customers': 'العملاء',
-    'Reports': 'التقارير',
-    'Notifications': 'الإشعارات',
-    'Branches & Zones': 'الفروع والمناطق',
-    'Users': 'المستخدمين',
-    'Settings': 'الإعدادات',
-    'Timers': 'المؤقتات',
-    'Overview': 'نظرة عامة',
-    'Today Summary': 'ملخص اليوم',
-    'Alerts': 'تنبيهات',
-    'Cancelled/No-show': 'ملغي / لم يحضر',
-    'Seated': 'تم الجلوس',
-    'Tables List': 'قائمة الطاولات',
-    'Tables Status': 'حالة الطاولات',
-    'Calendar View': 'عرض التقويم',
-    'Upcoming': 'القادمة',
-    'Confirmed': 'المؤكدة',
-    'Add Reservation': 'إضافة حجز',
-    'Customer List': 'قائمة العملاء',
-    'Customer Profiles': 'ملفات العملاء',
-    'Customer Segments': 'شرائح العملاء',
-    'Loyalty Program': 'برنامج الولاء',
-    'Wait Time Analysis': 'تحليل وقت الانتظار',
-    'Peak Hours': 'ساعات الذروة',
-    'Table Utilization': 'استغلال الطاولات',
-    'Staff Performance': 'أداء الموظفين',
-    'Export Reports': 'تصدير التقارير',
-    'WhatsApp API': 'واتساب API',
-    'Message Templates': 'قوالب الرسائل',
-    'Queue Alerts': 'تنبيهات الطابور',
-    'Auto Timers': 'مؤقتات تلقائية',
-    'Branch Management': 'إدارة الفروع',
-    'Zones Management': 'إدارة المناطق',
-    'Floors Management': 'إدارة الطوابق',
-    'Staff List': 'قائمة الموظفين',
-    'Permissions': 'الصلاحيات',
-    'Activity Log': 'سجل النشاط',
-    'General Settings': 'الإعدادات العامة',
-    'Queue Rules': 'قواعد الطابور',
-    'Table Types': 'أنواع الطاولات',
-    'System Preferences': 'تفضيلات النظام',
-    'Timer Settings': 'إعدادات المؤقتات'
-  };
-  
-  // اختيار قاموس الترجمة المناسب
-  const dict = lang === 'ar' ? enToAr : arToEn;
-  
-  // تحديث جميع العناصر
-  document.querySelectorAll('.main-menu-item .menu-title span, .sub-menu-item span, .menu-item span').forEach(el => {
-    const text = el.innerText.trim();
-    if (dict[text]) {
-      el.innerText = dict[text];
+
+  Object.entries(labels.menus).forEach(([menuKey, value]) => {
+    const el = document.querySelector(
+      `.main-menu-item[data-menu="${menuKey}"] .menu-title span`
+    );
+
+    if (el) {
+      el.innerText = value[current];
     }
   });
+
+  Object.entries(labels.views).forEach(([viewKey, value]) => {
+    const el = document.querySelector(
+      `.sub-menu-item[data-view="${viewKey}"] span`
+    );
+
+    if (el) {
+      el.innerText = value[current];
+    }
+  });
+
+  Object.entries(labels.ids).forEach(([id, value]) => {
+    const el = document.querySelector(`#${id} span`);
+
+    if (el) {
+      el.innerText = value[current];
+    }
+  });
+
+  /*
+    بعض ملفات الأقسام تضيف بنودًا للسايدبار بعد تحميل الصفحة.
+    لذلك نعيد الترجمة عدة مرات قصيرة بعد تبديل اللغة بدون التأثير على أي منطق.
+  */
+  if (runDelayed) {
+    [80, 250, 700, 1500, 2500].forEach((delay) => {
+      setTimeout(() => updateSidebarTexts(current, false), delay);
+    });
+  }
 }
 
 function setLanguage(lang) {
@@ -2862,10 +2898,13 @@ function setLanguage(lang) {
   const tabExpiredLabel = document.getElementById('tabExpiredLabel');
   if (tabExpiredLabel) tabExpiredLabel.innerText = lang === 'ar' ? 'المنتهية' : 'Expired';
   
-  const langToggleBtn = document.getElementById('langToggleBtn');
-  if (langToggleBtn) langToggleBtn.innerText = currentLang.toUpperCase();
+const langToggleBtn = document.getElementById('langToggleBtn');
+if (langToggleBtn) {
+  langToggleBtn.innerText = lang === 'ar' ? 'ع' : 'EN';
+}
   
   updateDate();
+  updateSidebarTexts(lang);
 
   if (!window.isStartingApp) {
     renderStatusSummary();
@@ -2973,7 +3012,7 @@ if (tabQueueBtn && tabExpiredBtn && waitingContent && expiredContent) {
   
   const finalLangBtn = document.getElementById('langToggleBtn');
   if (finalLangBtn) {
-    finalLangBtn.innerText = savedLang.toUpperCase();
+    finalLangBtn.innerText = savedLang === 'ar' ? 'ع' : 'EN';
     finalLangBtn.style.visibility = 'visible';
   }
 }

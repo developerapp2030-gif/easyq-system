@@ -127,6 +127,194 @@ function stopBusinessSupportSidebarBadgeAutoRefresh() {
   }
 }
 
+function getBusinessSupportLang() {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    currentLang ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function businessSupportText(arText, enText) {
+  return getBusinessSupportLang() === 'en' ? enText : arText;
+}
+
+function applyBusinessSupportModalText() {
+  const modal = document.getElementById('businessSupportModal');
+  if (!modal) return;
+
+  const isEnglish = getBusinessSupportLang() === 'en';
+
+  modal.setAttribute('dir', isEnglish ? 'ltr' : 'rtl');
+  modal.style.direction = isEnglish ? 'ltr' : 'rtl';
+
+  const title = modal.querySelector('.modal-title');
+  if (title) {
+    title.innerHTML = `
+      <i class="fas fa-headset"></i>
+      ${businessSupportText('الدعم الحي', 'Live Support')}
+    `;
+  }
+
+  const subtitle = modal.querySelector('.modal-sub');
+  if (subtitle) {
+    subtitle.textContent = businessSupportText(
+      'تواصل مع إدارة EASY-Q، أو أنشئ رمز تحقق لفتح جلسة دعم مباشرة.',
+      'Contact EASY-Q management, or create a verification code to open a live support session.'
+    );
+  }
+
+  const codeTitle = modal.querySelector('.business-support-code-title');
+  if (codeTitle) {
+    codeTitle.textContent = businessSupportText(
+      'رمز التحقق للدعم',
+      'Support Verification Code'
+    );
+  }
+
+  const codeValue = document.getElementById('businessSupportCodeValue');
+  if (codeValue) {
+    const currentText = codeValue.textContent.trim();
+
+    if (
+      currentText === 'لم يتم إنشاء رمز بعد' ||
+      currentText === 'No code has been created yet'
+    ) {
+      codeValue.textContent = businessSupportText(
+        'لم يتم إنشاء رمز بعد',
+        'No code has been created yet'
+      );
+    }
+
+    codeValue.style.setProperty('font-size', '12px', 'important');
+    codeValue.style.setProperty('line-height', '1.4', 'important');
+    codeValue.style.setProperty('font-weight', '900', 'important');
+    codeValue.style.setProperty('text-align', 'center', 'important');
+    codeValue.style.setProperty('white-space', 'normal', 'important');
+    codeValue.style.setProperty('word-break', 'break-word', 'important');
+    codeValue.style.setProperty('overflow-wrap', 'anywhere', 'important');
+    codeValue.style.setProperty('max-width', '100%', 'important');
+  }
+
+  const codeHint = document.getElementById('businessSupportCodeHint');
+  if (codeHint) {
+    const currentText = codeHint.textContent.trim();
+
+    if (
+      currentText === 'الرمز صالح لمدة 10 دقائق فقط.' ||
+      currentText === 'The code is valid for 10 minutes only.'
+    ) {
+      codeHint.textContent = businessSupportText(
+        'الرمز صالح لمدة 10 دقائق فقط.',
+        'The code is valid for 10 minutes only.'
+      );
+    }
+  }
+
+  const createCodeBtn = document.getElementById('businessCreateSupportCodeBtn');
+  if (createCodeBtn && !createCodeBtn.disabled) {
+    createCodeBtn.innerHTML = `
+      <i class="fas fa-key"></i>
+      <span>${businessSupportText('إنشاء رمز دعم', 'Create Support Code')}</span>
+    `;
+
+    createCodeBtn.style.setProperty('width', '100%', 'important');
+    createCodeBtn.style.setProperty('max-width', '100%', 'important');
+    createCodeBtn.style.setProperty('min-width', '0', 'important');
+    createCodeBtn.style.setProperty('padding', '9px 10px', 'important');
+    createCodeBtn.style.setProperty('font-size', '12px', 'important');
+    createCodeBtn.style.setProperty('line-height', '1.25', 'important');
+    createCodeBtn.style.setProperty('white-space', 'normal', 'important');
+    createCodeBtn.style.setProperty('text-align', 'center', 'important');
+    createCodeBtn.style.setProperty('justify-content', 'center', 'important');
+    createCodeBtn.style.setProperty('gap', '6px', 'important');
+
+    const btnText = createCodeBtn.querySelector('span');
+    if (btnText) {
+      btnText.style.setProperty('white-space', 'normal', 'important');
+      btnText.style.setProperty('line-height', '1.25', 'important');
+      btnText.style.setProperty('min-width', '0', 'important');
+    }
+  }
+
+  const sectionTitles = modal.querySelectorAll('.business-support-section-title');
+  if (sectionTitles[0]) {
+    sectionTitles[0].textContent = businessSupportText(
+      'جلسات الدعم',
+      'Support Sessions'
+    );
+  }
+
+  const sessionsList = document.getElementById('businessSupportSessionsList');
+  if (sessionsList) {
+    const currentText = sessionsList.textContent.trim();
+
+    if (
+      currentText === 'لا توجد جلسات دعم محملة بعد' ||
+      currentText === 'No support sessions loaded yet'
+    ) {
+      sessionsList.textContent = businessSupportText(
+        'لا توجد جلسات دعم محملة بعد',
+        'No support sessions loaded yet'
+      );
+    }
+  }
+
+  const chatHeader = document.getElementById('businessSupportChatHeader');
+  if (chatHeader) {
+    const currentText = chatHeader.textContent.trim();
+
+    if (
+      currentText === 'اختر جلسة دعم لعرض المحادثة' ||
+      currentText === 'Select a support session to view the conversation'
+    ) {
+      chatHeader.textContent = businessSupportText(
+        'اختر جلسة دعم لعرض المحادثة',
+        'Select a support session to view the conversation'
+      );
+    }
+  }
+
+  const messagesList = document.getElementById('businessSupportMessagesList');
+  if (messagesList) {
+    const currentText = messagesList.textContent.trim();
+
+    if (
+      currentText === 'لا توجد محادثة محددة' ||
+      currentText === 'No conversation selected'
+    ) {
+      messagesList.textContent = businessSupportText(
+        'لا توجد محادثة محددة',
+        'No conversation selected'
+      );
+    }
+  }
+
+  const input = document.getElementById('businessSupportMessageInput');
+  if (input) {
+    input.placeholder = businessSupportText(
+      'اكتب رسالتك هنا...',
+      'Type your message here...'
+    );
+  }
+
+  const sendBtn = document.getElementById('businessSendSupportMessageBtn');
+  if (sendBtn && !sendBtn.disabled) {
+    sendBtn.innerHTML = `
+      <i class="fas fa-paper-plane"></i>
+      ${businessSupportText('إرسال', 'Send')}
+    `;
+  }
+
+  const closeBtn = document.getElementById('businessSupportCloseBtn');
+  if (closeBtn) {
+    closeBtn.textContent = businessSupportText('إغلاق', 'Close');
+  }
+}
+
 async function openBusinessSupportModal() {
   // حماية: لا يفتح في وضع السوبر أدمن
   if (document.body.classList.contains('super-admin-mode')) return;
@@ -134,7 +322,10 @@ async function openBusinessSupportModal() {
 
   // حماية صلاحية الدعم الحي
   if (!canDo('use_live_support')) {
-    showAlert('ليس لديك صلاحية لاستخدام الدعم الحي');
+    showAlert(businessSupportText(
+      'ليس لديك صلاحية لاستخدام الدعم الحي',
+      'You do not have permission to use live support'
+    ));
     return;
   }
 
@@ -144,6 +335,8 @@ async function openBusinessSupportModal() {
     console.warn('businessSupportModal غير موجود في index.html');
     return;
   }
+
+  applyBusinessSupportModalText();
 
   modal.classList.add('show');
 
@@ -1034,21 +1227,64 @@ async function createBusinessSupportVerificationCode() {
   const codeHintEl = document.getElementById('businessSupportCodeHint');
   const createCodeBtn = document.getElementById('businessCreateSupportCodeBtn');
 
+  function applyCreateCodeButtonStyle() {
+    if (!createCodeBtn) return;
+
+    createCodeBtn.style.setProperty('width', '100%', 'important');
+    createCodeBtn.style.setProperty('max-width', '100%', 'important');
+    createCodeBtn.style.setProperty('min-width', '0', 'important');
+    createCodeBtn.style.setProperty('padding', '9px 10px', 'important');
+    createCodeBtn.style.setProperty('font-size', '12px', 'important');
+    createCodeBtn.style.setProperty('line-height', '1.25', 'important');
+    createCodeBtn.style.setProperty('white-space', 'normal', 'important');
+    createCodeBtn.style.setProperty('text-align', 'center', 'important');
+    createCodeBtn.style.setProperty('justify-content', 'center', 'important');
+    createCodeBtn.style.setProperty('gap', '6px', 'important');
+
+    const btnText = createCodeBtn.querySelector('span');
+    if (btnText) {
+      btnText.style.setProperty('white-space', 'normal', 'important');
+      btnText.style.setProperty('line-height', '1.25', 'important');
+      btnText.style.setProperty('min-width', '0', 'important');
+    }
+  }
+
+  function applyCodeValueStyle() {
+    if (!codeValueEl) return;
+
+    codeValueEl.style.setProperty('font-size', '12px', 'important');
+    codeValueEl.style.setProperty('line-height', '1.4', 'important');
+    codeValueEl.style.setProperty('font-weight', '900', 'important');
+    codeValueEl.style.setProperty('text-align', 'center', 'important');
+    codeValueEl.style.setProperty('white-space', 'normal', 'important');
+    codeValueEl.style.setProperty('word-break', 'break-word', 'important');
+    codeValueEl.style.setProperty('overflow-wrap', 'anywhere', 'important');
+    codeValueEl.style.setProperty('max-width', '100%', 'important');
+  }
+
   try {
     if (createCodeBtn) {
       createCodeBtn.disabled = true;
       createCodeBtn.innerHTML = `
         <i class="fas fa-spinner fa-spin"></i>
-        جاري إنشاء الرمز...
+        <span>${businessSupportText('جاري إنشاء الرمز...', 'Creating code...')}</span>
       `;
+      applyCreateCodeButtonStyle();
     }
 
     if (codeValueEl) {
-      codeValueEl.innerText = 'جاري إنشاء الرمز...';
+      codeValueEl.innerText = businessSupportText(
+        'جاري إنشاء الرمز...',
+        'Creating code...'
+      );
+      applyCodeValueStyle();
     }
 
     if (codeHintEl) {
-      codeHintEl.innerText = 'يرجى الانتظار لحظات';
+      codeHintEl.innerText = businessSupportText(
+        'يرجى الانتظار لحظات',
+        'Please wait a moment'
+      );
     }
 
     const { data, error } = await supabase.rpc('create_support_verification_code');
@@ -1057,17 +1293,30 @@ async function createBusinessSupportVerificationCode() {
       console.error('فشل إنشاء رمز الدعم:', error);
 
       if (codeValueEl) {
-        codeValueEl.innerText = 'تعذر إنشاء الرمز';
+        codeValueEl.innerText = businessSupportText(
+          'تعذر إنشاء الرمز',
+          'Could not create code'
+        );
+        applyCodeValueStyle();
       }
 
       if (codeHintEl) {
-        codeHintEl.innerText = error.message || 'تأكد أن حسابك يملك صلاحية طلب الدعم';
+        codeHintEl.innerText = error.message || businessSupportText(
+          'تأكد أن حسابك يملك صلاحية طلب الدعم',
+          'Make sure your account has permission to request support'
+        );
       }
 
       if (typeof showAlert === 'function') {
-        showAlert('فشل إنشاء رمز الدعم');
+        showAlert(businessSupportText(
+          'فشل إنشاء رمز الدعم',
+          'Failed to create support code'
+        ));
       } else {
-        alert('فشل إنشاء رمز الدعم');
+        alert(businessSupportText(
+          'فشل إنشاء رمز الدعم',
+          'Failed to create support code'
+        ));
       }
 
       return;
@@ -1091,11 +1340,18 @@ async function createBusinessSupportVerificationCode() {
       console.warn('لم يتم إرجاع رمز واضح من create_support_verification_code:', data);
 
       if (codeValueEl) {
-        codeValueEl.innerText = 'تم إنشاء الرمز ولكن لم يتم عرضه';
+        codeValueEl.innerText = businessSupportText(
+          'تم إنشاء الرمز ولكن لم يتم عرضه',
+          'The code was created but could not be displayed'
+        );
+        applyCodeValueStyle();
       }
 
       if (codeHintEl) {
-        codeHintEl.innerText = 'راجع نتيجة الدالة في Console';
+        codeHintEl.innerText = businessSupportText(
+          'راجع نتيجة الدالة في Console',
+          'Check the function result in the console'
+        );
       }
 
       return;
@@ -1103,35 +1359,55 @@ async function createBusinessSupportVerificationCode() {
 
     if (codeValueEl) {
       codeValueEl.innerText = supportCode;
+      applyCodeValueStyle();
     }
 
     if (codeHintEl) {
       const expiryText = expiresAt
-        ? new Date(expiresAt).toLocaleString('ar-SA')
-        : '10 دقائق من الآن';
+        ? new Date(expiresAt).toLocaleString(getBusinessSupportLang() === 'en' ? 'en-US' : 'ar-SA')
+        : businessSupportText('10 دقائق من الآن', '10 minutes from now');
 
-      codeHintEl.innerText = `أرسل هذا الرمز للسوبر أدمن. صالح حتى: ${expiryText}`;
+      codeHintEl.innerText = businessSupportText(
+        `أرسل هذا الرمز للسوبر أدمن. صالح حتى: ${expiryText}`,
+        `Send this code to the super admin. Valid until: ${expiryText}`
+      );
     }
 
     if (typeof showSuccessNotification === 'function') {
-      showSuccessNotification('تم إنشاء رمز الدعم بنجاح');
+      showSuccessNotification(businessSupportText(
+        'تم إنشاء رمز الدعم بنجاح',
+        'Support code created successfully'
+      ));
     }
 
   } catch (err) {
     console.error('خطأ غير متوقع أثناء إنشاء رمز الدعم:', err);
 
     if (codeValueEl) {
-      codeValueEl.innerText = 'حدث خطأ غير متوقع';
+      codeValueEl.innerText = businessSupportText(
+        'حدث خطأ غير متوقع',
+        'An unexpected error occurred'
+      );
+      applyCodeValueStyle();
     }
 
     if (codeHintEl) {
-      codeHintEl.innerText = err.message || 'حاول مرة أخرى';
+      codeHintEl.innerText = err.message || businessSupportText(
+        'حاول مرة أخرى',
+        'Please try again'
+      );
     }
 
     if (typeof showAlert === 'function') {
-      showAlert('حدث خطأ أثناء إنشاء رمز الدعم');
+      showAlert(businessSupportText(
+        'حدث خطأ أثناء إنشاء رمز الدعم',
+        'An error occurred while creating the support code'
+      ));
     } else {
-      alert('حدث خطأ أثناء إنشاء رمز الدعم');
+      alert(businessSupportText(
+        'حدث خطأ أثناء إنشاء رمز الدعم',
+        'An error occurred while creating the support code'
+      ));
     }
 
   } finally {
@@ -1139,15 +1415,156 @@ async function createBusinessSupportVerificationCode() {
       createCodeBtn.disabled = false;
       createCodeBtn.innerHTML = `
         <i class="fas fa-key"></i>
-        إنشاء رمز دعم
+        <span>${businessSupportText('إنشاء رمز دعم', 'Create Support Code')}</span>
       `;
+      applyCreateCodeButtonStyle();
     }
+  }
+}
+
+function getMyAccountLang() {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    currentLang ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function myAccountText(arText, enText) {
+  return getMyAccountLang() === 'en' ? enText : arText;
+}
+
+function applyMyAccountModalText() {
+  const modal = document.getElementById('myAccountModal');
+  if (!modal) return;
+
+  const isEnglish = getMyAccountLang() === 'en';
+
+  modal.setAttribute('dir', isEnglish ? 'ltr' : 'rtl');
+  modal.style.direction = isEnglish ? 'ltr' : 'rtl';
+
+  const arToEn = {
+    'حسابي': 'My Account',
+    'تحديث الاسم الظاهر أو تغيير كلمة المرور': 'Update display name or change password',
+
+    'بيانات الحساب': 'Account Details',
+    'الاسم الظاهر': 'Display Name',
+    'البريد الإلكتروني': 'Email Address',
+    'البريد مرتبط بتسجيل الدخول ولا يمكن تعديله من هنا.': 'This email is linked to login and cannot be edited here.',
+
+    'تغيير كلمة المرور': 'Change Password',
+    'اترك حقول كلمة المرور فارغة إذا كنت تريد تحديث الاسم فقط.': 'Leave password fields blank if you only want to update the name.',
+    'كلمة المرور الجديدة': 'New Password',
+    'تأكيد كلمة المرور': 'Confirm Password',
+    'تأكيد كلمة المرور الجديدة': 'Confirm New Password',
+
+    'لا يمكن تغيير الدور أو الصلاحيات من هنا. هذه الصفحة مخصصة للاسم الظاهر وكلمة المرور فقط.': 'You cannot change your role or permissions here. This page is only for display name and password.',
+    'لا يمكن تغيير المنصب أو الصلاحيات من هنا. هذه الصفحة مخصصة لبيانات حسابك الشخصي فقط.': 'You cannot change your role or permissions here. This page is only for your personal account details.',
+
+    'حفظ': 'Save',
+    'إلغاء': 'Cancel',
+    'إغلاق': 'Close'
+  };
+
+  const enToAr = Object.fromEntries(
+    Object.entries(arToEn).map(([ar, en]) => [en, ar])
+  );
+
+  const map = isEnglish ? arToEn : enToAr;
+
+  // ترجمة النصوص حتى لو كانت داخل div مع أيقونة أو عناصر داخلية
+  const walker = document.createTreeWalker(
+    modal,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        const text = node.nodeValue.trim();
+        return text ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    }
+  );
+
+  let node;
+
+  while ((node = walker.nextNode())) {
+    const originalText = node.nodeValue;
+    const cleanText = originalText.trim();
+
+    if (map[cleanText]) {
+      node.nodeValue = originalText.replace(cleanText, map[cleanText]);
+    }
+  }
+
+  const displayNameInput = document.getElementById('myAccountDisplayName');
+  const emailInput = document.getElementById('myAccountEmail');
+  const newPasswordInput = document.getElementById('myAccountNewPassword');
+  const confirmPasswordInput = document.getElementById('myAccountConfirmPassword');
+
+  if (displayNameInput) {
+    displayNameInput.placeholder = myAccountText('الاسم الظاهر', 'Display name');
+  }
+
+  if (emailInput) {
+    emailInput.placeholder = myAccountText('البريد الإلكتروني', 'Email address');
+  }
+
+  if (newPasswordInput) {
+    newPasswordInput.placeholder = myAccountText(
+      'اتركها فارغة إذا لا تريد تغييرها',
+      'Leave blank if you do not want to change it'
+    );
+  }
+
+  if (confirmPasswordInput) {
+    confirmPasswordInput.placeholder = myAccountText(
+      'تأكيد كلمة المرور',
+      'Confirm password'
+    );
+  }
+
+  // زر الإغلاق العلوي يكون × فقط
+  const topCloseBtn = Array.from(modal.querySelectorAll('button')).find(btn => {
+    const onclick = btn.getAttribute('onclick') || '';
+    const text = btn.textContent.trim();
+    return onclick.includes('closeMyAccountModal') && (text === 'Close' || text === 'إغلاق' || text === '×');
+  });
+
+  if (topCloseBtn) {
+    topCloseBtn.innerHTML = '&times;';
+    topCloseBtn.setAttribute('aria-label', myAccountText('إغلاق', 'Close'));
+    topCloseBtn.setAttribute('title', myAccountText('إغلاق', 'Close'));
+  }
+
+  // زر الحفظ السفلي
+  const saveBtn = Array.from(modal.querySelectorAll('button')).find(btn => {
+    const onclick = btn.getAttribute('onclick') || '';
+    return onclick.includes('saveMyAccount');
+  });
+
+  if (saveBtn) {
+    saveBtn.textContent = myAccountText('حفظ', 'Save');
+  }
+
+  // زر الإلغاء السفلي
+  const cancelBtn = Array.from(modal.querySelectorAll('button')).find(btn => {
+    const onclick = btn.getAttribute('onclick') || '';
+    return onclick.includes('closeMyAccountModal') && btn !== topCloseBtn;
+  });
+
+  if (cancelBtn) {
+    cancelBtn.textContent = myAccountText('إلغاء', 'X');
   }
 }
 
 function openMyAccountModal() {
   if (!currentUser) {
-    showAlert('لم يتم تحميل بيانات المستخدم');
+    showAlert(myAccountText(
+      'لم يتم تحميل بيانات المستخدم',
+      'User data has not been loaded'
+    ));
     return;
   }
 
@@ -1166,6 +1583,8 @@ function openMyAccountModal() {
     console.warn('myAccountModal غير موجود في index.html');
     return;
   }
+
+  applyMyAccountModalText();
 
   if (displayNameInput) {
     displayNameInput.value = currentUser.display_name || '';
@@ -1193,7 +1612,10 @@ function closeMyAccountModal() {
 
 async function saveMyAccount() {
   if (!currentUser) {
-    showAlert('لم يتم تحميل بيانات المستخدم');
+    showAlert(myAccountText(
+      'لم يتم تحميل بيانات المستخدم',
+      'User data has not been loaded'
+    ));
     return;
   }
 
@@ -1210,18 +1632,27 @@ async function saveMyAccount() {
   const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value.trim() : '';
 
   if (!newDisplayName) {
-    showAlert('الاسم الظاهر مطلوب');
+    showAlert(myAccountText(
+      'الاسم الظاهر مطلوب',
+      'Display name is required'
+    ));
     return;
   }
 
   if (newPassword || confirmPassword) {
     if (newPassword.length < 8) {
-      showAlert('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+      showAlert(myAccountText(
+        'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
+        'Password must be at least 8 characters'
+      ));
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      showAlert('كلمة المرور وتأكيدها غير متطابقين');
+      showAlert(myAccountText(
+        'كلمة المرور وتأكيدها غير متطابقين',
+        'Password and confirmation do not match'
+      ));
       return;
     }
   }
@@ -1239,7 +1670,10 @@ async function saveMyAccount() {
 
     if (updateUserError) {
       console.error('فشل تحديث الاسم الظاهر:', updateUserError);
-      showAlert('فشل تحديث الاسم الظاهر');
+      showAlert(myAccountText(
+        'فشل تحديث الاسم الظاهر',
+        'Failed to update display name'
+      ));
       return;
     }
 
@@ -1251,7 +1685,10 @@ async function saveMyAccount() {
 
       if (passwordError) {
         console.error('فشل تغيير كلمة المرور:', passwordError);
-        showAlert('تم تحديث الاسم، لكن فشل تغيير كلمة المرور');
+        showAlert(myAccountText(
+          'تم تحديث الاسم، لكن فشل تغيير كلمة المرور',
+          'Display name was updated, but password change failed'
+        ));
         return;
       }
     }
@@ -1259,19 +1696,30 @@ async function saveMyAccount() {
     currentUser = updatedUser;
     localStorage.setItem('easyq_user', JSON.stringify(updatedUser));
 
-updateTopbarUserIdentity(updatedUser);
+    updateTopbarUserIdentity(updatedUser);
 
     closeMyAccountModal();
 
     if (typeof showSuccessNotification === 'function') {
-      showSuccessNotification(newPassword ? 'تم تحديث الحساب وكلمة المرور بنجاح' : 'تم تحديث بيانات الحساب بنجاح');
+      showSuccessNotification(
+        newPassword
+          ? myAccountText('تم تحديث الحساب وكلمة المرور بنجاح', 'Account and password updated successfully')
+          : myAccountText('تم تحديث بيانات الحساب بنجاح', 'Account details updated successfully')
+      );
     } else {
-      alert('تم تحديث بيانات الحساب بنجاح');
+      alert(myAccountText(
+        'تم تحديث بيانات الحساب بنجاح',
+        'Account details updated successfully'
+      ));
     }
 
   } catch (err) {
     console.error('خطأ غير متوقع أثناء حفظ الحساب:', err);
-    showAlert('حدث خطأ أثناء حفظ بيانات الحساب');
+
+    showAlert(myAccountText(
+      'حدث خطأ أثناء حفظ بيانات الحساب',
+      'An error occurred while saving account details'
+    ));
   }
 }
 
@@ -1696,56 +2144,155 @@ if (licenseStatus.should_show_expiry_warning) {
 // عرض تنبيه الاشتراك بجوار اسم المستخدم داخل الواجهة
 // ============================================================
 
+function getBranchAccountLang() {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    currentLang ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function branchAccountText(arText, enText) {
+  return getBranchAccountLang() === 'en' ? enText : arText;
+}
+
 function formatEasyQDate(dateValue) {
   if (!dateValue) return '-';
 
   try {
-    return new Date(dateValue).toLocaleDateString('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    return new Date(dateValue).toLocaleDateString(
+      getBranchAccountLang() === 'en' ? 'en-US' : 'ar-SA',
+      {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }
+    );
   } catch (err) {
     return '-';
   }
 }
 
 function getEasyQPlanLabel(planType) {
+  const lang = getBranchAccountLang();
+
   const labels = {
-    trial: 'تجربة',
-    basic: 'أساسية',
-    pro: 'احترافية',
-    enterprise: 'Enterprise'
+    trial: {
+      ar: 'تجربة',
+      en: 'Trial'
+    },
+    basic: {
+      ar: 'أساسية',
+      en: 'Basic'
+    },
+    pro: {
+      ar: 'احترافية',
+      en: 'Pro'
+    },
+    enterprise: {
+      ar: 'مؤسسية',
+      en: 'Enterprise'
+    }
   };
 
-  return labels[planType] || planType || '-';
+  return labels[planType]?.[lang] || planType || '-';
 }
 
 function getEasyQSubscriptionStatusLabel(status) {
+  const lang = getBranchAccountLang();
+
   const labels = {
-    trial: 'تجريبي',
-    active: 'نشط',
-    grace: 'فترة سماح',
-    expired: 'منتهي',
-    suspended: 'موقوف',
-    cancelled: 'ملغي'
+    trial: {
+      ar: 'تجريبي',
+      en: 'Trial'
+    },
+    active: {
+      ar: 'نشط',
+      en: 'Active'
+    },
+    grace: {
+      ar: 'فترة سماح',
+      en: 'Grace Period'
+    },
+    expired: {
+      ar: 'منتهي',
+      en: 'Expired'
+    },
+    suspended: {
+      ar: 'موقوف',
+      en: 'Suspended'
+    },
+    cancelled: {
+      ar: 'ملغي',
+      en: 'Cancelled'
+    }
   };
 
-  return labels[status] || status || '-';
+  return labels[status]?.[lang] || status || '-';
 }
 
 function formatEasyQLimit(value) {
-  if (value === null || value === undefined) return 'غير محدود';
+  if (value === null || value === undefined) {
+    return branchAccountText('غير محدود', 'Unlimited');
+  }
+
   return String(value);
+}
+
+function getEasyQDaysText(value) {
+  const days = Number(value || 0);
+
+  return branchAccountText(
+    `${days} يوم`,
+    `${days} ${days === 1 ? 'day' : 'days'}`
+  );
+}
+
+function applyBranchAccountModalText() {
+  const modal = document.getElementById('branchAccountModal');
+  if (!modal) return;
+
+  const isEnglish = getBranchAccountLang() === 'en';
+
+  modal.setAttribute('dir', isEnglish ? 'ltr' : 'rtl');
+  modal.style.direction = isEnglish ? 'ltr' : 'rtl';
+
+  const title = modal.querySelector('h3');
+  if (title) {
+    title.textContent = branchAccountText(
+      'إدارة الحساب والاشتراك',
+      'Account & Subscription'
+    );
+
+    const titleBox = title.parentElement;
+    const subtitle = titleBox
+      ? Array.from(titleBox.children).find(el => el !== title && el.tagName === 'DIV')
+      : null;
+
+    if (subtitle) {
+      subtitle.textContent = branchAccountText(
+        'تفاصيل الباقة، الحالة، والحدود الحالية',
+        'Plan details, status, and current limits'
+      );
+    }
+  }
 }
 
 async function openBranchAccountModal() {
   const modal = document.getElementById('branchAccountModal');
 
   if (!modal) {
-    showAlert('مودل الاشتراك غير موجود في الصفحة');
+    showAlert(branchAccountText(
+      'مودل الاشتراك غير موجود في الصفحة',
+      'Subscription modal was not found on the page'
+    ));
     return;
   }
+
+  applyBranchAccountModalText();
 
   modal.classList.add('show');
   await renderBranchAccountSubscription();
@@ -1785,13 +2332,19 @@ function copyBranchAccountSupportRef() {
   const supportRef = refEl ? refEl.textContent.trim() : '';
 
   if (!supportRef || supportRef === '-') {
-    showAlert('لا يوجد معرف دعم لنسخه');
+    showAlert(branchAccountText(
+      'لا يوجد معرف دعم لنسخه',
+      'There is no support ID to copy'
+    ));
     return;
   }
 
   navigator.clipboard.writeText(supportRef)
     .then(() => {
-      showSuccessNotification('✅ تم نسخ معرف الدعم');
+      showSuccessNotification(branchAccountText(
+        '✅ تم نسخ معرف الدعم',
+        '✅ Support ID copied'
+      ));
     })
     .catch(() => {
       const tempInput = document.createElement('input');
@@ -1800,7 +2353,11 @@ function copyBranchAccountSupportRef() {
       tempInput.select();
       document.execCommand('copy');
       tempInput.remove();
-      showSuccessNotification('✅ تم نسخ معرف الدعم');
+
+      showSuccessNotification(branchAccountText(
+        '✅ تم نسخ معرف الدعم',
+        '✅ Support ID copied'
+      ));
     });
 }
 
@@ -1817,7 +2374,7 @@ async function renderBranchAccountSubscription() {
       font-weight: 800;
     ">
       <i class="fas fa-spinner fa-spin"></i>
-      جاري تحميل بيانات الاشتراك...
+      ${branchAccountText('جاري تحميل بيانات الاشتراك...', 'Loading subscription details...')}
     </div>
   `;
 
@@ -1826,6 +2383,7 @@ async function renderBranchAccountSubscription() {
 
     if (error) {
       console.error('فشل تحميل بيانات الاشتراك:', error);
+
       box.innerHTML = `
         <div style="
           padding: 18px;
@@ -1835,9 +2393,10 @@ async function renderBranchAccountSubscription() {
           font-weight: 900;
           text-align: center;
         ">
-          فشل تحميل بيانات الاشتراك
+          ${branchAccountText('فشل تحميل بيانات الاشتراك', 'Failed to load subscription details')}
         </div>
       `;
+
       return;
     }
 
@@ -1853,9 +2412,10 @@ async function renderBranchAccountSubscription() {
           font-weight: 900;
           text-align: center;
         ">
-          لا توجد بيانات اشتراك لهذا المطعم
+          ${branchAccountText('لا توجد بيانات اشتراك لهذا المطعم', 'No subscription details were found for this restaurant')}
         </div>
       `;
+
       return;
     }
 
@@ -1870,7 +2430,10 @@ async function renderBranchAccountSubscription() {
       license.support_ref ||
       '-';
 
-    const statusLabel = getEasyQSubscriptionStatusLabel(license.effective_status || license.subscription_status);
+    const statusLabel = getEasyQSubscriptionStatusLabel(
+      license.effective_status || license.subscription_status
+    );
+
     const planLabel = getEasyQPlanLabel(license.plan_type);
 
     const statusColor =
@@ -1881,8 +2444,12 @@ async function renderBranchAccountSubscription() {
 
     const daysText =
       license.access_allowed === false
-        ? 'غير متاح'
-        : `${Number(license.days_remaining || 0)} يوم`;
+        ? branchAccountText('غير متاح', 'Not available')
+        : getEasyQDaysText(license.days_remaining);
+
+    const analyticsText = license.analytics_enabled
+      ? branchAccountText('مفعلة ضمن الباقة', 'Enabled in this plan')
+      : branchAccountText('غير مفعلة ضمن الباقة', 'Not enabled in this plan');
 
     box.innerHTML = `
       <div style="
@@ -1905,7 +2472,7 @@ async function renderBranchAccountSubscription() {
           ">
             <div>
               <div style="font-size:13px; opacity:0.78; font-weight:800; margin-bottom:6px;">
-                الباقة الحالية
+                ${branchAccountText('الباقة الحالية', 'Current Plan')}
               </div>
 
               <div style="font-size:26px; font-weight:1000; line-height:1.2;">
@@ -1942,17 +2509,23 @@ async function renderBranchAccountSubscription() {
             gap:10px;
           ">
             <div style="background:rgba(255,255,255,0.1); border-radius:14px; padding:12px;">
-              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">تاريخ البداية</div>
+              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">
+                ${branchAccountText('تاريخ البداية', 'Start Date')}
+              </div>
               <div style="font-weight:900; font-size:13px;">${formatEasyQDate(license.starts_at)}</div>
             </div>
 
             <div style="background:rgba(255,255,255,0.1); border-radius:14px; padding:12px;">
-              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">تاريخ الانتهاء</div>
+              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">
+                ${branchAccountText('تاريخ الانتهاء', 'Expiry Date')}
+              </div>
               <div style="font-weight:900; font-size:13px;">${formatEasyQDate(license.expires_at)}</div>
             </div>
 
             <div style="background:rgba(255,255,255,0.1); border-radius:14px; padding:12px;">
-              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">الأيام المتبقية</div>
+              <div style="font-size:11px; opacity:0.75; margin-bottom:5px;">
+                ${branchAccountText('الأيام المتبقية', 'Days Remaining')}
+              </div>
               <div style="font-weight:1000; font-size:17px; color:#F4D28A;">${daysText}</div>
             </div>
           </div>
@@ -1971,7 +2544,7 @@ async function renderBranchAccountSubscription() {
         ">
           <div>
             <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
-              معرف الدعم الموحد
+              ${branchAccountText('معرف الدعم الموحد', 'Unified Support ID')}
             </div>
 
             <div
@@ -2006,7 +2579,7 @@ async function renderBranchAccountSubscription() {
             "
           >
             <i class="fas fa-copy"></i>
-            نسخ
+            ${branchAccountText('نسخ', 'Copy')}
           </button>
         </div>
 
@@ -2017,7 +2590,7 @@ async function renderBranchAccountSubscription() {
         ">
           <div style="border:1px solid #E5E7EB; border-radius:16px; padding:14px; background:#FFFFFF;">
             <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
-              حد الطاولات
+              ${branchAccountText('حد الطاولات', 'Tables Limit')}
             </div>
             <div style="font-size:22px; font-weight:1000; color:#0E146D;">
               ${formatEasyQLimit(license.max_tables)}
@@ -2026,7 +2599,7 @@ async function renderBranchAccountSubscription() {
 
           <div style="border:1px solid #E5E7EB; border-radius:16px; padding:14px; background:#FFFFFF;">
             <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
-              حد المستخدمين
+              ${branchAccountText('حد المستخدمين', 'Users Limit')}
             </div>
             <div style="font-size:22px; font-weight:1000; color:#0E146D;">
               ${formatEasyQLimit(license.max_users)}
@@ -2035,7 +2608,7 @@ async function renderBranchAccountSubscription() {
 
           <div style="border:1px solid #E5E7EB; border-radius:16px; padding:14px; background:#FFFFFF;">
             <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
-              حد المناطق
+              ${branchAccountText('حد المناطق', 'Zones Limit')}
             </div>
             <div style="font-size:22px; font-weight:1000; color:#0E146D;">
               ${formatEasyQLimit(license.max_zones)}
@@ -2044,7 +2617,7 @@ async function renderBranchAccountSubscription() {
 
           <div style="border:1px solid #E5E7EB; border-radius:16px; padding:14px; background:#FFFFFF;">
             <div style="color:#64748B; font-size:12px; font-weight:900; margin-bottom:6px;">
-              حد الأدوار
+              ${branchAccountText('حد الطوابق', 'Floors Limit')}
             </div>
             <div style="font-size:22px; font-weight:1000; color:#0E146D;">
               ${formatEasyQLimit(license.max_floors)}
@@ -2061,9 +2634,12 @@ async function renderBranchAccountSubscription() {
           gap:8px;
         ">
           <div style="display:flex; justify-content:space-between; gap:10px;">
-            <span style="color:#64748B; font-weight:800;">التحليلات</span>
+            <span style="color:#64748B; font-weight:800;">
+              ${branchAccountText('التحليلات', 'Analytics')}
+            </span>
+
             <strong style="color:${license.analytics_enabled ? '#059669' : '#DC2626'};">
-              ${license.analytics_enabled ? 'مفعلة ضمن الباقة' : 'غير مفعلة ضمن الباقة'}
+              ${analyticsText}
             </strong>
           </div>
 
@@ -2078,7 +2654,10 @@ async function renderBranchAccountSubscription() {
                   padding:10px;
                   font-weight:900;
                 ">
-                  الاشتراك في فترة السماح، متبقي ${license.grace_days_remaining || 0} يوم.
+                  ${branchAccountText(
+                    `الاشتراك في فترة السماح، متبقي ${license.grace_days_remaining || 0} يوم.`,
+                    `Subscription is in grace period, ${Number(license.grace_days_remaining || 0)} day(s) remaining.`
+                  )}
                 </div>`
               : ''
           }
@@ -2094,7 +2673,7 @@ async function renderBranchAccountSubscription() {
                   padding:10px;
                   font-weight:900;
                 ">
-                  سبب الإيقاف: ${license.suspension_reason}
+                  ${branchAccountText('سبب الإيقاف: ', 'Suspension reason: ')}${license.suspension_reason}
                 </div>`
               : ''
           }
@@ -2116,7 +2695,7 @@ async function renderBranchAccountSubscription() {
           "
         >
           <i class="fas fa-sync-alt"></i>
-          طلب تجديد أو ترقية الاشتراك
+          ${branchAccountText('طلب تجديد أو ترقية الاشتراك', 'Request Renewal or Upgrade')}
         </button>
       </div>
     `;
@@ -2133,12 +2712,11 @@ async function renderBranchAccountSubscription() {
         font-weight: 900;
         text-align: center;
       ">
-        حدث خطأ أثناء عرض بيانات الاشتراك
+        ${branchAccountText('حدث خطأ أثناء عرض بيانات الاشتراك', 'An error occurred while displaying subscription details')}
       </div>
     `;
   }
 }
-
 
 function openSubscriptionRenewalRequest() {
   let license = null;
@@ -2157,10 +2735,11 @@ function openSubscriptionRenewalRequest() {
 
   const daysRemaining =
     license?.access_allowed === false
-      ? 'غير متاح'
-      : `${Number(license?.days_remaining || 0)} يوم`;
+      ? branchAccountText('غير متاح', 'Not available')
+      : getEasyQDaysText(license?.days_remaining);
 
-  const message = `
+  const message = branchAccountText(
+    `
 طلب تجديد أو ترقية الاشتراك
 
 الباقة الحالية: ${planLabel}
@@ -2168,7 +2747,17 @@ function openSubscriptionRenewalRequest() {
 الأيام المتبقية: ${daysRemaining}
 
 لطلب التجديد أو الترقية، يرجى التواصل مع إدارة EASY-Q عبر قسم الدعم الحي، وسيتم مراجعة طلبك من السوبر أدمن.
-  `.trim();
+    `.trim(),
+    `
+Subscription renewal or upgrade request
+
+Current plan: ${planLabel}
+Subscription status: ${statusLabel}
+Days remaining: ${daysRemaining}
+
+To request renewal or upgrade, please contact EASY-Q management through Live Support. Your request will be reviewed by the super admin.
+    `.trim()
+  );
 
   showAlert(message);
 }
@@ -2777,18 +3366,100 @@ if (canDo('manage_settings') && typeof addBusinessSupportSidebarButton === 'func
 // ACTIVITY LOG MODAL
 // ============================================================
 
+function activityLogText(arText, enText) {
+  if (typeof permissionsModalText === 'function') {
+    return permissionsModalText(arText, enText);
+  }
+
+  if (typeof usersModalText === 'function') {
+    return usersModalText(arText, enText);
+  }
+
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? enText : arText;
+}
+
+function getActivityLogLang() {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function applyActivityLogStaticText() {
+  const modal = document.getElementById('activityLogModal');
+  if (!modal) return;
+
+  const isEnglish = getActivityLogLang() === 'en';
+
+  modal.setAttribute('dir', isEnglish ? 'ltr' : 'rtl');
+  modal.style.direction = isEnglish ? 'ltr' : 'rtl';
+
+  const title = modal.querySelector('h3');
+  if (title) {
+    title.textContent = activityLogText('سجل النشاط', 'Activity Log');
+  }
+
+  const headerSub = title?.parentElement?.querySelector('div');
+  if (headerSub) {
+    headerSub.textContent = activityLogText(
+      'آخر العمليات التي تمت داخل المطعم',
+      'Latest actions performed inside the restaurant'
+    );
+  }
+
+  const sectionTitle = Array.from(modal.querySelectorAll('div')).find(el => {
+    return String(el.textContent || '').trim() === 'آخر الأنشطة' ||
+           String(el.textContent || '').trim() === 'Recent Activities';
+  });
+
+  if (sectionTitle) {
+    sectionTitle.textContent = activityLogText('آخر الأنشطة', 'Recent Activities');
+  }
+
+  const refreshBtn = modal.querySelector('button[onclick="loadActivityLogs()"]');
+  if (refreshBtn) {
+    refreshBtn.innerHTML = `
+      <i class="fas fa-sync-alt"></i>
+      ${activityLogText('تحديث', 'Refresh')}
+    `;
+  }
+
+  const closeBtn = modal.querySelector('button[onclick="closeActivityLogModal()"]');
+  if (closeBtn) {
+    closeBtn.title = activityLogText('إغلاق', 'Close');
+    closeBtn.setAttribute('aria-label', activityLogText('إغلاق', 'Close'));
+  }
+}
+
 function openActivityLogModal() {
   if (!canDo('manage_users')) {
-    showAlert('ليس لديك صلاحية لعرض سجل النشاط');
+    showAlert(activityLogText(
+      'ليس لديك صلاحية لعرض سجل النشاط',
+      'You do not have permission to view the activity log'
+    ));
     return;
   }
 
   const modal = document.getElementById('activityLogModal');
 
   if (!modal) {
-    showAlert('مودل سجل النشاط غير موجود في الصفحة');
+    showAlert(activityLogText(
+      'مودل سجل النشاط غير موجود في الصفحة',
+      'Activity log modal was not found on this page'
+    ));
     return;
   }
+
+  applyActivityLogStaticText();
 
   modal.classList.add('show');
   loadActivityLogs();
@@ -2803,7 +3474,9 @@ function formatActivityLogDate(dateValue) {
   if (!dateValue) return '-';
 
   try {
-    return new Date(dateValue).toLocaleString('ar-SA', {
+    const isEnglish = getActivityLogLang() === 'en';
+
+    return new Date(dateValue).toLocaleString(isEnglish ? 'en-US' : 'ar-SA', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -2817,20 +3490,52 @@ function formatActivityLogDate(dateValue) {
 
 function getActivityRoleLabel(role) {
   const labels = {
-    admin: 'مدير النظام',
-    manager: 'مدير',
-    staff: 'موظف',
-    super_admin: 'سوبر أدمن'
+    admin: activityLogText('مدير النظام', 'Admin'),
+    owner: activityLogText('مالك الحساب', 'Owner'),
+    manager: activityLogText('مشرف', 'Manager'),
+    staff: activityLogText('موظف', 'Staff'),
+    employee: activityLogText('موظف', 'Employee'),
+    host: activityLogText('استقبال', 'Host'),
+    super_admin: activityLogText('سوبر أدمن', 'Super Admin')
   };
 
   return labels[role] || role || '-';
 }
 
+function getActivityActionLabel(log) {
+  const actionKey = log?.action_key || '';
+
+  const labels = {
+    user_logged_in: activityLogText('تسجيل دخول مستخدم', 'User signed in'),
+    user_logged_out: activityLogText('تسجيل خروج مستخدم', 'User signed out'),
+    user_created: activityLogText('إضافة موظف', 'Staff member added'),
+    user_updated: activityLogText('تعديل موظف', 'Staff member updated'),
+    user_activated: activityLogText('تفعيل موظف', 'Staff member activated'),
+    user_deactivated: activityLogText('تعطيل موظف', 'Staff member deactivated'),
+    user_archived: activityLogText('أرشفة موظف', 'Staff member archived'),
+    password_changed: activityLogText('تغيير كلمة المرور', 'Password changed'),
+    permissions_updated: activityLogText('تعديل الصلاحيات', 'Permissions updated')
+  };
+
+  if (labels[actionKey]) return labels[actionKey];
+
+  if (getActivityLogLang() === 'ar') {
+    return log?.action_label || 'نشاط';
+  }
+
+  return log?.action_label || 'Activity';
+}
+
 async function loadActivityLogs() {
   if (!canDo('manage_users')) {
-    showAlert('ليس لديك صلاحية لعرض سجل النشاط');
+    showAlert(activityLogText(
+      'ليس لديك صلاحية لعرض سجل النشاط',
+      'You do not have permission to view the activity log'
+    ));
     return;
   }
+
+  applyActivityLogStaticText();
 
   const list = document.getElementById('activityLogList');
 
@@ -2844,14 +3549,14 @@ async function loadActivityLogs() {
       font-weight: 800;
     ">
       <i class="fas fa-spinner fa-spin"></i>
-      جاري تحميل سجل النشاط...
+      ${activityLogText('جاري تحميل سجل النشاط...', 'Loading activity log...')}
     </div>
   `;
 
   try {
-const { data: logs, error } = await supabase.rpc('get_my_business_activity_logs', {
-  p_limit: 50
-});
+    const { data: logs, error } = await supabase.rpc('get_my_business_activity_logs', {
+      p_limit: 50
+    });
 
     if (error) {
       console.error('فشل تحميل سجل النشاط:', error);
@@ -2865,7 +3570,7 @@ const { data: logs, error } = await supabase.rpc('get_my_business_activity_logs'
           font-weight: 900;
           text-align: center;
         ">
-          فشل تحميل سجل النشاط
+          ${activityLogText('فشل تحميل سجل النشاط', 'Failed to load activity log')}
         </div>
       `;
       return;
@@ -2881,7 +3586,8 @@ const { data: logs, error } = await supabase.rpc('get_my_business_activity_logs'
           color: #64748B;
           font-weight: 800;
         ">
-          لا توجد أنشطة مسجلة حتى الآن
+          <i class="fas fa-clock-rotate-left"></i>
+          ${activityLogText('لا توجد أنشطة مسجلة حتى الآن', 'No recorded activities yet')}
         </div>
       `;
       return;
@@ -2890,43 +3596,46 @@ const { data: logs, error } = await supabase.rpc('get_my_business_activity_logs'
     list.innerHTML = rows.map(log => {
       const details = log.details || {};
 
-const detailLabels = {
-  username: 'البريد / اسم المستخدم',
-  old_display_name: 'الاسم السابق',
-  new_display_name: 'الاسم الجديد',
-  old_role: 'الدور السابق',
-  new_role: 'الدور الجديد',
-  old_status: 'الحالة السابقة',
-  new_status: 'الحالة الجديدة',
-  password_changed: 'تغيير كلمة المرور',
-  login_method: 'طريقة الدخول',
-  logout_method: 'طريقة الخروج',
-  source: 'المصدر'
-};
+      const detailLabels = {
+        username: activityLogText('البريد / اسم المستخدم', 'Email / Username'),
+        old_display_name: activityLogText('الاسم السابق', 'Old display name'),
+        new_display_name: activityLogText('الاسم الجديد', 'New display name'),
+        old_role: activityLogText('الدور السابق', 'Old role'),
+        new_role: activityLogText('الدور الجديد', 'New role'),
+        old_status: activityLogText('الحالة السابقة', 'Old status'),
+        new_status: activityLogText('الحالة الجديدة', 'New status'),
+        password_changed: activityLogText('تغيير كلمة المرور', 'Password changed'),
+        login_method: activityLogText('طريقة الدخول', 'Login method'),
+        logout_method: activityLogText('طريقة الخروج', 'Logout method'),
+        source: activityLogText('المصدر', 'Source')
+      };
 
-const detailValueLabels = {
-  admin: 'مدير النظام',
-  manager: 'مدير',
-  staff: 'موظف',
-  active: 'نشط',
-  inactive: 'موقوف',
-  archived: 'مؤرشف',
-  true: 'تم',
-  false: 'لا',
-  email_password: 'البريد وكلمة المرور',
-  manual: 'يدوي',
-  console_test: 'اختبار من Console'
-};
+      const detailValueLabels = {
+        admin: activityLogText('مدير النظام', 'Admin'),
+        owner: activityLogText('مالك الحساب', 'Owner'),
+        manager: activityLogText('مشرف', 'Manager'),
+        staff: activityLogText('موظف', 'Staff'),
+        employee: activityLogText('موظف', 'Employee'),
+        host: activityLogText('استقبال', 'Host'),
+        active: activityLogText('نشط', 'Active'),
+        inactive: activityLogText('موقوف', 'Inactive'),
+        archived: activityLogText('مؤرشف', 'Archived'),
+        true: activityLogText('تم', 'Yes'),
+        false: activityLogText('لا', 'No'),
+        email_password: activityLogText('البريد وكلمة المرور', 'Email and password'),
+        manual: activityLogText('يدوي', 'Manual'),
+        console_test: activityLogText('اختبار من Console', 'Console test')
+      };
 
-const detailsText = Object.keys(details).length > 0
-  ? Object.entries(details)
-      .map(([key, value]) => {
-        const label = detailLabels[key] || key;
-        const cleanValue = detailValueLabels[value] || value || '-';
-        return `${label}: ${cleanValue}`;
-      })
-      .join(' | ')
-  : '';
+      const detailsText = Object.keys(details).length > 0
+        ? Object.entries(details)
+            .map(([key, value]) => {
+              const label = detailLabels[key] || key;
+              const cleanValue = detailValueLabels[String(value)] || value || '-';
+              return `${label}: ${cleanValue}`;
+            })
+            .join(' | ')
+        : '';
 
       return `
         <div style="
@@ -2950,7 +3659,7 @@ const detailsText = Object.keys(details).length > 0
                 font-size: 14px;
                 margin-bottom: 5px;
               ">
-                ${log.action_label || 'نشاط'}
+                ${getActivityActionLabel(log)}
               </div>
 
               <div style="
@@ -2958,7 +3667,8 @@ const detailsText = Object.keys(details).length > 0
                 font-size: 12px;
                 line-height: 1.6;
               ">
-                بواسطة: <strong>${log.actor_display_name || 'مستخدم'}</strong>
+                ${activityLogText('بواسطة:', 'By:')}
+                <strong>${log.actor_display_name || activityLogText('مستخدم', 'User')}</strong>
                 -
                 ${getActivityRoleLabel(log.actor_role)}
               </div>
@@ -2970,7 +3680,7 @@ const detailsText = Object.keys(details).length > 0
                       font-size: 12px;
                       margin-top: 5px;
                     ">
-                      الهدف: ${log.target_label}
+                      ${activityLogText('الهدف:', 'Target:')} ${log.target_label}
                     </div>`
                   : ''
               }
@@ -3019,7 +3729,7 @@ const detailsText = Object.keys(details).length > 0
         font-weight: 900;
         text-align: center;
       ">
-        حدث خطأ أثناء تحميل سجل النشاط
+        ${activityLogText('حدث خطأ أثناء تحميل سجل النشاط', 'An error occurred while loading the activity log')}
       </div>
     `;
   }
@@ -3055,34 +3765,509 @@ async function logBusinessActivitySafe(actionKey, actionLabel, targetType = null
 // USER MANAGEMENT MODALS
 // ============================================================
 
+function getUsersModalLang() {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function usersModalText(arText, enText) {
+  return getUsersModalLang() === 'ar' ? arText : enText;
+}
+
+function applyUsersModalStyle() {
+  let style = document.getElementById('eqUsersModalStyle');
+
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'eqUsersModalStyle';
+    document.head.appendChild(style);
+  }
+
+  style.textContent = `
+    #usersModal .modal {
+      max-width: 620px !important;
+      width: calc(100vw - 34px) !important;
+      max-height: 88vh !important;
+      border-radius: 24px !important;
+      padding: 18px !important;
+      background: #FFFFFF !important;
+      box-shadow: 0 24px 70px rgba(6, 4, 39, 0.22) !important;
+      border: 1px solid rgba(14, 20, 109, 0.10) !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    #usersModal .modal-title {
+      display: none !important;
+    }
+
+    #usersModal .modal-sub {
+      display: none !important;
+    }
+
+    #usersModal .eq-users-hero {
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.16), transparent 34%),
+        linear-gradient(135deg, #070219 0%, #060427 52%, #0E146D 100%);
+      color: #FFFFFF;
+      border-radius: 20px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      box-shadow: 0 14px 32px rgba(6, 4, 39, 0.20);
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+
+    #usersModal .eq-users-hero::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      inset-inline-end: -80px;
+      top: -95px;
+      background: rgba(255, 255, 255, 0.10);
+      pointer-events: none;
+    }
+
+    #usersModal .eq-users-hero > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    #usersModal .eq-users-hero-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 1000;
+      line-height: 1.35;
+    }
+
+    #usersModal .eq-users-hero-title i {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.12);
+      color: #DDE7FF;
+      flex-shrink: 0;
+    }
+
+    #usersModal .eq-users-hero-sub {
+      margin-top: 6px;
+      color: rgba(255,255,255,0.76);
+      font-size: 11.5px;
+      font-weight: 800;
+      line-height: 1.7;
+    }
+
+    #usersModal .eq-users-hero-count {
+      min-width: 76px;
+      height: 58px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.10);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    #usersModal .eq-users-hero-count strong {
+      font-size: 22px;
+      font-weight: 1000;
+      line-height: 1;
+    }
+
+    #usersModal .eq-users-hero-count span {
+      font-size: 10px;
+      font-weight: 850;
+      color: rgba(255,255,255,0.72);
+    }
+
+    #usersModal .eq-users-body {
+      min-height: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #usersList {
+      max-height: min(43vh, 355px) !important;
+      overflow-y: auto !important;
+      padding: 10px !important;
+      border: 1px solid #E5E7EB;
+      border-radius: 18px;
+      background: #F8FAFC;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    #usersList::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+
+    #addUserForm {
+      margin-top: 0 !important;
+      padding: 12px !important;
+      border: 1px solid #E5E7EB !important;
+      border-radius: 18px !important;
+      background: #F8FAFC !important;
+      box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+      flex-shrink: 0;
+    }
+
+    #addUserForm .walkin-input {
+      height: 42px !important;
+      border-radius: 12px !important;
+      font-size: 13px !important;
+      font-weight: 800 !important;
+      background: #FFFFFF !important;
+      border: 1px solid #E5E7EB !important;
+    }
+
+    #usersModal .eq-users-footer-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-shrink: 0;
+    }
+
+    #usersModal .eq-user-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 11px;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      margin-bottom: 9px;
+      background: #FFFFFF;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.035);
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    }
+
+    #usersModal .eq-user-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14, 20, 109, 0.22);
+      background: #FFFFFF;
+    }
+
+    #usersModal .eq-user-card:last-child {
+      margin-bottom: 0;
+    }
+
+    #usersModal .eq-user-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    #usersModal .eq-user-name {
+      color: #111827;
+      font-size: 13.5px;
+      font-weight: 1000;
+      max-width: 205px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #usersModal .eq-user-email {
+      color: #6B7280;
+      font-size: 11.5px;
+      direction: ltr;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 255px;
+      font-weight: 800;
+    }
+
+    #usersModal .eq-user-badge {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 1000;
+      line-height: 1.3;
+      white-space: nowrap;
+    }
+
+    #usersModal .eq-user-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    #usersModal .eq-user-action-btn {
+      border: none;
+      width: 32px;
+      height: 32px;
+      min-height: 32px;
+      border-radius: 11px;
+      color: #FFFFFF;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+
+    #usersModal .eq-user-action-btn:hover {
+      transform: translateY(-1px);
+      opacity: 0.92;
+    }
+
+    #usersModal .eq-users-empty,
+    #usersModal .eq-users-loading,
+    #usersModal .eq-users-error {
+      padding: 18px;
+      text-align: center;
+      font-weight: 900;
+      border-radius: 16px;
+      background: #FFFFFF;
+      border: 1px dashed #CBD5E1;
+      color: #64748B;
+    }
+
+    #usersModal .eq-users-error {
+      color: #DC2626;
+      border-color: #FECACA;
+      background: #FEF2F2;
+    }
+
+    @media (max-width: 680px) {
+      #usersModal .modal {
+        max-width: calc(100vw - 22px) !important;
+      }
+
+      #usersModal .eq-users-hero {
+        grid-template-columns: 1fr;
+      }
+
+      #usersModal .eq-users-hero-count {
+        width: 100%;
+        height: 48px;
+        flex-direction: row;
+      }
+
+      #usersModal .eq-user-card {
+        grid-template-columns: 1fr;
+      }
+
+      #usersModal .eq-user-actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+
+      #usersModal .eq-user-action-btn {
+        flex: 1;
+      }
+    }
+  `;
+}
+
+function renderUsersModalStaticText() {
+  const modal = document.getElementById('usersModal');
+  if (!modal) return;
+
+  const isArabic = getUsersModalLang() === 'ar';
+  modal.setAttribute('dir', isArabic ? 'rtl' : 'ltr');
+  modal.style.direction = isArabic ? 'rtl' : 'ltr';
+
+  const title = document.getElementById('usersModalTitle');
+  if (title) {
+    title.textContent = usersModalText('قائمة الموظفين', 'Staff List');
+  }
+
+  const sub = modal.querySelector('.modal-sub');
+  if (sub) {
+    sub.textContent = usersModalText(
+      'إدارة موظفي المطعم وحالات الدخول والصلاحيات الأساسية',
+      'Manage restaurant staff, access status, and basic roles'
+    );
+  }
+
+  let hero = modal.querySelector('.eq-users-hero');
+  const usersList = document.getElementById('usersList');
+
+  if (!hero && usersList) {
+    hero = document.createElement('div');
+    hero.className = 'eq-users-hero';
+    usersList.parentNode.insertBefore(hero, usersList);
+  }
+
+  if (hero) {
+    const totalUsers = Array.isArray(window.currentBusinessUsersList)
+      ? window.currentBusinessUsersList.length
+      : 0;
+
+    hero.innerHTML = `
+      <div>
+        <div class="eq-users-hero-title">
+          <i class="fas fa-users-gear"></i>
+          <span>${usersModalText('مركز إدارة الموظفين', 'Staff Management Center')}</span>
+        </div>
+        <div class="eq-users-hero-sub">
+          ${usersModalText(
+            'إدارة حسابات الموظفين، الأدوار، وحالة الدخول من واجهة واحدة بدون التأثير على منطق النظام.',
+            'Manage staff accounts, roles, and access status from one place without changing system logic.'
+          )}
+        </div>
+      </div>
+
+      <div class="eq-users-hero-count">
+        <strong>${totalUsers}</strong>
+        <span>${usersModalText('موظف', 'staff')}</span>
+      </div>
+    `;
+  }
+
+  const newUsername = document.getElementById('newUsername');
+  if (newUsername) {
+    newUsername.placeholder = usersModalText('البريد الإلكتروني', 'Email address');
+  }
+
+  const newDisplayName = document.getElementById('newDisplayName');
+  if (newDisplayName) {
+    newDisplayName.placeholder = usersModalText('الاسم الظاهر', 'Display name');
+  }
+
+  const newPassword = document.getElementById('newPassword');
+  if (newPassword) {
+    newPassword.placeholder = usersModalText('كلمة المرور', 'Password');
+  }
+
+  const newRole = document.getElementById('newRole');
+  if (newRole) {
+    const roleOptions = {
+      staff: usersModalText('موظف', 'Staff'),
+      employee: usersModalText('موظف', 'Employee'),
+      manager: usersModalText('مدير', 'Manager'),
+      admin: usersModalText('مدير النظام', 'Admin'),
+      host: usersModalText('استقبال', 'Host')
+    };
+
+    Array.from(newRole.options || []).forEach(option => {
+      option.textContent = roleOptions[option.value] || option.textContent;
+    });
+  }
+
+  const saveBtn = document.getElementById('saveUserBtn');
+  if (saveBtn) {
+    saveBtn.innerHTML = `
+      <i class="fas fa-save"></i>
+      ${usersModalText('حفظ', 'Save')}
+    `;
+  }
+
+  const addForm = document.getElementById('addUserForm');
+  if (addForm) {
+    const cancelBtn = addForm.querySelector('.settings-close');
+    if (cancelBtn) {
+      cancelBtn.textContent = usersModalText('إلغاء', 'Cancel');
+    }
+  }
+
+  let footer = modal.querySelector('.eq-users-footer-actions');
+  const oldFooter = modal.querySelector('#addUserForm + div');
+
+  if (oldFooter && !oldFooter.classList.contains('eq-users-footer-actions')) {
+    oldFooter.classList.add('eq-users-footer-actions');
+    footer = oldFooter;
+  }
+
+  if (footer) {
+    const addBtn = footer.querySelector('.settings-save');
+    const closeBtn = footer.querySelector('.settings-close');
+
+    if (addBtn) {
+      addBtn.innerHTML = `
+        <i class="fas fa-user-plus"></i>
+        ${usersModalText('إضافة موظف', 'Add Staff')}
+      `;
+    }
+
+    if (closeBtn) {
+      closeBtn.textContent = usersModalText('إغلاق', 'Close');
+    }
+  }
+}
+
 function openUsersModal() {
-    if (!canDo('manage_users')) {
-    showAlert('ليس لديك صلاحية لإدارة الموظفين');
+  if (!canDo('manage_users')) {
+    showAlert(usersModalText(
+      'ليس لديك صلاحية لإدارة الموظفين',
+      'You do not have permission to manage staff'
+    ));
     return;
   }
-  document.getElementById('usersModal').classList.add('show');
+
+  applyUsersModalStyle();
+  renderUsersModalStaticText();
+
+  const modal = document.getElementById('usersModal');
+  if (modal) modal.classList.add('show');
+
   loadUsers();
 }
 
 function closeUsersModal() {
-  document.getElementById('usersModal').classList.remove('show');
-  document.getElementById('addUserForm').style.display = 'none';
+  const modal = document.getElementById('usersModal');
+  if (modal) modal.classList.remove('show');
+
+  const addUserForm = document.getElementById('addUserForm');
+  if (addUserForm) addUserForm.style.display = 'none';
 }
 
 function showAddUserForm() {
-  document.getElementById('addUserForm').style.display = 'block';
-  document.getElementById('newUsername').value = '';
-  document.getElementById('newDisplayName').value = '';
-  document.getElementById('newPassword').value = '';
+  renderUsersModalStaticText();
+
+  const addUserForm = document.getElementById('addUserForm');
+  if (addUserForm) addUserForm.style.display = 'block';
+
+  const newUsername = document.getElementById('newUsername');
+  const newDisplayName = document.getElementById('newDisplayName');
+  const newPassword = document.getElementById('newPassword');
+
+  if (newUsername) newUsername.value = '';
+  if (newDisplayName) newDisplayName.value = '';
+  if (newPassword) newPassword.value = '';
 }
 
 function cancelAddUser() {
-  document.getElementById('addUserForm').style.display = 'none';
+  const addUserForm = document.getElementById('addUserForm');
+  if (addUserForm) addUserForm.style.display = 'none';
 }
 
 async function loadUsers() {
   if (!canDo('manage_users')) {
-    showAlert('ليس لديك صلاحية لعرض الموظفين');
+    showAlert(usersModalText(
+      'ليس لديك صلاحية لعرض الموظفين',
+      'You do not have permission to view staff'
+    ));
     return;
   }
 
@@ -3090,33 +4275,40 @@ async function loadUsers() {
   
   if (!businessId) {
     console.warn('لا يمكن تحديد المطعم للمستخدم الحالي');
-    showAlert('لا يمكن تحديد المطعم الحالي');
+    showAlert(usersModalText(
+      'لا يمكن تحديد المطعم الحالي',
+      'Unable to identify the current restaurant'
+    ));
     return;
   }
+
+  applyUsersModalStyle();
+  renderUsersModalStaticText();
 
   const container = document.getElementById('usersList');
   if (!container) return;
 
-  container.innerHTML = `
-    <div style="padding:18px;text-align:center;color:#6B7280;">
+container.innerHTML = `
+    <div class="eq-users-loading">
       <i class="fas fa-spinner fa-spin"></i>
-      جاري تحميل الموظفين...
+      ${usersModalText('جاري تحميل الموظفين...', 'Loading staff...')}
     </div>
   `;
   
   const { data: users, error } = await supabase
     .from('app_users')
     .select('id, username, display_name, role, is_active, business_id, auth_id, created_at')
-.eq('business_id', businessId)
-.is('archived_at', null)
-.order('created_at', { ascending: false });
+    .eq('business_id', businessId)
+    .is('archived_at', null)
+    .order('created_at', { ascending: false });
   
   if (error) {
     console.error('فشل تحميل الموظفين:', error);
 
-    container.innerHTML = `
-      <div style="padding:18px;text-align:center;color:#DC2626;">
-        فشل تحميل قائمة الموظفين
+container.innerHTML = `
+      <div class="eq-users-error">
+        <i class="fas fa-triangle-exclamation"></i>
+        ${usersModalText('فشل تحميل قائمة الموظفين', 'Failed to load staff list')}
       </div>
     `;
 
@@ -3125,22 +4317,24 @@ async function loadUsers() {
 
   const list = Array.isArray(users) ? users : [];
   window.currentBusinessUsersList = list;
+  renderUsersModalStaticText();
 
   if (list.length === 0) {
-    container.innerHTML = `
-      <div style="padding:18px;text-align:center;color:#6B7280;">
-        لا يوجد موظفون حتى الآن
+container.innerHTML = `
+      <div class="eq-users-empty">
+        <i class="fas fa-user-slash"></i>
+        ${usersModalText('لا يوجد موظفون حتى الآن', 'No staff members yet')}
       </div>
     `;
     return;
   }
 
   const roleLabels = {
-    admin: 'مدير النظام',
-    manager: 'مدير',
-    staff: 'موظف',
-    employee: 'موظف',
-    host: 'استقبال'
+    admin: usersModalText('مدير النظام', 'Admin'),
+    manager: usersModalText('مدير', 'Manager'),
+    staff: usersModalText('موظف', 'Staff'),
+    employee: usersModalText('موظف', 'Employee'),
+    host: usersModalText('استقبال', 'Host')
   };
 
   const roleColors = {
@@ -3155,109 +4349,69 @@ async function loadUsers() {
     const isSelf = String(u.id) === String(currentUser.id);
     const isActive = u.is_active !== false;
 
-    const roleLabel = roleLabels[u.role] || u.role || 'غير محدد';
+    const safeName = u.display_name || usersModalText('مستخدم بدون اسم', 'Unnamed user');
+    const roleLabel = roleLabels[u.role] || u.role || usersModalText('غير محدد', 'Unknown');
     const roleColor = roleColors[u.role] || '#64748B';
 
     return `
-      <div style="
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        gap:12px;
-        padding:12px;
-        border:1px solid #E5E7EB;
-        border-radius:14px;
-        margin-bottom:10px;
-        background:#FFFFFF;
-      ">
+      <div class="eq-user-card">
         <div style="min-width:0;">
-          <div style="
-            display:flex;
-            align-items:center;
-            gap:8px;
-            flex-wrap:wrap;
-            margin-bottom:5px;
-          ">
-            <strong style="color:#111827;font-size:14px;">
-              ${u.display_name || 'مستخدم بدون اسم'}
+          <div class="eq-user-name-row">
+            <strong class="eq-user-name" title="${safeName}">
+              ${safeName}
             </strong>
 
             ${
               isSelf
-                ? `<span style="
-                    background:#EEF2FF;
-                    color:#0E146D;
-                    padding:3px 8px;
-                    border-radius:999px;
-                    font-size:10px;
-                    font-weight:900;
-                  ">أنت</span>`
+                ? `<span class="eq-user-badge" style="background:#EEF2FF;color:#0E146D;">
+                    ${usersModalText('أنت', 'You')}
+                  </span>`
                 : ''
             }
 
-            <span style="
-              background:${roleColor}15;
-              color:${roleColor};
-              padding:3px 8px;
-              border-radius:999px;
-              font-size:10px;
-              font-weight:900;
-            ">
+            <span class="eq-user-badge" style="background:${roleColor}15;color:${roleColor};">
               ${roleLabel}
             </span>
 
-            <span style="
+            <span class="eq-user-badge" style="
               background:${isActive ? '#ECFDF5' : '#FEF2F2'};
               color:${isActive ? '#059669' : '#DC2626'};
-              padding:3px 8px;
-              border-radius:999px;
-              font-size:10px;
-              font-weight:900;
             ">
-              ${isActive ? 'نشط' : 'موقوف'}
+              ${isActive ? usersModalText('نشط', 'Active') : usersModalText('موقوف', 'Disabled')}
             </span>
           </div>
 
-          <div style="
-            color:#6B7280;
-            font-size:12px;
-            direction:ltr;
-            text-align:right;
-            white-space:nowrap;
-            overflow:hidden;
-            text-overflow:ellipsis;
-            max-width:260px;
-          ">
+          <div class="eq-user-email" title="${u.username || '—'}">
             ${u.username || '—'}
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-         <button
-  class="modal-btn"
-  style="background:#0E146D;padding:7px 10px;min-height:auto;font-size:12px;"
-  title="تعديل الموظف"
-  onclick="openEditUserModal('${u.id}')"
->
-  <i class="fas fa-edit"></i>
-</button>
+        <div class="eq-user-actions">
+          <button
+            class="eq-user-action-btn"
+            style="background:#0E146D;"
+            title="${usersModalText('تعديل الموظف', 'Edit staff member')}"
+            onclick="openEditUserModal('${u.id}')"
+          >
+            <i class="fas fa-edit"></i>
+          </button>
 
-<button
-  class="modal-btn"
-  style="background:${isActive ? '#F59E0B' : '#059669'};padding:7px 10px;min-height:auto;font-size:12px;"
-  title="${isActive ? 'إيقاف الموظف' : 'تفعيل الموظف'}"
-  onclick="setBusinessUserActive('${u.id}', ${isActive ? 'false' : 'true'})"
->
-  <i class="fas ${isActive ? 'fa-user-slash' : 'fa-user-check'}"></i>
-</button>
+          <button
+            class="eq-user-action-btn"
+            style="background:${isActive ? '#F59E0B' : '#059669'};"
+            title="${isActive ? usersModalText('إيقاف الموظف', 'Disable staff member') : usersModalText('تفعيل الموظف', 'Enable staff member')}"
+            onclick="setBusinessUserActive('${u.id}', ${isActive ? 'false' : 'true'})"
+          >
+            <i class="fas ${isActive ? 'fa-user-slash' : 'fa-user-check'}"></i>
+          </button>
 
           ${
             !isSelf
               ? `<button
-                  class="modal-btn"
-                  style="background:#DC2626;padding:7px 10px;min-height:auto;font-size:12px;"
+                  class="eq-user-action-btn"
+                  style="background:#DC2626;"
                   onclick="archiveBusinessUser('${u.id}')"
-                  title="حذف الموظف من الواجهة"
+                  title="${usersModalText('حذف الموظف من الواجهة', 'Remove staff member from list')}"
                 >
                   <i class="fas fa-trash"></i>
                 </button>`
@@ -3271,14 +4425,259 @@ async function loadUsers() {
 
 let currentEditingBusinessUserId = null;
 
+
+function editUserModalText(arText, enText) {
+  if (typeof usersModalText === 'function') {
+    return usersModalText(arText, enText);
+  }
+
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? enText : arText;
+}
+
+function applyEditUserModalStyle() {
+  if (document.getElementById('eqEditUserModalStyle')) return;
+
+  const style = document.createElement('style');
+  style.id = 'eqEditUserModalStyle';
+  style.textContent = `
+    #editUserModal .modal {
+      max-width: 460px !important;
+      border-radius: 22px !important;
+      padding: 20px !important;
+      background: #FFFFFF !important;
+      box-shadow: 0 24px 70px rgba(6, 4, 39, 0.22) !important;
+      border: 1px solid rgba(14, 20, 109, 0.10) !important;
+    }
+
+    #editUserModal .modal-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      color: #0E146D;
+      font-size: 19px;
+      font-weight: 1000;
+      margin-bottom: 6px;
+    }
+
+    #editUserModal .modal-title i {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #EEF2FF;
+      color: #0E146D;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    #editUserModal .modal-sub {
+      color: #64748B;
+      font-size: 12.5px;
+      font-weight: 800;
+      line-height: 1.7;
+      margin-bottom: 14px;
+      direction: ltr;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    #editUserModal .walkin-form {
+      gap: 10px !important;
+    }
+
+    #editUserModal .guest-label {
+      display: block;
+      color: #111827;
+      font-size: 12px;
+      font-weight: 1000;
+      margin-bottom: 6px;
+    }
+
+    #editUserModal .walkin-input {
+      height: 42px !important;
+      border-radius: 12px !important;
+      font-size: 13px !important;
+      font-weight: 800 !important;
+      background: #FFFFFF !important;
+      border: 1px solid #E5E7EB !important;
+    }
+
+    #editUserPasswordBox {
+      margin-top: 12px !important;
+      padding: 12px !important;
+      border: 1px solid #E5E7EB !important;
+      border-radius: 16px !important;
+      background: #F8FAFC !important;
+    }
+
+    #editUserPasswordBox .eq-edit-password-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 1000 !important;
+      color: #111827 !important;
+      margin-bottom: 8px !important;
+      font-size: 13px !important;
+    }
+
+    #editUserPasswordBox .eq-edit-password-title i {
+      color: #0E146D;
+    }
+
+    #editUserPasswordBox .eq-edit-password-hint {
+      margin-top: 7px !important;
+      color: #64748B !important;
+      font-size: 11px !important;
+      line-height: 1.6 !important;
+      font-weight: 800;
+    }
+
+    #editUserSelfWarning {
+      border-radius: 14px !important;
+      font-weight: 850 !important;
+      line-height: 1.7 !important;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+function renderEditUserModalStaticText() {
+  const modal = document.getElementById('editUserModal');
+  if (!modal) return;
+
+  const isEnglish = String(
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar'
+  ).toLowerCase().startsWith('en');
+
+  modal.setAttribute('dir', isEnglish ? 'ltr' : 'rtl');
+  modal.style.direction = isEnglish ? 'ltr' : 'rtl';
+
+  const title = modal.querySelector('.modal-title');
+  if (title) {
+    title.innerHTML = `
+      <i class="fas fa-user-edit"></i>
+      ${editUserModalText('تعديل الموظف', 'Edit Staff Member')}
+    `;
+  }
+
+  const labels = modal.querySelectorAll('.guest-label');
+
+  if (labels[0]) {
+    labels[0].textContent = editUserModalText('الاسم الظاهر', 'Display Name');
+  }
+
+  if (labels[1]) {
+    labels[1].textContent = editUserModalText('الدور / المنصب', 'Role / Position');
+  }
+
+  const displayNameInput = document.getElementById('editUserDisplayName');
+  if (displayNameInput) {
+    displayNameInput.placeholder = editUserModalText('الاسم الظاهر', 'Display name');
+  }
+
+  const roleSelect = document.getElementById('editUserRole');
+  if (roleSelect) {
+    const roleOptions = {
+      staff: editUserModalText('موظف', 'Staff'),
+      employee: editUserModalText('موظف', 'Employee'),
+      manager: editUserModalText('مدير', 'Manager'),
+      admin: editUserModalText('مدير النظام', 'Admin'),
+      host: editUserModalText('استقبال', 'Host')
+    };
+
+    Array.from(roleSelect.options || []).forEach(option => {
+      option.textContent = roleOptions[option.value] || option.textContent;
+    });
+  }
+
+  const passwordBox = document.getElementById('editUserPasswordBox');
+  if (passwordBox) {
+    const passwordTitle = passwordBox.querySelector('div');
+    if (passwordTitle) {
+      passwordTitle.classList.add('eq-edit-password-title');
+      passwordTitle.innerHTML = `
+        <i class="fas fa-key"></i>
+        ${editUserModalText('تغيير كلمة المرور', 'Change Password')}
+      `;
+    }
+
+    const passwordHint = Array.from(passwordBox.querySelectorAll('div')).find(el => {
+      return el !== passwordTitle;
+    });
+
+    if (passwordHint) {
+      passwordHint.classList.add('eq-edit-password-hint');
+      passwordHint.textContent = editUserModalText(
+        'اترك الحقول فارغة إذا كنت لا تريد تغيير كلمة المرور.',
+        'Leave these fields empty if you do not want to change the password.'
+      );
+    }
+  }
+
+  const newPasswordInput = document.getElementById('editUserNewPassword');
+  if (newPasswordInput) {
+    newPasswordInput.placeholder = editUserModalText(
+      'كلمة مرور جديدة 8 أحرف على الأقل',
+      'New password, at least 8 characters'
+    );
+  }
+
+  const confirmPasswordInput = document.getElementById('editUserConfirmPassword');
+  if (confirmPasswordInput) {
+    confirmPasswordInput.placeholder = editUserModalText(
+      'تأكيد كلمة المرور',
+      'Confirm password'
+    );
+  }
+
+  const warning = document.getElementById('editUserSelfWarning');
+  if (warning) {
+    warning.textContent = editUserModalText(
+      'لا يمكنك تغيير دور حسابك الحالي من هنا. يمكنك تعديل الاسم فقط.',
+      'You cannot change your own role here. You can only edit the display name.'
+    );
+  }
+
+  const saveBtn = modal.querySelector('.settings-save[onclick="saveEditedUser()"]');
+  if (saveBtn) {
+    saveBtn.innerHTML = `
+      <i class="fas fa-save"></i>
+      ${editUserModalText('حفظ التعديل', 'Save Changes')}
+    `;
+  }
+
+  const closeBtn = modal.querySelector('.settings-close[onclick="closeEditUserModal()"]');
+  if (closeBtn) {
+    closeBtn.textContent = editUserModalText('إلغاء', 'Cancel');
+  }
+}
+
 function openEditUserModal(userId) {
   if (!canDo('manage_users')) {
-    showAlert('ليس لديك صلاحية لتعديل الموظفين');
+    showAlert(editUserModalText(
+      'ليس لديك صلاحية لتعديل الموظفين',
+      'You do not have permission to edit staff members'
+    ));
     return;
   }
 
   if (!userId) {
-    showAlert('معرف الموظف غير موجود');
+    showAlert(editUserModalText(
+      'معرف الموظف غير موجود',
+      'Staff member ID is missing'
+    ));
     return;
   }
 
@@ -3289,7 +4688,10 @@ function openEditUserModal(userId) {
   const user = users.find(item => String(item.id) === String(userId));
 
   if (!user) {
-    showAlert('لم يتم العثور على بيانات الموظف. حدّث القائمة وحاول مرة أخرى.');
+    showAlert(editUserModalText(
+      'لم يتم العثور على بيانات الموظف. حدّث القائمة وحاول مرة أخرى.',
+      'Staff member data was not found. Refresh the list and try again.'
+    ));
     return;
   }
 
@@ -3298,32 +4700,38 @@ function openEditUserModal(userId) {
   const modal = document.getElementById('editUserModal');
   const idInput = document.getElementById('editUserId');
   const displayNameInput = document.getElementById('editUserDisplayName');
-const roleSelect = document.getElementById('editUserRole');
-const passwordBox = document.getElementById('editUserPasswordBox');
-const newPasswordInput = document.getElementById('editUserNewPassword');
-const confirmPasswordInput = document.getElementById('editUserConfirmPassword');
-const warning = document.getElementById('editUserSelfWarning');
-const sub = document.getElementById('editUserModalSub');
+  const roleSelect = document.getElementById('editUserRole');
+  const passwordBox = document.getElementById('editUserPasswordBox');
+  const newPasswordInput = document.getElementById('editUserNewPassword');
+  const confirmPasswordInput = document.getElementById('editUserConfirmPassword');
+  const warning = document.getElementById('editUserSelfWarning');
+  const sub = document.getElementById('editUserModalSub');
 
   if (!modal || !idInput || !displayNameInput || !roleSelect) {
     console.warn('editUserModal elements are missing in index.html');
-    showAlert('واجهة تعديل الموظف غير مكتملة');
+    showAlert(editUserModalText(
+      'واجهة تعديل الموظف غير مكتملة',
+      'The staff edit interface is incomplete'
+    ));
     return;
   }
+
+  applyEditUserModalStyle();
+  renderEditUserModalStaticText();
 
   const isSelf = String(user.id) === String(currentUser?.id);
 
   idInput.value = user.id;
   displayNameInput.value = user.display_name || '';
   roleSelect.value = user.role || 'staff';
-if (newPasswordInput) newPasswordInput.value = '';
-if (confirmPasswordInput) confirmPasswordInput.value = '';
 
-if (passwordBox) {
-  passwordBox.style.display = user.auth_id ? 'block' : 'none';
-}
+  if (newPasswordInput) newPasswordInput.value = '';
+  if (confirmPasswordInput) confirmPasswordInput.value = '';
 
-  // لا نسمح بتغيير دور الحساب الحالي من هذه النافذة
+  if (passwordBox) {
+    passwordBox.style.display = user.auth_id ? 'block' : 'none';
+  }
+
   roleSelect.disabled = isSelf;
 
   if (warning) {
@@ -3331,7 +4739,10 @@ if (passwordBox) {
   }
 
   if (sub) {
-    sub.innerText = user.username || 'تعديل بيانات الموظف';
+    sub.innerText = user.username || editUserModalText(
+      'تعديل بيانات الموظف',
+      'Edit staff member details'
+    );
   }
 
   modal.classList.add('show');
@@ -3995,12 +5406,72 @@ const EASYQ_PERMISSION_ROLES = [
 ];
 
 
+function permissionsModalText(arText, enText) {
+  if (typeof usersModalText === 'function') {
+    return usersModalText(arText, enText);
+  }
+
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? enText : arText;
+}
+
+function applyPermissionsModalStaticText() {
+  const modal = document.getElementById('permissionsModal');
+  if (!modal) return;
+
+  const isEnglish = String(
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar'
+  ).toLowerCase().startsWith('en');
+
+  modal.setAttribute('dir', isEnglish ? 'ltr' : 'rtl');
+  modal.style.direction = isEnglish ? 'ltr' : 'rtl';
+
+  const title = modal.querySelector('.modal-title');
+  if (title) {
+    title.innerHTML = `
+      <i class="fas fa-lock"></i>
+      ${permissionsModalText('إدارة الصلاحيات', 'Permissions Management')}
+    `;
+  }
+
+  const sub = modal.querySelector('.modal-sub');
+  if (sub) {
+    sub.textContent = permissionsModalText(
+      'تحديد صلاحيات كل دور في النظام',
+      'Define permissions for each role in the system'
+    );
+  }
+
+  const saveBtn = modal.querySelector('.settings-save[onclick="savePermissions()"]');
+  if (saveBtn) {
+    saveBtn.innerHTML = `
+      <i class="fas fa-save"></i>
+      ${permissionsModalText('حفظ الصلاحيات', 'Save Permissions')}
+    `;
+  }
+
+  const closeBtn = modal.querySelector('.settings-close[onclick="closePermissionsModal()"]');
+  if (closeBtn) {
+    closeBtn.textContent = permissionsModalText('إغلاق', 'Close');
+  }
+}
 
 function openPermissionsModal() {
   // مودل الصلاحيات خاص بمالك الحساب فقط
   // المشرف والموظف لا يملكون حق تعديل صلاحيات الآخرين
   if (!currentUser || currentUser.role !== 'admin') {
-    showAlert('ليس لديك صلاحية لإدارة صلاحيات الموظفين');
+    showAlert(permissionsModalText(
+      'ليس لديك صلاحية لإدارة صلاحيات الموظفين',
+      'You do not have permission to manage staff permissions'
+    ));
     return;
   }
 
@@ -4010,6 +5481,8 @@ function openPermissionsModal() {
     console.warn('permissionsModal غير موجود');
     return;
   }
+
+  applyPermissionsModalStaticText();
 
   permissionsModal.classList.add('show');
   activePermissionsRole = 'manager';
@@ -4057,64 +5530,62 @@ function renderPermissionsTabs() {
   const container = document.getElementById('permissionsList');
   if (!container) return;
 
-container.innerHTML = `
-    <div style="
-      margin-bottom: 12px;
-      padding: 11px 13px;
-      border-radius: 14px;
-      background: #FFFBEB;
-      border: 1px solid #F4D28A;
-      color: #6B4E00;
-      font-size: 12px;
-      line-height: 1.7;
-      font-weight: 700;
-    ">
-      <i class="fas fa-info-circle"></i>
-     مالك الحساب / الأدمن يملك جميع الصلاحيات دائمًا. من هنا يمكنك التحكم فقط في صلاحيات المشرف والموظف.
-<br>
-<span style="font-weight: 600;">
-  ملاحظة: تظهر تغييرات الصلاحيات في حسابات الموظفين تلقائيًا خلال 60 ثانية كحد أقصى، أو مباشرة عند تحديث الصفحة.
-</span>
+  applyPermissionsModalStaticText();
+  applyPermissionsDesignerStyle();
+
+  const enabledCount = PERMISSION_KEYS.filter(item => {
+    return permissionsDraft?.[activePermissionsRole]?.[item.key] === true;
+  }).length;
+
+  container.innerHTML = `
+    <div class="eq-permissions-hero">
+      <div>
+        <div class="eq-permissions-hero-title">
+          <i class="fas fa-user-shield"></i>
+          <span>
+            ${permissionsModalText('مركز إدارة الصلاحيات', 'Permissions Control Center')}
+          </span>
+        </div>
+
+        <div class="eq-permissions-hero-sub">
+          ${permissionsModalText(
+            'تحكم بصلاحيات المشرف والموظف من مكان واحد بدون التأثير على صلاحيات مالك الحساب.',
+            'Manage manager and staff permissions in one place without affecting the account owner permissions.'
+          )}
+        </div>
+      </div>
+
+      <div class="eq-permissions-hero-count">
+        <strong>${enabledCount}</strong>
+        <span>${permissionsModalText('مفعلة', 'enabled')}</span>
+      </div>
     </div>
 
-    <div style="
-      display: flex;
-      gap: 8px;
-      margin-bottom: 16px;
-      background: var(--gray-100, #F3F4F6);
-      padding: 8px;
-      border-radius: 16px;
-      overflow-x: auto;
-    ">
+    <div class="eq-permissions-note">
+      <i class="fas fa-circle-info"></i>
+      ${permissionsModalText(
+        'مالك الحساب / الأدمن يملك جميع الصلاحيات دائمًا. تظهر تغييرات الصلاحيات تلقائيًا خلال 60 ثانية كحد أقصى، أو مباشرة عند تحديث الصفحة.',
+        'The account owner / admin always has all permissions. Permission changes appear automatically within 60 seconds at most, or immediately after refreshing the page.'
+      )}
+    </div>
+
+    <div class="eq-permissions-tabs">
       ${EASYQ_PERMISSION_ROLES.map(role => `
         <button
           type="button"
-          class="permissions-role-tab ${activePermissionsRole === role.key ? 'active' : ''}"
+          class="eq-permissions-role-tab ${activePermissionsRole === role.key ? 'active' : ''}"
           onclick="switchPermissionsRole('${role.key}')"
-          style="
-            border: none;
-            background: ${activePermissionsRole === role.key ? '#0E146D' : '#FFFFFF'};
-            color: ${activePermissionsRole === role.key ? '#FFFFFF' : '#111827'};
-            padding: 10px 13px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-weight: 900;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            white-space: nowrap;
-            box-shadow: ${activePermissionsRole === role.key ? '0 6px 14px rgba(14,20,109,0.18)' : '0 1px 4px rgba(0,0,0,0.04)'};
-          "
         >
           <i class="fas ${role.icon}"></i>
-          ${currentLang === 'ar' ? role.ar : role.en}
+          <span>${permissionsModalText(role.ar, role.en)}</span>
         </button>
       `).join('')}
     </div>
 
     <div id="permissionsRolePanel"></div>
   `;
+
+  renderPermissionsRolePanel(activePermissionsRole);
 }
 
 function switchPermissionsRole(roleKey) {
@@ -4123,94 +5594,444 @@ function switchPermissionsRole(roleKey) {
   renderPermissionsRolePanel(roleKey);
 }
 
+function permissionUiText(arText, enText) {
+  if (typeof permissionsModalText === 'function') {
+    return permissionsModalText(arText, enText);
+  }
+
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? enText : arText;
+}
+
+function applyPermissionsDesignerStyle() {
+  let style = document.getElementById('eqPermissionsDesignerStyle');
+
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'eqPermissionsDesignerStyle';
+    document.head.appendChild(style);
+  }
+
+  style.textContent = `
+    #permissionsModal .modal {
+      max-width: 620px !important;
+      width: calc(100vw - 34px) !important;
+      max-height: 88vh !important;
+      border-radius: 24px !important;
+      padding: 18px !important;
+      background: #FFFFFF !important;
+      box-shadow: 0 24px 70px rgba(6, 4, 39, 0.22) !important;
+      border: 1px solid rgba(14, 20, 109, 0.10) !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    #permissionsModal .modal-title {
+      margin-bottom: 5px !important;
+    }
+
+    #permissionsModal .modal-sub {
+      margin-bottom: 12px !important;
+    }
+
+    #permissionsList {
+      min-height: 0 !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+    }
+
+    #permissionsList .eq-permissions-hero {
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.16), transparent 34%),
+        linear-gradient(135deg, #070219 0%, #060427 52%, #0E146D 100%);
+      color: #FFFFFF;
+      border-radius: 20px;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      box-shadow: 0 14px 32px rgba(6, 4, 39, 0.20);
+      overflow: hidden;
+      position: relative;
+    }
+
+    #permissionsList .eq-permissions-hero::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      inset-inline-end: -80px;
+      top: -95px;
+      background: rgba(255, 255, 255, 0.10);
+      pointer-events: none;
+    }
+
+    #permissionsList .eq-permissions-hero > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    #permissionsList .eq-permissions-hero-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 1000;
+      line-height: 1.35;
+    }
+
+    #permissionsList .eq-permissions-hero-title i {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.12);
+      color: #DDE7FF;
+      flex-shrink: 0;
+    }
+
+    #permissionsList .eq-permissions-hero-sub {
+      margin-top: 6px;
+      color: rgba(255,255,255,0.76);
+      font-size: 11.5px;
+      font-weight: 800;
+      line-height: 1.7;
+    }
+
+    #permissionsList .eq-permissions-hero-count {
+      min-width: 76px;
+      height: 58px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.10);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    #permissionsList .eq-permissions-hero-count strong {
+      font-size: 22px;
+      font-weight: 1000;
+      line-height: 1;
+    }
+
+    #permissionsList .eq-permissions-hero-count span {
+      font-size: 10px;
+      font-weight: 850;
+      color: rgba(255,255,255,0.72);
+    }
+
+    #permissionsList .eq-permissions-note {
+      padding: 10px 12px;
+      border-radius: 16px;
+      background: #FFFBEB;
+      border: 1px solid #F4D28A;
+      color: #6B4E00;
+      font-size: 11.5px;
+      line-height: 1.7;
+      font-weight: 800;
+    }
+
+    #permissionsList .eq-permissions-note i {
+      color: #B45309;
+      margin-inline-end: 5px;
+    }
+
+    #permissionsList .eq-permissions-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      background: #F3F4F6;
+      padding: 8px;
+      border-radius: 18px;
+    }
+
+    #permissionsList .eq-permissions-role-tab {
+      border: 1px solid transparent;
+      background: #FFFFFF;
+      color: #111827;
+      min-height: 42px;
+      padding: 0 12px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 1000;
+      font-size: 12.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+      transition: .16s ease;
+    }
+
+    #permissionsList .eq-permissions-role-tab:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14, 20, 109, 0.15);
+    }
+
+    #permissionsList .eq-permissions-role-tab.active {
+      background: #0E146D;
+      color: #FFFFFF;
+      box-shadow: 0 10px 22px rgba(14,20,109,0.18);
+    }
+
+    #permissionsRolePanel {
+      min-height: 0 !important;
+      overflow: hidden !important;
+      border: 1px solid #E5E7EB;
+      border-radius: 18px;
+      background: #F8FAFC;
+    }
+
+    #permissionsRolePanel .eq-permissions-panel-top {
+      padding: 10px 12px;
+      background: #FFFFFF;
+      border-bottom: 1px solid #E5E7EB;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    #permissionsRolePanel .eq-permissions-panel-title {
+      min-width: 0;
+      color: #111827;
+      font-size: 13px;
+      font-weight: 1000;
+      line-height: 1.35;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    #permissionsRolePanel .eq-permissions-panel-title i {
+      color: #0E146D;
+    }
+
+    #permissionsRolePanel .eq-permissions-panel-sub {
+      margin-top: 3px;
+      color: #64748B;
+      font-size: 10.8px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    #permissionsRolePanel .eq-permissions-all-btn {
+      border: none;
+      background: #EEF2FF;
+      color: #0E146D;
+      min-height: 34px;
+      padding: 0 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 1000;
+      font-size: 11px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    #permissionsRolePanel .eq-permissions-all-btn:hover {
+      background: #E0E7FF;
+    }
+
+    #permissionsRolePanel .eq-permissions-scroll {
+      max-height: min(44vh, 360px);
+      overflow-y: auto;
+      padding: 10px;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    #permissionsRolePanel .eq-permissions-scroll::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+      display: none;
+    }
+
+    #permissionsRolePanel .eq-permissions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    #permissionsRolePanel .eq-permission-card {
+      min-height: 48px;
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 14px;
+      padding: 8px 9px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: 0 5px 13px rgba(15, 23, 42, 0.03);
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
+    }
+
+    #permissionsRolePanel .eq-permission-card.is-on {
+      background: #F4F6FF;
+      border-color: rgba(14, 20, 109, 0.18);
+    }
+
+    #permissionsRolePanel .eq-permission-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(14, 20, 109, 0.24);
+    }
+
+    #permissionsRolePanel .eq-permission-name {
+      font-size: 11.8px;
+      font-weight: 950;
+      color: #111827;
+      line-height: 1.45;
+      min-width: 0;
+    }
+
+    #permissionsRolePanel .eq-permission-state {
+      display: block;
+      margin-top: 2px;
+      font-size: 10px;
+      font-weight: 850;
+      color: #64748B;
+    }
+
+    #permissionsRolePanel .eq-permission-card.is-on .eq-permission-state {
+      color: #0E146D;
+    }
+
+    #permissionsRolePanel .toggle-switch {
+      flex-shrink: 0;
+      transform: scale(0.92);
+      transform-origin: center;
+    }
+
+    @media (max-width: 680px) {
+      #permissionsModal .modal {
+        max-width: calc(100vw - 22px) !important;
+      }
+
+      #permissionsList .eq-permissions-hero {
+        grid-template-columns: 1fr;
+      }
+
+      #permissionsList .eq-permissions-hero-count {
+        width: 100%;
+        height: 48px;
+        flex-direction: row;
+      }
+
+      #permissionsRolePanel .eq-permissions-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #permissionsRolePanel .eq-permissions-panel-top {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      #permissionsRolePanel .eq-permissions-all-btn {
+        width: 100%;
+      }
+    }
+  `;
+}
+
 function renderPermissionsRolePanel(roleKey) {
   const panel = document.getElementById('permissionsRolePanel');
   if (!panel) return;
 
+  applyPermissionsDesignerStyle();
+
   const roleInfo = EASYQ_PERMISSION_ROLES.find(role => role.key === roleKey);
 
+  const roleName = permissionUiText(
+    roleInfo?.ar || 'الدور',
+    roleInfo?.en || 'Role'
+  );
+
+  const roleDesc = roleKey === 'manager'
+    ? permissionUiText(
+        'صلاحيات تشغيل وإشراف يحددها مالك الحساب',
+        'Operational and supervision permissions set by the account owner'
+      )
+    : permissionUiText(
+        'صلاحيات التشغيل اليومية التي يمنحها مالك الحساب',
+        'Daily operation permissions granted by the account owner'
+      );
+
+  const enabledCount = PERMISSION_KEYS.filter(item => {
+    return permissionsDraft?.[roleKey]?.[item.key] === true;
+  }).length;
+
   panel.innerHTML = `
-    <div style="
-      border: 1px solid var(--border-color, #E5E7EB);
-      border-radius: 16px;
-      padding: 16px;
-      background: var(--card-bg, #FFFFFF);
-    ">
-      <div style="
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 14px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--border-color, #E5E7EB);
-      ">
-        <div>
-          <div style="
-            font-size: 16px;
-            font-weight: 900;
-            color: var(--text-primary, #111827);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-          ">
-            <i class="fas ${roleInfo?.icon || 'fa-user'}" style="color:#0E146D;"></i>
-            صلاحيات ${currentLang === 'ar' ? roleInfo?.ar : roleInfo?.en}
-          </div>
-
-          <div style="
-            margin-top: 5px;
-            font-size: 12px;
-            color: var(--gray-500, #6B7280);
-          ">
-            ${roleInfo?.desc || ''}
-          </div>
+    <div class="eq-permissions-panel-top">
+      <div style="min-width:0;">
+        <div class="eq-permissions-panel-title">
+          <i class="fas ${roleInfo?.icon || 'fa-user-shield'}"></i>
+          <span>${roleName}</span>
         </div>
-
-        <button
-          type="button"
-          onclick="toggleAllPermissionsForRole('${roleKey}')"
-          style="
-            border: 1px solid #D1D5DB;
-            background: #FFFFFF;
-            color: #111827;
-            padding: 8px 11px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 800;
-            font-size: 12px;
-            white-space: nowrap;
-          "
-        >
-          تحديد الكل
-        </button>
+        <div class="eq-permissions-panel-sub">
+          ${roleDesc}
+          ·
+          ${enabledCount}/${PERMISSION_KEYS.length}
+          ${permissionUiText('مفعلة', 'enabled')}
+        </div>
       </div>
 
-      <div>
+      <button
+        type="button"
+        class="eq-permissions-all-btn"
+        onclick="toggleAllPermissionsForRole('${roleKey}')"
+      >
+        <i class="fas fa-check-double"></i>
+        ${permissionUiText('تحديد / إلغاء الكل', 'Toggle All')}
+      </button>
+    </div>
+
+    <div class="eq-permissions-scroll">
+      <div class="eq-permissions-grid">
         ${PERMISSION_KEYS.map(permissionItem => {
           const isEnabled = permissionsDraft?.[roleKey]?.[permissionItem.key] === true;
 
           return `
-            <div class="zone-item" style="
-              padding: 10px 12px;
-              margin-bottom: 7px;
-              border-radius: 12px;
-              background: ${isEnabled ? 'rgba(14,20,109,0.04)' : 'transparent'};
-            ">
-              <span style="
-                font-size: 13px;
-                font-weight: 700;
-                color: var(--text-primary, #111827);
-              ">
-                ${currentLang === 'ar' ? permissionItem.ar : permissionItem.en}
-              </span>
+            <div class="eq-permission-card ${isEnabled ? 'is-on' : ''}">
+              <div class="eq-permission-name">
+                ${permissionUiText(permissionItem.ar, permissionItem.en)}
+                <span class="eq-permission-state">
+                  ${isEnabled
+                    ? permissionUiText('مفعلة', 'Enabled')
+                    : permissionUiText('معطلة', 'Disabled')
+                  }
+                </span>
+              </div>
 
               <button
                 type="button"
                 class="toggle-switch ${isEnabled ? 'active' : ''}"
                 onclick="togglePermissionDraft('${roleKey}', '${permissionItem.key}')"
                 data-role="${roleKey}"
-                data-key="${permissionItem.key}">
+                data-key="${permissionItem.key}"
+                title="${isEnabled
+                  ? permissionUiText('اضغط للتعطيل', 'Click to disable')
+                  : permissionUiText('اضغط للتفعيل', 'Click to enable')
+                }">
               </button>
             </div>
           `;
@@ -4262,7 +6083,7 @@ async function savePermissions() {
       saveBtn.style.cursor = 'not-allowed';
       saveBtn.innerHTML = `
         <i class="fas fa-spinner fa-spin"></i>
-        جاري حفظ الصلاحيات...
+       ${permissionsModalText('جاري حفظ الصلاحيات...', 'Saving permissions...')}
       `;
     }
 
@@ -4288,19 +6109,28 @@ async function savePermissions() {
 
     await loadUserPermissions();
 
-    showSuccessNotification('تم حفظ الصلاحيات بنجاح');
+    showSuccessNotification(permissionsModalText(
+  'تم حفظ الصلاحيات بنجاح',
+  'Permissions saved successfully'
+));
     closePermissionsModal();
 
   } catch (error) {
     console.error('❌ فشل حفظ الصلاحيات:', error);
-    showAlert('فشل حفظ الصلاحيات: ' + error.message);
+    showAlert(permissionsModalText(
+  'فشل حفظ الصلاحيات: ',
+  'Failed to save permissions: '
+) + error.message);
 
   } finally {
     if (saveBtn) {
       saveBtn.disabled = false;
       saveBtn.style.opacity = '1';
       saveBtn.style.cursor = 'pointer';
-      saveBtn.innerHTML = originalBtnHtml || '💾 حفظ الصلاحيات';
+    saveBtn.innerHTML = originalBtnHtml || `
+  <i class="fas fa-save"></i>
+  ${permissionsModalText('حفظ الصلاحيات', 'Save Permissions')}
+`;
     }
   }
 }
