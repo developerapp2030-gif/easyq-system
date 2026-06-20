@@ -5,19 +5,30 @@
 // ============================================================
 
 function addBusinessSupportSidebarButton() {
-  // لا يعمل في وضع السوبر أدمن
   if (document.body.classList.contains('super-admin-mode')) return;
   if (currentUser?.role === 'super_admin') return;
 
-  // الزر يجب أن يكون موجودًا في index.html داخل قسم إدارة الفرع
   const btn = document.getElementById('businessSupportSidebarBtn');
 
   if (!btn) {
-    console.warn('زر الدعم الحي غير موجود في index.html داخل قسم إدارة الفرع');
+    console.warn('زر الدعم الحي غير موجود في index.html');
     return;
   }
 
-  // منع تكرار ربط الحدث
+  const supportSection =
+    document.getElementById('businessSupportSidebarSection') ||
+    btn.closest('.sidebar-nav-section');
+
+  const canUseSupport = canDo('use_live_support');
+
+  if (supportSection) {
+    supportSection.style.display = canUseSupport ? 'block' : 'none';
+  } else {
+    btn.style.display = canUseSupport ? 'flex' : 'none';
+  }
+
+  if (!canUseSupport) return;
+
   if (btn.dataset.supportBound === 'true') return;
   btn.dataset.supportBound = 'true';
 
@@ -30,9 +41,10 @@ function addBusinessSupportSidebarButton() {
     } else {
       alert('واجهة الدعم لم تكتمل بعد');
     }
-    });
-    updateBusinessSupportSidebarBadge();
-    startBusinessSupportSidebarBadgeAutoRefresh();
+  });
+
+  updateBusinessSupportSidebarBadge();
+  startBusinessSupportSidebarBadgeAutoRefresh();
 }
 
 let businessSupportSidebarBadgeInterval = null;
@@ -315,17 +327,518 @@ function applyBusinessSupportModalText() {
   }
 }
 
+function renderBusinessSupportModalShell() {
+  const modal = document.getElementById('businessSupportModal');
+  if (!modal) return;
+
+  const isEnglish = getBusinessSupportLang() === 'en';
+  const dir = isEnglish ? 'ltr' : 'rtl';
+
+  modal.innerHTML = `
+    <div class="modal business-support-modal" style="
+      max-width: 1040px;
+      width: min(1040px, calc(100vw - 28px));
+      max-height: calc(100vh - 36px);
+      overflow: hidden;
+      padding: 0;
+      border-radius: 24px;
+      background: #F8FAFF;
+      box-shadow: 0 26px 70px rgba(15, 23, 42, 0.22);
+      direction: ${dir};
+    ">
+      <div style="
+        padding: 18px 20px;
+        background: linear-gradient(135deg, #0E146D 0%, #060427 100%);
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      ">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="
+            width: 42px;
+            height: 42px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          ">
+            <i class="fas fa-headset"></i>
+          </div>
+
+          <div>
+            <div id="businessSupportMainTitle" style="font-size: 18px; font-weight: 900;">
+              ${businessSupportText('الدعم الحي', 'Live Support')}
+            </div>
+            <div id="businessSupportMainSub" style="
+              font-size: 12px;
+              color: rgba(255,255,255,0.76);
+              margin-top: 4px;
+              line-height: 1.5;
+            ">
+              ${businessSupportText(
+                'افتح تذكرة دعم أو أنشئ رمز تحقق عند التواصل الهاتفي.',
+                'Open a support ticket or create a verification code for phone support.'
+              )}
+            </div>
+          </div>
+        </div>
+
+        <button type="button" id="businessSupportCloseBtn" style="
+          border: none;
+          background: rgba(255,255,255,0.12);
+          color: #FFFFFF;
+          width: 38px;
+          height: 38px;
+          border-radius: 14px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+        ">
+          ×
+        </button>
+      </div>
+
+      <div style="
+        padding: 16px;
+        overflow: auto;
+        max-height: calc(100vh - 118px);
+      ">
+        <div style="
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+          margin-bottom: 12px;
+        ">
+          <div style="
+            background: #FFFFFF;
+            border: 1px solid #E6EAF5;
+            border-radius: 18px;
+            padding: 14px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+          ">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;">
+              <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <div style="
+                  width: 38px;
+                  height: 38px;
+                  border-radius: 14px;
+                  background: rgba(14, 20, 109, 0.08);
+                  color: #0E146D;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  flex-shrink: 0;
+                ">
+                  <i class="fas fa-ticket-alt"></i>
+                </div>
+
+                <div>
+                  <div style="font-weight: 900; color: #111827; font-size: 14px;">
+                    ${businessSupportText('فتح تذكرة دعم جديدة', 'Open New Support Ticket')}
+                  </div>
+                  <div style="font-size: 12px; color: #6B7280; margin-top: 4px; line-height: 1.6;">
+                    ${businessSupportText(
+                      'اكتب المشكلة وسيتم إرسالها مباشرة إلى السوبر أدمن.',
+                      'Describe the issue and send it directly to the super admin.'
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" id="businessSupportToggleTicketFormBtn" onclick="toggleBusinessSupportTicketForm()" style="
+                border: none;
+                background: #0E146D;
+                color: #FFFFFF;
+                border-radius: 13px;
+                padding: 10px 13px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 900;
+                white-space: nowrap;
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+              ">
+                <i class="fas fa-plus"></i>
+                <span id="businessSupportToggleTicketFormBtnText">
+                  ${businessSupportText('فتح تذكرة', 'Open Ticket')}
+                </span>
+              </button>
+            </div>
+          </div>
+
+<div id="businessSupportCodeBox" style="
+            background: #FFFFFF;
+            border: 1px solid #E6EAF5;
+            border-radius: 18px;
+            padding: 14px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+          ">
+            <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 12px;">
+              <div style="
+                width: 38px;
+                height: 38px;
+                border-radius: 14px;
+                background: rgba(244, 210, 138, 0.22);
+                color: #8A650E;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+              ">
+                <i class="fas fa-key"></i>
+              </div>
+
+              <div>
+                <div class="business-support-code-title" style="font-weight: 900; color: #111827; font-size: 14px;">
+                  ${businessSupportText('رمز الدعم الهاتفي', 'Phone Support Code')}
+                </div>
+
+                <div id="businessSupportCodeHint" class="business-support-code-hint" style="
+                  font-size: 12px;
+                  color: #6B7280;
+                  margin-top: 4px;
+                  line-height: 1.6;
+                ">
+                  ${businessSupportText(
+                    'استخدمه فقط عند التواصل الهاتفي أو عبر واتساب.',
+                    'Use it only for phone or WhatsApp verification.'
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 10px;
+            ">
+              <div id="businessSupportCodeValue" class="business-support-code-value" style="
+                flex: 1;
+                min-height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 8px 12px;
+                border-radius: 13px;
+                background: #F3F4F6;
+                color: #111827;
+                font-size: 12px;
+                font-weight: 900;
+                letter-spacing: 0.3px;
+                white-space: nowrap;
+              ">
+                ${businessSupportText('لم يتم إنشاء رمز بعد', 'No code created yet')}
+              </div>
+
+              <button type="button" id="businessCreateSupportCodeBtn" class="settings-save" style="
+                border: none;
+                background: #F4D28A;
+                color: #0E146D;
+                border-radius: 13px;
+                padding: 0 14px;
+                min-height: 40px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 900;
+                white-space: nowrap;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 7px;
+              ">
+                <i class="fas fa-key"></i>
+                ${businessSupportText('إنشاء رمز', 'Create Code')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="businessSupportTicketForm"
+
+        <div id="businessSupportTicketForm" style="
+          display: none;
+          background: #FFFFFF;
+          border: 1px solid #E6EAF5;
+          border-radius: 18px;
+          padding: 14px;
+          margin-bottom: 12px;
+          box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+        ">
+          <div style="
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) 180px;
+            gap: 10px;
+            margin-bottom: 10px;
+          ">
+            <div>
+              <label style="display:block; font-size:12px; font-weight:900; color:#374151; margin-bottom:7px;">
+                ${businessSupportText('عنوان المشكلة', 'Issue Subject')}
+              </label>
+              <input
+                type="text"
+                id="businessSupportTicketSubject"
+                maxlength="120"
+                placeholder="${businessSupportText('مثال: مشكلة في صفحة الحجز', 'Example: Booking page issue')}"
+                style="
+                  width: 100%;
+                  min-height: 44px;
+                  border: 1px solid #DDE3F0;
+                  background: #FFFFFF;
+                  color: #111827;
+                  border-radius: 14px;
+                  padding: 0 13px;
+                  font-size: 13px;
+                  font-weight: 700;
+                  outline: none;
+                "
+              >
+            </div>
+
+            <div>
+              <label style="display:block; font-size:12px; font-weight:900; color:#374151; margin-bottom:7px;">
+                ${businessSupportText('الأولوية', 'Priority')}
+              </label>
+              <select
+                id="businessSupportTicketPriority"
+                style="
+                  width: 100%;
+                  min-height: 44px;
+                  border: 1px solid #DDE3F0;
+                  background: #FFFFFF;
+                  color: #111827;
+                  border-radius: 14px;
+                  padding: 0 13px;
+                  font-size: 13px;
+                  font-weight: 800;
+                  outline: none;
+                "
+              >
+                <option value="normal">${businessSupportText('عادي', 'Normal')}</option>
+                <option value="high">${businessSupportText('مهم', 'High')}</option>
+                <option value="urgent">${businessSupportText('عاجل', 'Urgent')}</option>
+                <option value="low">${businessSupportText('منخفض', 'Low')}</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style="display:block; font-size:12px; font-weight:900; color:#374151; margin-bottom:7px;">
+              ${businessSupportText('وصف المشكلة', 'Issue Details')}
+            </label>
+            <textarea
+              id="businessSupportTicketMessage"
+              maxlength="2000"
+              placeholder="${businessSupportText('اكتب تفاصيل المشكلة هنا...', 'Describe the issue here...')}"
+              style="
+                width: 100%;
+                min-height: 118px;
+                border: 1px solid #DDE3F0;
+                background: #FFFFFF;
+                color: #111827;
+                border-radius: 16px;
+                padding: 13px;
+                font-size: 13px;
+                font-weight: 700;
+                line-height: 1.8;
+                outline: none;
+                resize: vertical;
+              "
+            ></textarea>
+          </div>
+
+          <div style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+          ">
+            <div style="
+              font-size: 12px;
+              color: #6B7280;
+              line-height: 1.6;
+            ">
+              ${businessSupportText(
+                'سيتم إنشاء محادثة دعم مباشرة، ويظهر الطلب لدى السوبر أدمن.',
+                'A live support conversation will be created and shown to the super admin.'
+              )}
+            </div>
+
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" onclick="toggleBusinessSupportTicketForm(false)" style="
+                border: 1px solid #E5E7EB;
+                background: #FFFFFF;
+                color: #374151;
+                border-radius: 13px;
+                padding: 10px 14px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 900;
+              ">
+                ${businessSupportText('إلغاء', 'Cancel')}
+              </button>
+
+              <button type="button" id="businessSupportSubmitTicketBtn" onclick="submitBusinessSupportTicket()" style="
+                border: none;
+                background: #0E146D;
+                color: #FFFFFF;
+                border-radius: 13px;
+                padding: 10px 15px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 900;
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+              ">
+                <i class="fas fa-paper-plane"></i>
+                <span id="businessSupportSubmitTicketBtnText">
+                  ${businessSupportText('إرسال الطلب', 'Submit Ticket')}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+<div id="businessSupportWorkArea" style="
+          display: grid;
+          grid-template-columns: 320px minmax(0, 1fr);
+          gap: 12px;
+          min-height: 430px;
+        ">
+          <div style="
+            background: #FFFFFF;
+            border: 1px solid #E6EAF5;
+            border-radius: 18px;
+            padding: 14px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+            min-height: 430px;
+          ">
+            <div class="business-support-section-title" style="
+              font-size: 13px;
+              font-weight: 900;
+              color: #111827;
+              margin-bottom: 10px;
+            ">
+              ${businessSupportText('جلسات الدعم', 'Support Sessions')}
+            </div>
+
+            <div id="businessSupportSessionsList" class="business-support-sessions-list" style="
+              max-height: 378px;
+              overflow: auto;
+              padding-inline-end: 2px;
+            ">
+              ${businessSupportText('لا توجد جلسات دعم محملة بعد', 'No support sessions loaded yet')}
+            </div>
+          </div>
+
+          <div style="
+            background: #FFFFFF;
+            border: 1px solid #E6EAF5;
+            border-radius: 18px;
+            padding: 14px;
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+            min-height: 430px;
+            display: flex;
+            flex-direction: column;
+          ">
+            <div id="businessSupportChatHeader" class="business-support-chat-header" style="
+              padding-bottom: 10px;
+              border-bottom: 1px solid #EEF2F7;
+              font-size: 13px;
+              font-weight: 900;
+              color: #111827;
+              min-height: 42px;
+              display: flex;
+              align-items: center;
+            ">
+              ${businessSupportText('اختر جلسة دعم لعرض المحادثة', 'Select a support session to view the conversation')}
+            </div>
+
+            <div id="businessSupportMessagesList" class="business-support-messages-list" style="
+              flex: 1;
+              min-height: 290px;
+              max-height: 318px;
+              overflow: auto;
+              padding: 12px 4px;
+              background: #FAFBFF;
+              border-radius: 15px;
+              margin-top: 10px;
+            ">
+              <div style="padding: 24px; text-align:center; color:#6B7280; font-size:13px;">
+                ${businessSupportText('لا توجد محادثة محددة', 'No conversation selected')}
+              </div>
+            </div>
+
+            <div class="business-support-reply-box" style="
+              display: flex;
+              gap: 8px;
+              align-items: center;
+              margin-top: 10px;
+            ">
+              <input
+                type="text"
+                id="businessSupportMessageInput"
+                placeholder="${businessSupportText('اكتب رسالتك هنا...', 'Type your message here...')}"
+                style="
+                  flex: 1;
+                  min-height: 44px;
+                  border: 1px solid #DDE3F0;
+                  border-radius: 14px;
+                  padding: 0 13px;
+                  outline: none;
+                  font-size: 13px;
+                  font-weight: 700;
+                  background: #FFFFFF;
+                  color: #111827;
+                "
+              >
+
+              <button type="button" id="businessSendSupportMessageBtn" class="settings-save" style="
+                border: none;
+                background: #0E146D;
+                color: #FFFFFF;
+                border-radius: 14px;
+                padding: 0 15px;
+                min-height: 44px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 900;
+                display: inline-flex;
+                align-items: center;
+                gap: 7px;
+              ">
+                <i class="fas fa-paper-plane"></i>
+                ${businessSupportText('إرسال', 'Send')}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 async function openBusinessSupportModal() {
-  // حماية: لا يفتح في وضع السوبر أدمن
   if (document.body.classList.contains('super-admin-mode')) return;
   if (currentUser?.role === 'super_admin') return;
 
-  // حماية صلاحية الدعم الحي
   if (!canDo('use_live_support')) {
-    showAlert(businessSupportText(
-      'ليس لديك صلاحية لاستخدام الدعم الحي',
-      'You do not have permission to use live support'
-    ));
+    showAlert(
+      businessSupportText(
+        'ليس لديك صلاحية لاستخدام الدعم الحي',
+        'You do not have permission to use live support'
+      )
+    );
     return;
   }
 
@@ -336,11 +849,10 @@ async function openBusinessSupportModal() {
     return;
   }
 
-  applyBusinessSupportModalText();
+  renderBusinessSupportModalShell();
 
   modal.classList.add('show');
 
-  // إغلاق السايدبار عند فتح الدعم
   const sidebar = document.getElementById('sidebar');
   if (sidebar) {
     sidebar.classList.remove('open');
@@ -352,6 +864,192 @@ async function openBusinessSupportModal() {
   startBusinessSupportSessionsListAutoRefresh();
 }
 
+function toggleBusinessSupportTicketForm(forceState) {
+  const form = document.getElementById('businessSupportTicketForm');
+  const btnText = document.getElementById('businessSupportToggleTicketFormBtnText');
+  const workArea = document.getElementById('businessSupportWorkArea');
+
+  if (!form) return;
+
+  const shouldShow =
+    typeof forceState === 'boolean'
+      ? forceState
+      : form.style.display === 'none';
+
+  form.style.display = shouldShow ? 'block' : 'none';
+
+  if (workArea) {
+    workArea.style.display = shouldShow ? 'none' : 'grid';
+  }
+
+  if (btnText) {
+    btnText.textContent = shouldShow
+      ? businessSupportText('إخفاء النموذج', 'Hide Form')
+      : businessSupportText('فتح تذكرة', 'Open Ticket');
+  }
+
+  if (shouldShow) {
+    const subjectInput = document.getElementById('businessSupportTicketSubject');
+    if (subjectInput) subjectInput.focus();
+  }
+}
+
+async function submitBusinessSupportTicket() {
+  if (document.body.classList.contains('super-admin-mode')) return;
+  if (currentUser?.role === 'super_admin') return;
+
+  const subjectInput = document.getElementById('businessSupportTicketSubject');
+  const priorityInput = document.getElementById('businessSupportTicketPriority');
+  const messageInput = document.getElementById('businessSupportTicketMessage');
+  const submitBtn = document.getElementById('businessSupportSubmitTicketBtn');
+
+  const subject = subjectInput ? subjectInput.value.trim() : '';
+  const priority = priorityInput ? priorityInput.value : 'normal';
+  const messageBody = messageInput ? messageInput.value.trim() : '';
+
+  if (!messageBody) {
+    showAlert(
+      businessSupportText(
+        'اكتب وصف المشكلة قبل إرسال الطلب',
+        'Describe the issue before submitting the ticket'
+      )
+    );
+    return;
+  }
+
+  if (messageBody.length > 2000) {
+    showAlert(
+      businessSupportText(
+        'وصف المشكلة طويل جدًا. الحد الأقصى 2000 حرف.',
+        'The issue details are too long. Maximum is 2000 characters.'
+      )
+    );
+    return;
+  }
+
+  try {
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = '0.7';
+      submitBtn.style.cursor = 'not-allowed';
+      submitBtn.innerHTML = `
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>${businessSupportText('جاري الإرسال...', 'Submitting...')}</span>
+      `;
+    }
+
+    const { data, error } = await supabase.rpc('create_my_support_session', {
+      p_subject: subject || businessSupportText('طلب دعم', 'Support Request'),
+      p_message_body: messageBody,
+      p_priority: priority || 'normal'
+    });
+
+    if (error) {
+      console.error('فشل إنشاء تذكرة الدعم:', error);
+      showAlert(
+        businessSupportText(
+          'فشل إنشاء تذكرة الدعم',
+          'Failed to create support ticket'
+        )
+      );
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (!row || row.success !== true) {
+      const errorCode = row?.message || 'UNKNOWN_ERROR';
+
+if (errorCode === 'ACTIVE_SESSION_EXISTS') {
+  if (subjectInput) subjectInput.value = '';
+  if (messageInput) messageInput.value = '';
+  if (priorityInput) priorityInput.value = 'normal';
+
+  toggleBusinessSupportTicketForm(false);
+
+  await loadBusinessSupportSessions();
+
+  if (row.session_id) {
+    await openBusinessSupportSession(row.session_id);
+  }
+
+  showAlert(
+    businessSupportText(
+      'لديك تذكرة دعم مفتوحة بالفعل، تم فتحها لك الآن.',
+      'You already have an active support ticket. It has been opened for you.'
+    )
+  );
+
+  return;
+}
+
+const translatedMessage =
+  errorCode === 'NOT_AUTHENTICATED'
+    ? businessSupportText('يجب تسجيل الدخول أولًا', 'You must sign in first')
+    : errorCode === 'USER_OR_BUSINESS_NOT_FOUND'
+      ? businessSupportText('تعذر معرفة بيانات المطعم', 'Could not identify the business account')
+      : errorCode === 'PERMISSION_DENIED'
+        ? businessSupportText('ليس لديك صلاحية فتح تذكرة دعم', 'You do not have permission to open a support ticket')
+        : errorCode === 'MESSAGE_REQUIRED'
+          ? businessSupportText('وصف المشكلة مطلوب', 'Issue details are required')
+          : errorCode === 'MESSAGE_TOO_LONG'
+            ? businessSupportText('وصف المشكلة طويل جدًا', 'Issue details are too long')
+            : businessSupportText('فشل إنشاء تذكرة الدعم', 'Failed to create support ticket');
+
+showAlert(translatedMessage);
+return;
+    }
+
+    if (subjectInput) subjectInput.value = '';
+    if (messageInput) messageInput.value = '';
+    if (priorityInput) priorityInput.value = 'normal';
+
+    toggleBusinessSupportTicketForm(false);
+
+    await loadBusinessSupportSessions();
+
+    if (row.session_id) {
+      await openBusinessSupportSession(row.session_id);
+    }
+
+    if (typeof updateBusinessSupportSidebarBadge === 'function') {
+      await updateBusinessSupportSidebarBadge();
+    }
+
+    if (typeof showSuccessNotification === 'function') {
+      showSuccessNotification(
+        businessSupportText(
+          'تم فتح تذكرة الدعم بنجاح',
+          'Support ticket opened successfully'
+        )
+      );
+    }
+
+  } catch (err) {
+    console.error('خطأ غير متوقع أثناء إنشاء تذكرة الدعم:', err);
+
+    showAlert(
+      businessSupportText(
+        'حدث خطأ أثناء إنشاء تذكرة الدعم',
+        'An error occurred while creating the support ticket'
+      )
+    );
+
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.style.opacity = '1';
+      submitBtn.style.cursor = 'pointer';
+      submitBtn.innerHTML = `
+        <i class="fas fa-paper-plane"></i>
+        <span id="businessSupportSubmitTicketBtnText">
+          ${businessSupportText('إرسال الطلب', 'Submit Ticket')}
+        </span>
+      `;
+    }
+  }
+}
+
 async function loadBusinessSupportSessions() {
   const sessionsContainer = document.getElementById('businessSupportSessionsList');
 
@@ -360,10 +1058,13 @@ async function loadBusinessSupportSessions() {
     return;
   }
 
+  const isEnglish = getBusinessSupportLang() === 'en';
+  const dateLocale = isEnglish ? 'en-US' : 'ar-SA';
+
   try {
     sessionsContainer.innerHTML = `
       <div style="padding: 18px; text-align: center; color: #6B7280;">
-        جاري تحميل جلسات الدعم...
+        ${businessSupportText('جاري تحميل جلسات الدعم...', 'Loading support sessions...')}
       </div>
     `;
 
@@ -374,7 +1075,7 @@ async function loadBusinessSupportSessions() {
 
       sessionsContainer.innerHTML = `
         <div style="padding: 18px; text-align: center; color: #DC2626;">
-          فشل تحميل جلسات الدعم
+          ${businessSupportText('فشل تحميل جلسات الدعم', 'Failed to load support sessions')}
         </div>
       `;
 
@@ -386,7 +1087,7 @@ async function loadBusinessSupportSessions() {
     if (sessions.length === 0) {
       sessionsContainer.innerHTML = `
         <div style="padding: 18px; text-align: center; color: #6B7280;">
-          لا توجد جلسات دعم حتى الآن
+          ${businessSupportText('لا توجد جلسات دعم حتى الآن', 'No support sessions yet')}
         </div>
       `;
 
@@ -397,10 +1098,13 @@ async function loadBusinessSupportSessions() {
       const sessionId = session.session_id || session.id;
 
       const statusLabel =
-        session.status === 'open' ? 'مفتوحة' :
-        session.status === 'pending' ? 'بانتظار الرد' :
-        session.status === 'closed' ? 'مغلقة' :
-        'غير معروف';
+        session.status === 'open'
+          ? businessSupportText('مفتوحة', 'Open')
+          : session.status === 'pending'
+            ? businessSupportText('بانتظار الرد', 'Pending')
+            : session.status === 'closed'
+              ? businessSupportText('مغلقة', 'Closed')
+              : businessSupportText('غير معروف', 'Unknown');
 
       const statusColor =
         session.status === 'open' ? '#10B981' :
@@ -416,7 +1120,7 @@ async function loadBusinessSupportSessions() {
         null;
 
       const lastActivityText = lastActivity
-        ? new Date(lastActivity).toLocaleString('ar-SA')
+        ? new Date(lastActivity).toLocaleString(dateLocale)
         : '-';
 
       const unreadCount = Number(
@@ -461,11 +1165,11 @@ async function loadBusinessSupportSessions() {
           ">
             <div>
               <div style="font-weight: 900; color: #111827;">
-                ${session.subject || 'طلب دعم'}
+                ${session.subject || businessSupportText('طلب دعم', 'Support Request')}
               </div>
 
               <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">
-                آخر نشاط: ${lastActivityText}
+                ${businessSupportText('آخر نشاط:', 'Last activity:')} ${lastActivityText}
               </div>
             </div>
 
@@ -495,7 +1199,7 @@ async function loadBusinessSupportSessions() {
             overflow: hidden;
             text-overflow: ellipsis;
           ">
-            ${session.last_message_body || 'لا توجد رسائل بعد'}
+            ${session.last_message_body || businessSupportText('لا توجد رسائل بعد', 'No messages yet')}
           </div>
         </div>
       `;
@@ -506,7 +1210,7 @@ async function loadBusinessSupportSessions() {
 
     sessionsContainer.innerHTML = `
       <div style="padding: 18px; text-align: center; color: #DC2626;">
-        حدث خطأ أثناء تحميل جلسات الدعم
+        ${businessSupportText('حدث خطأ أثناء تحميل جلسات الدعم', 'An error occurred while loading support sessions')}
       </div>
     `;
   }
@@ -600,7 +1304,10 @@ function renderBusinessSupportMessagesHtml(messages) {
 
 async function openBusinessSupportSession(sessionId) {
   if (!sessionId) {
-    alert('لم يتم تحديد جلسة الدعم');
+    alert(businessSupportText(
+      'لم يتم تحديد جلسة الدعم',
+      'No support session was selected'
+    ));
     return;
   }
 
@@ -614,14 +1321,20 @@ async function openBusinessSupportSession(sessionId) {
   const input = document.getElementById('businessSupportMessageInput');
   const sendBtn = document.getElementById('businessSendSupportMessageBtn');
 
+  const isEnglish = getBusinessSupportLang() === 'en';
+  const dateLocale = isEnglish ? 'en-US' : 'ar-SA';
+
   if (header) {
-    header.innerHTML = 'جاري تحميل بيانات الجلسة...';
+    header.innerHTML = businessSupportText(
+      'جاري تحميل بيانات الجلسة...',
+      'Loading session details...'
+    );
   }
 
   if (messagesContainer) {
     messagesContainer.innerHTML = `
       <div style="padding: 30px; text-align: center; color: #6B7280;">
-        جاري تحميل المحادثة...
+        ${businessSupportText('جاري تحميل المحادثة...', 'Loading conversation...')}
       </div>
     `;
   }
@@ -649,10 +1362,13 @@ async function openBusinessSupportSession(sessionId) {
     });
 
     const statusLabel =
-      session?.status === 'open' ? 'مفتوحة' :
-      session?.status === 'pending' ? 'بانتظار الرد' :
-      session?.status === 'closed' ? 'مغلقة' :
-      'غير معروف';
+      session?.status === 'open'
+        ? businessSupportText('مفتوحة', 'Open')
+        : session?.status === 'pending'
+          ? businessSupportText('بانتظار الرد', 'Pending')
+          : session?.status === 'closed'
+            ? businessSupportText('مغلقة', 'Closed')
+            : businessSupportText('غير معروف', 'Unknown');
 
     if (header) {
       header.innerHTML = `
@@ -665,10 +1381,11 @@ async function openBusinessSupportSession(sessionId) {
         ">
           <div>
             <div style="font-weight: 900; color: #111827;">
-              ${session?.subject || 'طلب دعم'}
+              ${session?.subject || businessSupportText('طلب دعم', 'Support Request')}
             </div>
+
             <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">
-              حالة الجلسة: ${statusLabel}
+              ${businessSupportText('حالة الجلسة:', 'Session status:')} ${statusLabel}
             </div>
           </div>
 
@@ -683,7 +1400,7 @@ async function openBusinessSupportSession(sessionId) {
             font-size: 12px;
           ">
             <i class="fas fa-sync-alt"></i>
-            تحديث
+            ${businessSupportText('تحديث', 'Refresh')}
           </button>
         </div>
       `;
@@ -693,7 +1410,10 @@ async function openBusinessSupportSession(sessionId) {
       if (input) {
         input.value = '';
         input.disabled = true;
-        input.placeholder = 'لا يمكن الرد على جلسة مغلقة';
+        input.placeholder = businessSupportText(
+          'لا يمكن الرد على جلسة مغلقة',
+          'You cannot reply to a closed session'
+        );
       }
 
       if (sendBtn) {
@@ -704,13 +1424,20 @@ async function openBusinessSupportSession(sessionId) {
     } else {
       if (input) {
         input.disabled = false;
-        input.placeholder = 'اكتب رسالتك هنا...';
+        input.placeholder = businessSupportText(
+          'اكتب رسالتك هنا...',
+          'Type your message here...'
+        );
       }
 
       if (sendBtn) {
         sendBtn.disabled = false;
         sendBtn.style.opacity = '1';
         sendBtn.style.cursor = 'pointer';
+        sendBtn.innerHTML = `
+          <i class="fas fa-paper-plane"></i>
+          ${businessSupportText('إرسال', 'Send')}
+        `;
       }
     }
 
@@ -728,20 +1455,22 @@ async function openBusinessSupportSession(sessionId) {
     if (messages.length === 0) {
       messagesContainer.innerHTML = `
         <div style="padding: 30px; text-align: center; color: #6B7280;">
-          لا توجد رسائل في هذه الجلسة حتى الآن
+          ${businessSupportText(
+            'لا توجد رسائل في هذه الجلسة حتى الآن',
+            'There are no messages in this session yet'
+          )}
         </div>
       `;
       return;
     }
 
     messagesContainer.innerHTML = renderBusinessSupportMessagesHtml(messages);
-
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-await loadBusinessSupportSessions();
-await updateBusinessSupportSidebarBadge();
+    await loadBusinessSupportSessions();
+    await updateBusinessSupportSidebarBadge();
 
-startBusinessSupportAutoRefresh();
+    startBusinessSupportAutoRefresh();
 
   } catch (err) {
     console.error('خطأ في فتح محادثة الدعم من جهة المطعم:', err);
@@ -749,13 +1478,16 @@ startBusinessSupportAutoRefresh();
     if (messagesContainer) {
       messagesContainer.innerHTML = `
         <div style="padding: 30px; text-align: center; color: #DC2626;">
-          فشل تحميل المحادثة
+          ${businessSupportText('فشل تحميل المحادثة', 'Failed to load conversation')}
         </div>
       `;
     }
 
     if (header) {
-      header.innerHTML = 'تعذر تحميل جلسة الدعم';
+      header.innerHTML = businessSupportText(
+        'تعذر تحميل جلسة الدعم',
+        'Could not load support session'
+      );
     }
   }
 }
@@ -826,7 +1558,10 @@ async function sendBusinessSupportMessage() {
   if (currentUser?.role === 'super_admin') return;
 
   if (!currentBusinessSupportSessionId) {
-    alert('اختر جلسة دعم أولًا');
+    alert(businessSupportText(
+      'اختر جلسة دعم أولًا',
+      'Select a support session first'
+    ));
     return;
   }
 
@@ -834,14 +1569,20 @@ async function sendBusinessSupportMessage() {
   const sendBtn = document.getElementById('businessSendSupportMessageBtn');
 
   if (!input) {
-    alert('حقل الرسالة غير موجود');
+    alert(businessSupportText(
+      'حقل الرسالة غير موجود',
+      'Message field was not found'
+    ));
     return;
   }
 
   const messageBody = input.value.trim();
 
   if (!messageBody) {
-    alert('اكتب رسالة قبل الإرسال');
+    alert(businessSupportText(
+      'اكتب رسالة قبل الإرسال',
+      'Type a message before sending'
+    ));
     return;
   }
 
@@ -852,7 +1593,7 @@ async function sendBusinessSupportMessage() {
       sendBtn.disabled = true;
       sendBtn.innerHTML = `
         <i class="fas fa-spinner fa-spin"></i>
-        جاري الإرسال...
+        ${businessSupportText('جاري الإرسال...', 'Sending...')}
       `;
     }
 
@@ -864,36 +1605,54 @@ async function sendBusinessSupportMessage() {
 
     if (error) {
       console.error('فشل إرسال رسالة الدعم من جهة المطعم:', error);
-      alert('فشل إرسال الرسالة: ' + error.message);
+
+      alert(
+        businessSupportText(
+          'فشل إرسال الرسالة: ',
+          'Failed to send message: '
+        ) + error.message
+      );
+
       return;
     }
 
     const row = Array.isArray(data) ? data[0] : data;
 
     if (row && row.success === false) {
-      alert(row.message || 'فشل إرسال الرسالة');
+      alert(row.message || businessSupportText(
+        'فشل إرسال الرسالة',
+        'Failed to send message'
+      ));
       return;
     }
 
-input.value = '';
+    input.value = '';
 
-await refreshBusinessSupportSessionSilently(currentBusinessSupportSessionId);
+    await refreshBusinessSupportSessionSilently(currentBusinessSupportSessionId);
 
   } catch (err) {
     console.error('خطأ غير متوقع أثناء إرسال رسالة الدعم:', err);
-    alert('حدث خطأ أثناء إرسال الرسالة');
+
+    alert(businessSupportText(
+      'حدث خطأ أثناء إرسال الرسالة',
+      'An error occurred while sending the message'
+    ));
 
   } finally {
     if (input) {
       input.disabled = false;
       input.focus();
+      input.placeholder = businessSupportText(
+        'اكتب رسالتك هنا...',
+        'Type your message here...'
+      );
     }
 
     if (sendBtn) {
       sendBtn.disabled = false;
       sendBtn.innerHTML = `
         <i class="fas fa-paper-plane"></i>
-        إرسال
+        ${businessSupportText('إرسال', 'Send')}
       `;
     }
   }
@@ -956,13 +1715,34 @@ async function refreshBusinessSupportSessionSilently(sessionId) {
     if (input) {
       input.value = '';
       input.disabled = true;
-      input.placeholder = 'لا يمكن الرد على جلسة مغلقة';
+      input.placeholder = businessSupportText(
+        'لا يمكن الرد على جلسة مغلقة',
+        'You cannot reply to a closed session'
+      );
     }
 
     if (sendBtn) {
       sendBtn.disabled = true;
       sendBtn.style.opacity = '0.5';
       sendBtn.style.cursor = 'not-allowed';
+    }
+  } else {
+    if (input) {
+      input.disabled = false;
+      input.placeholder = businessSupportText(
+        'اكتب رسالتك هنا...',
+        'Type your message here...'
+      );
+    }
+
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.style.opacity = '1';
+      sendBtn.style.cursor = 'pointer';
+      sendBtn.innerHTML = `
+        <i class="fas fa-paper-plane"></i>
+        ${businessSupportText('إرسال', 'Send')}
+      `;
     }
   }
 
@@ -1005,7 +1785,10 @@ async function refreshBusinessSupportSessionSilently(sessionId) {
   if (messages.length === 0) {
     messagesContainer.innerHTML = `
       <div style="padding: 30px; text-align: center; color: #6B7280;">
-        لا توجد رسائل في هذه الجلسة حتى الآن
+        ${businessSupportText(
+          'لا توجد رسائل في هذه الجلسة حتى الآن',
+          'There are no messages in this session yet'
+        )}
       </div>
     `;
     return;
@@ -1069,6 +1852,9 @@ async function refreshBusinessSupportSessionsListSilently() {
   if (document.body.classList.contains('super-admin-mode')) return;
   if (currentUser?.role === 'super_admin') return;
 
+  const isEnglish = getBusinessSupportLang() === 'en';
+  const dateLocale = isEnglish ? 'en-US' : 'ar-SA';
+
   const { data, error } = await supabase.rpc('get_my_support_sessions');
 
   if (error) {
@@ -1099,7 +1885,7 @@ async function refreshBusinessSupportSessionsListSilently() {
   if (sessions.length === 0) {
     sessionsContainer.innerHTML = `
       <div style="padding: 18px; text-align: center; color: #6B7280;">
-        لا توجد جلسات دعم حتى الآن
+        ${businessSupportText('لا توجد جلسات دعم حتى الآن', 'No support sessions yet')}
       </div>
     `;
     return;
@@ -1109,10 +1895,13 @@ async function refreshBusinessSupportSessionsListSilently() {
     const sessionId = session.session_id || session.id;
 
     const statusLabel =
-      session.status === 'open' ? 'مفتوحة' :
-      session.status === 'pending' ? 'بانتظار الرد' :
-      session.status === 'closed' ? 'مغلقة' :
-      'غير معروف';
+      session.status === 'open'
+        ? businessSupportText('مفتوحة', 'Open')
+        : session.status === 'pending'
+          ? businessSupportText('بانتظار الرد', 'Pending')
+          : session.status === 'closed'
+            ? businessSupportText('مغلقة', 'Closed')
+            : businessSupportText('غير معروف', 'Unknown');
 
     const statusColor =
       session.status === 'open' ? '#10B981' :
@@ -1128,7 +1917,7 @@ async function refreshBusinessSupportSessionsListSilently() {
       null;
 
     const lastActivityText = lastActivity
-      ? new Date(lastActivity).toLocaleString('ar-SA')
+      ? new Date(lastActivity).toLocaleString(dateLocale)
       : '-';
 
     const unreadCount = Number(
@@ -1178,11 +1967,11 @@ async function refreshBusinessSupportSessionsListSilently() {
         ">
           <div>
             <div style="font-weight: 900; color: #111827;">
-              ${session.subject || 'طلب دعم'}
+              ${session.subject || businessSupportText('طلب دعم', 'Support Request')}
             </div>
 
             <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">
-              آخر نشاط: ${lastActivityText}
+              ${businessSupportText('آخر نشاط:', 'Last activity:')} ${lastActivityText}
             </div>
           </div>
 
@@ -1212,7 +2001,7 @@ async function refreshBusinessSupportSessionsListSilently() {
           overflow: hidden;
           text-overflow: ellipsis;
         ">
-          ${session.last_message_body || 'لا توجد رسائل بعد'}
+          ${session.last_message_body || businessSupportText('لا توجد رسائل بعد', 'No messages yet')}
         </div>
       </div>
     `;
@@ -3342,7 +4131,13 @@ if (subscriptionItem) {
 }
 
 const supportItem = document.getElementById('businessSupportSidebarBtn');
-if (supportItem) {
+const supportSection =
+  document.getElementById('businessSupportSidebarSection') ||
+  supportItem?.closest('.sidebar-nav-section');
+
+if (supportSection) {
+  supportSection.style.display = canDo('use_live_support') ? 'block' : 'none';
+} else if (supportItem) {
   supportItem.style.display = canDo('use_live_support') ? 'flex' : 'none';
 }
 
@@ -3356,8 +4151,8 @@ if (settingsSection) {
   settingsSection.style.display = canDo('manage_settings') ? 'block' : 'none';
 }
 
-// إضافة زر الدعم الحي داخل قسم إدارة الفرع بعد ضبط الصلاحيات
-if (canDo('manage_settings') && typeof addBusinessSupportSidebarButton === 'function') {
+// ربط زر الدعم الحي كبند أساسي مستقل بعد ضبط الصلاحيات
+if (canDo('use_live_support') && typeof addBusinessSupportSidebarButton === 'function') {
   setTimeout(addBusinessSupportSidebarButton, 300);
 }
 }
