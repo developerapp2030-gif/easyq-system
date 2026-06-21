@@ -4,6 +4,364 @@
 // LOGIN SYSTEM 11
 // ============================================================
 
+let adminNotificationsList = [];
+let currentAdminNotification = null;
+let adminNotificationsInterval = null;
+let isRefreshingAdminNotifications = false;
+
+function getAdminNotificationLang() {
+  const lang =
+    window.currentLang ||
+    localStorage.getItem('hajzak_lang') ||
+    localStorage.getItem('easyq_lang') ||
+    currentLang ||
+    'ar';
+
+  return String(lang).toLowerCase().startsWith('en') ? 'en' : 'ar';
+}
+
+function adminNotificationText(arText, enText) {
+  return getAdminNotificationLang() === 'en' ? enText : arText;
+}
+
+function escapeAdminNotificationHtml(value) {
+  if (value === null || value === undefined) return '';
+
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function getAdminNotificationSeverityMeta(severity) {
+  const key = String(severity || 'info').toLowerCase();
+
+  const map = {
+    info: {
+      icon: 'fa-circle-info',
+      color: '#2563EB',
+      bg: '#EFF6FF',
+      labelAr: 'معلومة',
+      labelEn: 'Info'
+    },
+    warning: {
+      icon: 'fa-triangle-exclamation',
+      color: '#D97706',
+      bg: '#FFFBEB',
+      labelAr: 'تنبيه',
+      labelEn: 'Warning'
+    },
+    important: {
+      icon: 'fa-circle-exclamation',
+      color: '#DC2626',
+      bg: '#FEF2F2',
+      labelAr: 'مهم',
+      labelEn: 'Important'
+    },
+    maintenance: {
+      icon: 'fa-screwdriver-wrench',
+      color: '#7C3AED',
+      bg: '#F5F3FF',
+      labelAr: 'صيانة',
+      labelEn: 'Maintenance'
+    },
+    subscription: {
+      icon: 'fa-credit-card',
+      color: '#0E146D',
+      bg: '#EEF2FF',
+      labelAr: 'اشتراك',
+      labelEn: 'Subscription'
+    }
+  };
+
+  return map[key] || map.info;
+}
+
+function updateAdminNotificationBell(notifications) {
+  const bellBtn = document.getElementById('adminNotificationBellBtn');
+  const badge = document.getElementById('adminNotificationBadge');
+
+  if (!bellBtn || !badge) return;
+
+  const count = Array.isArray(notifications) ? notifications.length : 0;
+
+  if (!currentUser || currentUser.role === 'super_admin' || count <= 0) {
+    bellBtn.style.display = 'none';
+    badge.style.display = 'none';
+    badge.textContent = '0';
+    return;
+  }
+
+  bellBtn.style.display = 'inline-flex';
+  badge.style.display = 'inline-flex';
+  badge.textContent = count > 99 ? '99+' : String(count);
+
+  const firstImportant = notifications.some(item => {
+    const severity = String(item.severity || '').toLowerCase();
+    return severity === 'important' || severity === 'warning' || severity === 'maintenance';
+  });
+
+  bellBtn.style.background = firstImportant
+    ? 'rgba(220, 38, 38, 0.22)'
+    : 'rgba(255,255,255,0.10)';
+
+  bellBtn.style.borderColor = firstImportant
+    ? 'rgba(255,255,255,0.28)'
+    : 'rgba(255,255,255,0.18)';
+}
+
+async function refreshAdminNotifications() {
+  if (!currentUser || currentUser.role === 'super_admin') {
+    adminNotificationsList = [];
+    updateAdminNotificationBell([]);
+    return;
+  }
+
+  if (isRefreshingAdminNotifications) return;
+
+  try {
+    isRefreshingAdminNotifications = true;
+
+    const { data, error } = await supabase.rpc('get_my_admin_notifications');
+
+    if (error) {
+      console.warn('تعذر جلب إشعارات الإدارة:', error);
+      return;
+    }
+
+    adminNotificationsList = Array.isArray(data) ? data : [];
+    updateAdminNotificationBell(adminNotificationsList);
+
+  } catch (err) {
+    console.warn('خطأ غير متوقع أثناء جلب إشعارات الإدارة:', err);
+
+  } finally {
+    isRefreshingAdminNotifications = false;
+  }
+}
+
+function startAdminNotificationsAutoRefresh() {
+  if (!currentUser || currentUser.role === 'super_admin') return;
+
+  refreshAdminNotifications();
+
+  if (adminNotificationsInterval) return;
+
+  adminNotificationsInterval = setInterval(() => {
+    refreshAdminNotifications();
+  }, 30000);
+}
+
+function stopAdminNotificationsAutoRefresh() {
+  if (adminNotificationsInterval) {
+    clearInterval(adminNotificationsInterval);
+    adminNotificationsInterval = null;
+  }
+}
+
+function openAdminNotificationModal(notificationId) {
+  if (!adminNotificationsList || adminNotificationsList.length === 0) {
+    refreshAdminNotifications();
+    return;
+  }
+
+  const notification =
+    notificationId
+      ? adminNotificationsList.find(item => item.notification_id === notificationId)
+      : adminNotificationsList[0];
+
+  if (!notification) return;
+
+  currentAdminNotification = notification;
+
+  let overlay = document.getElementById('adminNotificationModal');
+
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'adminNotificationModal';
+    document.body.appendChild(overlay);
+  }
+
+  const isEnglish = getAdminNotificationLang() === 'en';
+  const dir = isEnglish ? 'ltr' : 'rtl';
+  const meta = getAdminNotificationSeverityMeta(notification.severity);
+
+  const createdAt = notification.created_at
+    ? new Date(notification.created_at).toLocaleString(isEnglish ? 'en-US' : 'ar-SA', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })
+    : '';
+
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    background: rgba(15, 23, 42, 0.42);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    direction: ${dir};
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      width: min(460px, calc(100vw - 28px));
+      background: #FFFFFF;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.26);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+    ">
+      <div style="
+        padding: 18px 20px;
+        background: linear-gradient(135deg, #0E146D 0%, #060427 100%);
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      ">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="
+            width: 38px;
+            height: 38px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.13);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <i class="fas fa-envelope-open-text"></i>
+          </div>
+
+          <div>
+            <div style="font-weight: 900; font-size: 15px;">
+              ${adminNotificationText('إشعار من الإدارة', 'Admin Notice')}
+            </div>
+            <div style="font-size: 12px; opacity: 0.76; margin-top: 3px;">
+              ${escapeAdminNotificationHtml(createdAt)}
+            </div>
+          </div>
+        </div>
+
+        <button type="button" onclick="closeAdminNotificationModal(false)" style="
+          border: none;
+          background: rgba(255,255,255,0.12);
+          color: #FFFFFF;
+          width: 34px;
+          height: 34px;
+          border-radius: 12px;
+          cursor: pointer;
+          font-size: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">×</button>
+      </div>
+
+      <div style="padding: 18px 20px 20px;">
+        <div style="
+          display: inline-flex;
+          align-items: center;
+          gap: 7px;
+          background: ${meta.bg};
+          color: ${meta.color};
+          border-radius: 999px;
+          padding: 6px 10px;
+          font-size: 12px;
+          font-weight: 900;
+          margin-bottom: 12px;
+        ">
+          <i class="fas ${meta.icon}"></i>
+          ${adminNotificationText(meta.labelAr, meta.labelEn)}
+        </div>
+
+        <div style="
+          font-size: 18px;
+          font-weight: 900;
+          color: #111827;
+          line-height: 1.5;
+          margin-bottom: 10px;
+        ">
+          ${escapeAdminNotificationHtml(notification.title)}
+        </div>
+
+        <div style="
+          background: #F8FAFF;
+          border: 1px solid #E6EAF5;
+          border-radius: 16px;
+          padding: 14px;
+          color: #374151;
+          font-size: 16px;
+          line-height: 2;
+          font-weight: 700;
+          white-space: pre-wrap;
+          max-height: 300px;
+          overflow: auto;
+        ">
+          ${escapeAdminNotificationHtml(notification.body)}
+        </div>
+
+        <div style="
+          display: flex;
+          justify-content: flex-end;
+          gap: 8px;
+          margin-top: 16px;
+        ">
+          <button type="button" onclick="closeAdminNotificationModal(true)" style="
+            border: none;
+            background: #0E146D;
+            color: #FFFFFF;
+            border-radius: 14px;
+            padding: 11px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 900;
+          ">
+            ${adminNotificationText('تم القراءة ', 'Close & Mark Read')}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function closeAdminNotificationModal(markAsRead = true) {
+  const overlay = document.getElementById('adminNotificationModal');
+
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+
+  if (!markAsRead || !currentAdminNotification?.notification_id) {
+    currentAdminNotification = null;
+    return;
+  }
+
+  const notificationId = currentAdminNotification.notification_id;
+  currentAdminNotification = null;
+
+  try {
+    const { error } = await supabase.rpc('mark_admin_notification_read', {
+      p_notification_id: notificationId
+    });
+
+    if (error) {
+      console.warn('تعذر تعليم إشعار الإدارة كمقروء:', error);
+      return;
+    }
+
+    await refreshAdminNotifications();
+
+  } catch (err) {
+    console.warn('خطأ غير متوقع أثناء تعليم إشعار الإدارة كمقروء:', err);
+  }
+}
+
 function addBusinessSupportSidebarButton() {
   if (document.body.classList.contains('super-admin-mode')) return;
   if (currentUser?.role === 'super_admin') return;
@@ -4154,6 +4512,10 @@ if (settingsSection) {
 // ربط زر الدعم الحي كبند أساسي مستقل بعد ضبط الصلاحيات
 if (canDo('use_live_support') && typeof addBusinessSupportSidebarButton === 'function') {
   setTimeout(addBusinessSupportSidebarButton, 300);
+}
+
+if (typeof startAdminNotificationsAutoRefresh === 'function') {
+  setTimeout(startAdminNotificationsAutoRefresh, 600);
 }
 }
 

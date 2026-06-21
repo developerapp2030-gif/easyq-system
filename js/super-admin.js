@@ -26,6 +26,7 @@
     currentView: 'overview',
     businesses: [],
     supportSessions: [],
+    adminNotifications: [],
     supportBusinessFilter: '',
     supportBusinessFilterLabel: '',
     errorLogs: [],
@@ -485,6 +486,16 @@ body.super-admin-mode .main-content {
     }
   }
 
+  async function loadAdminNotifications() {
+    try {
+      const data = await rpc('super_admin_list_notifications');
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      console.warn('[EASY-Q SA] admin notifications log failed:', err);
+      return [];
+    }
+  }
+
   async function loadErrorLogs() {
     try {
       const data = await rpc('super_admin_list_error_logs', {
@@ -504,14 +515,17 @@ body.super-admin-mode .main-content {
     SA.loading = true;
     setLoadingState(true);
     try {
-      const [businesses, supportSessions, errorLogs] = await Promise.all([
+      const [businesses, supportSessions, errorLogs, adminNotifications] = await Promise.all([
         loadBusinesses(),
         loadSupportSessions(),
-        loadErrorLogs()
+        loadErrorLogs(),
+        loadAdminNotifications()
       ]);
+
       SA.businesses = businesses;
       SA.supportSessions = supportSessions;
       SA.errorLogs = errorLogs;
+      SA.adminNotifications = adminNotifications;
       SA.loaded = true;
       SA.lastLoadedAt = new Date();
       updateCounters();
@@ -878,16 +892,822 @@ function countSmartAlerts() {
       </div>`;
   }
 
+async function sendAdminNotificationFromUI() {
+  if (!isSuperAdmin()) return;
+
+  const titleInput = $('eqsaAdminNoticeTitle');
+  const bodyInput = $('eqsaAdminNoticeBody');
+  const scopeInput = $('eqsaAdminNoticeScope');
+  const businessInput = $('eqsaAdminNoticeBusiness');
+  const severityInput = $('eqsaAdminNoticeSeverity');
+  const forcePopupInput = $('eqsaAdminNoticeForcePopup');
+  const sendBtn = $('eqsaAdminNoticeSendBtn');
+
+  const title = titleInput ? titleInput.value.trim() : '';
+  const body = bodyInput ? bodyInput.value.trim() : '';
+  const scope = scopeInput ? scopeInput.value : 'specific_business';
+  const businessId = businessInput ? businessInput.value : '';
+  const severity = severityInput ? severityInput.value : 'info';
+  const forcePopup = forcePopupInput ? forcePopupInput.checked === true : false;
+
+  const targetRoles = Array.from(document.querySelectorAll('.eqsa-admin-notice-role:checked'))
+    .map((input) => input.value)
+    .filter(Boolean);
+
+  if (!title) {
+    notify('اكتب عنوان الإشعار', 'error');
+    return;
+  }
+
+  if (!body) {
+    notify('اكتب نص الإشعار', 'error');
+    return;
+  }
+
+  if (scope === 'specific_business' && !businessId) {
+    notify('اختر المطعم المستهدف أو اختر كل المطاعم', 'error');
+    return;
+  }
+
+  if (!targetRoles.length) {
+    notify('اختر منصبًا واحدًا على الأقل لاستقبال الإشعار', 'error');
+    return;
+  }
+
+  try {
+    if (sendBtn) {
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+    }
+
+    const data = await rpc('super_admin_create_notification', {
+      p_title: title,
+      p_body: body,
+      p_target_scope: scope,
+      p_target_business_id: scope === 'specific_business' ? businessId : null,
+      p_target_roles: targetRoles,
+      p_severity: severity,
+      p_force_popup: forcePopup,
+      p_expires_at: null
+    });
+
+    const row = Array.isArray(data) ? data[0] : data;
+
+    if (!row || row.success !== true) {
+      const code = row?.message || 'UNKNOWN_ERROR';
+
+      const msg =
+        code === 'TITLE_REQUIRED' ? 'عنوان الإشعار مطلوب' :
+        code === 'BODY_REQUIRED' ? 'نص الإشعار مطلوب' :
+        code === 'BODY_TOO_LONG' ? 'نص الإشعار طويل جدًا' :
+        code === 'BUSINESS_REQUIRED' ? 'يجب اختيار مطعم محدد' :
+        code === 'BUSINESS_NOT_FOUND' ? 'المطعم المحدد غير موجود' :
+        code === 'INVALID_TARGET_ROLES' ? 'الأدوار المستهدفة غير صحيحة' :
+        code === 'PERMISSION_DENIED' ? 'ليس لديك صلاحية إرسال الإشعارات' :
+        'فشل إرسال الإشعار';
+
+      notify(msg, 'error');
+      return;
+    }
+
+    if (titleInput) titleInput.value = '';
+    if (bodyInput) bodyInput.value = '';
+    if (scopeInput) scopeInput.value = 'specific_business';
+    if (businessInput) businessInput.value = '';
+    if (severityInput) severityInput.value = 'info';
+    if (forcePopupInput) forcePopupInput.checked = false;
+
+    document.querySelectorAll('.eqsa-admin-notice-role').forEach((input) => {
+      input.checked = true;
+    });
+
+    const businessWrap = $('eqsaAdminNoticeBusinessWrap');
+    if (businessWrap) businessWrap.style.display = 'block';
+
+    notify('تم إرسال الإشعار بنجاح', 'success');
+
+    closeAdminNoticeComposer();
+
+  } catch (err) {
+    console.error('[EASY-Q SA] send admin notification failed:', err);
+    notify('حدث خطأ أثناء إرسال الإشعار', 'error');
+
+  } finally {
+    if (sendBtn) {
+      sendBtn.disabled = false;
+      sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> إرسال الإشعار';
+    }
+  }
+}
+ 
+function openAdminNoticeComposer() {
+  if (!isSuperAdmin()) return;
+
+  let overlay = $('eqsaAdminNoticeComposerModal');
+
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'eqsaAdminNoticeComposerModal';
+    document.body.appendChild(overlay);
+  }
+
+  const businessOptions = SA.businesses
+    .slice()
+    .sort((a, b) => safeText(a.business_name || a.name).localeCompare(safeText(b.business_name || b.name), 'ar'))
+    .map((b) => {
+      const id = b.business_id || b.id;
+      const label = [
+        b.business_name || b.name || 'مطعم بدون اسم',
+        b.branch_name,
+        b.city
+      ].filter(Boolean).join(' - ');
+
+      return `<option value="${esc(id)}">${esc(label)}</option>`;
+    })
+    .join('');
+
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    z-index: 26000;
+    background: rgba(15, 23, 42, 0.46);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    direction: rtl;
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      width: min(560px, calc(100vw - 28px));
+      max-height: calc(100vh - 40px);
+      background: #FFFFFF;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 30px 90px rgba(15, 23, 42, 0.28);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+    ">
+      <div style="
+        padding: 16px 18px;
+        background: linear-gradient(135deg, #0E146D 0%, #060427 100%);
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      ">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="
+            width: 38px;
+            height: 38px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.13);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #F4D28A;
+          ">
+            <i class="fas fa-envelope-open-text"></i>
+          </div>
+
+          <div>
+            <div style="font-size:15px;font-weight:900;">إرسال إشعار إداري</div>
+            <div style="font-size:11px;opacity:.72;margin-top:3px;">إشعار يظهر داخل لوحة المطعم للمناصب المستهدفة</div>
+          </div>
+        </div>
+
+        <button type="button" onclick="EasyQSuperAdmin.closeAdminNoticeComposer()" style="
+          border: none;
+          background: rgba(255,255,255,0.12);
+          color: #FFFFFF;
+          width: 34px;
+          height: 34px;
+          border-radius: 12px;
+          cursor: pointer;
+          font-size: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">×</button>
+      </div>
+
+      <div style="
+        padding: 16px;
+        overflow: auto;
+        max-height: calc(100vh - 118px);
+      ">
+        <div style="
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        ">
+          <div>
+            <label style="display:block;font-size:12px;font-weight:900;color:#64748B;margin-bottom:6px;">
+              نطاق الإرسال
+            </label>
+
+            <select id="eqsaAdminNoticeScope" class="eqsa-select" style="width:100%;" onchange="
+              document.getElementById('eqsaAdminNoticeBusinessWrap').style.display = this.value === 'specific_business' ? 'block' : 'none';
+            ">
+              <option value="specific_business">مطعم محدد</option>
+              <option value="all_businesses">كل المطاعم</option>
+            </select>
+          </div>
+
+          <div id="eqsaAdminNoticeBusinessWrap">
+            <label style="display:block;font-size:12px;font-weight:900;color:#64748B;margin-bottom:6px;">
+              المطعم المستهدف
+            </label>
+
+            <select id="eqsaAdminNoticeBusiness" class="eqsa-select" style="width:100%;">
+              <option value="">اختر المطعم</option>
+              ${businessOptions}
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:900;color:#64748B;margin-bottom:6px;">
+              نوع الإشعار
+            </label>
+
+            <select id="eqsaAdminNoticeSeverity" class="eqsa-select" style="width:100%;">
+              <option value="info">معلومة</option>
+              <option value="warning">تنبيه</option>
+              <option value="important">مهم</option>
+              <option value="maintenance">صيانة</option>
+              <option value="subscription">اشتراك</option>
+            </select>
+          </div>
+
+          <div>
+            <label style="display:block;font-size:12px;font-weight:900;color:#64748B;margin-bottom:6px;">
+              المستلمون
+            </label>
+
+            <div style="
+              display:flex;
+              align-items:center;
+              gap:8px;
+              flex-wrap:wrap;
+              min-height:42px;
+              background:#fff;
+              border:1px solid #D6DAE4;
+              border-radius:14px;
+              padding:8px 10px;
+            ">
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#334155;">
+                <input type="checkbox" class="eqsa-admin-notice-role" value="admin" checked>
+                أدمن
+              </label>
+
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#334155;">
+                <input type="checkbox" class="eqsa-admin-notice-role" value="manager" checked>
+                مدير
+              </label>
+
+              <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:900;color:#334155;">
+                <input type="checkbox" class="eqsa-admin-notice-role" value="staff" checked>
+                موظف
+              </label>
+            </div>
+          </div>
+
+          <div style="grid-column:1 / -1;">
+            <label style="display:block;font-size:12px;font-weight:900;color:#64748B;margin-bottom:6px;">
+              عنوان الإشعار
+            </label>
+
+            <input
+              id="eqsaAdminNoticeTitle"
+              class="eqsa-input"
+              maxlength="140"
+              placeholder="مثال: صيانة مجدولة الليلة"
+              style="width:100%;min-width:0;"
+            >
+          </div>
+
+          <div style="grid-column:1 / -1;">
+            <label style="display:block;font-size:12px;font-weight:900;color:#64748B;margin-bottom:6px;">
+              نص الإشعار
+            </label>
+
+            <textarea
+              id="eqsaAdminNoticeBody"
+              maxlength="3000"
+              placeholder="اكتب نص الإشعار الذي سيظهر للمطعم..."
+              style="
+                width:100%;
+                min-height:96px;
+                max-height:180px;
+                border:1px solid #D6DAE4;
+                border-radius:16px;
+                background:#fff;
+                padding:12px;
+                outline:none;
+                font-weight:800;
+                color:#0F172A;
+                resize:vertical;
+                line-height:1.8;
+                font-family:inherit;
+              "
+            ></textarea>
+          </div>
+
+          <div style="
+            grid-column:1 / -1;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+            flex-wrap:wrap;
+            padding-top:2px;
+          ">
+            <label style="
+              display:inline-flex;
+              align-items:center;
+              gap:8px;
+              color:#475569;
+              font-size:12px;
+              font-weight:900;
+            ">
+              <input type="checkbox" id="eqsaAdminNoticeForcePopup">
+              إظهار كمودل تلقائي
+            </label>
+
+            <button
+              type="button"
+              id="eqsaAdminNoticeSendBtn"
+              class="eqsa-btn primary"
+              onclick="EasyQSuperAdmin.sendAdminNotificationFromUI()"
+              style="min-height:42px;"
+            >
+              <i class="fas fa-paper-plane"></i>
+              إرسال الإشعار
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function closeAdminNoticeComposer() {
+  const overlay = $('eqsaAdminNoticeComposerModal');
+  if (overlay) overlay.remove();
+}
+
+async function showAdminNotificationReadDetails(notificationId) {
+  if (!isSuperAdmin()) return;
+  if (!notificationId) return;
+
+  try {
+    const rows = await rpc('super_admin_get_notification_read_status', {
+      p_notification_id: notificationId
+    });
+
+    const list = Array.isArray(rows) ? rows : [];
+    const readRows = list.filter((row) => row.has_read === true);
+    const unreadRows = list.filter((row) => row.has_read !== true);
+    const title = list[0]?.notification_title || 'تفاصيل الإشعار';
+
+    let overlay = $('eqsaAdminNoticeDetailsModal');
+
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'eqsaAdminNoticeDetailsModal';
+      document.body.appendChild(overlay);
+    }
+
+    function userRow(row, isRead) {
+      return `
+        <div style="
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:10px;
+          padding:10px;
+          border-radius:14px;
+          background:${isRead ? '#ECFDF5' : '#FEF2F2'};
+          border:1px solid ${isRead ? '#BBF7D0' : '#FECACA'};
+          margin-bottom:8px;
+        ">
+          <div style="min-width:0;">
+            <div style="
+              font-size:13px;
+              font-weight:950;
+              color:#0F172A;
+              white-space:nowrap;
+              overflow:hidden;
+              text-overflow:ellipsis;
+            ">
+              ${esc(row.target_display_name || 'مستخدم بدون اسم')}
+            </div>
+
+            <div style="
+              font-size:11px;
+              font-weight:800;
+              color:#64748B;
+              margin-top:4px;
+              white-space:nowrap;
+              overflow:hidden;
+              text-overflow:ellipsis;
+            ">
+              ${esc(row.target_business_name || 'مطعم غير معروف')} · ${esc(row.target_role || '—')}
+            </div>
+          </div>
+
+          <div style="
+            flex:0 0 auto;
+            font-size:11px;
+            font-weight:900;
+            color:${isRead ? '#059669' : '#DC2626'};
+            text-align:left;
+            direction:rtl;
+          ">
+            ${
+              isRead
+                ? esc(fmtDateTime(row.read_at))
+                : 'لم يقرأ'
+            }
+          </div>
+        </div>
+      `;
+    }
+
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      z-index: 27000;
+      background: rgba(15, 23, 42, 0.48);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      direction: rtl;
+    `;
+
+    overlay.innerHTML = `
+      <div style="
+        width:min(900px, calc(100vw - 28px));
+        max-height:calc(100vh - 40px);
+        background:#FFFFFF;
+        border-radius:24px;
+        overflow:hidden;
+        box-shadow:0 34px 90px rgba(15,23,42,.30);
+        border:1px solid rgba(15,23,42,.08);
+      ">
+        <div style="
+          padding:16px 18px;
+          background:linear-gradient(135deg,#0E146D 0%,#060427 100%);
+          color:#FFFFFF;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+        ">
+          <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <div style="
+              width:38px;
+              height:38px;
+              border-radius:14px;
+              background:rgba(255,255,255,.13);
+              display:flex;
+              align-items:center;
+              justify-content:center;
+              color:#F4D28A;
+              flex:0 0 auto;
+            ">
+              <i class="fas fa-eye"></i>
+            </div>
+
+            <div style="min-width:0;">
+              <div style="
+                font-size:15px;
+                font-weight:950;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow:ellipsis;
+              ">
+                تفاصيل قراءة الإشعار
+              </div>
+
+              <div style="
+                font-size:12px;
+                opacity:.78;
+                margin-top:4px;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow:ellipsis;
+              ">
+                ${esc(title)}
+              </div>
+            </div>
+          </div>
+
+          <button type="button" onclick="EasyQSuperAdmin.closeAdminNotificationDetailsModal()" style="
+            border:none;
+            background:rgba(255,255,255,.12);
+            color:#FFFFFF;
+            width:34px;
+            height:34px;
+            border-radius:12px;
+            cursor:pointer;
+            font-size:18px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+          ">×</button>
+        </div>
+
+        <div style="
+          padding:16px;
+          overflow:auto;
+          max-height:calc(100vh - 118px);
+        ">
+          <div style="
+            display:grid;
+            grid-template-columns:repeat(3, minmax(0, 1fr));
+            gap:10px;
+            margin-bottom:14px;
+          ">
+            <div class="eqsa-card" style="padding:14px;border-radius:18px;box-shadow:none;">
+              <div style="font-size:12px;font-weight:900;color:#64748B;">المستهدفون</div>
+              <div style="font-size:26px;font-weight:950;color:#0E146D;margin-top:5px;">${list.length}</div>
+            </div>
+
+            <div class="eqsa-card" style="padding:14px;border-radius:18px;box-shadow:none;">
+              <div style="font-size:12px;font-weight:900;color:#64748B;">قرأ</div>
+              <div style="font-size:26px;font-weight:950;color:#059669;margin-top:5px;">${readRows.length}</div>
+            </div>
+
+            <div class="eqsa-card" style="padding:14px;border-radius:18px;box-shadow:none;">
+              <div style="font-size:12px;font-weight:900;color:#64748B;">لم يقرأ</div>
+              <div style="font-size:26px;font-weight:950;color:#DC2626;margin-top:5px;">${unreadRows.length}</div>
+            </div>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:12px;
+            align-items:start;
+          ">
+            <div style="
+              background:#FFFFFF;
+              border:1px solid #E5E7EB;
+              border-radius:18px;
+              padding:12px;
+            ">
+              <div style="
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                margin-bottom:10px;
+              ">
+                <h3 style="margin:0;font-size:14px;font-weight:950;color:#059669;">
+                  <i class="fas fa-check-circle"></i>
+                  قرأ الإشعار
+                </h3>
+                ${badge(readRows.length, '#059669', '#ECFDF5')}
+              </div>
+
+              ${
+                readRows.length
+                  ? readRows.map((row) => userRow(row, true)).join('')
+                  : `<div class="eqsa-empty" style="padding:18px;">لا يوجد مستخدمون قرأوا الإشعار بعد.</div>`
+              }
+            </div>
+
+            <div style="
+              background:#FFFFFF;
+              border:1px solid #E5E7EB;
+              border-radius:18px;
+              padding:12px;
+            ">
+              <div style="
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                margin-bottom:10px;
+              ">
+                <h3 style="margin:0;font-size:14px;font-weight:950;color:#DC2626;">
+                  <i class="fas fa-clock"></i>
+                  لم يقرأ
+                </h3>
+                ${badge(unreadRows.length, '#DC2626', '#FEF2F2')}
+              </div>
+
+              ${
+                unreadRows.length
+                  ? unreadRows.map((row) => userRow(row, false)).join('')
+                  : `<div class="eqsa-empty" style="padding:18px;">كل المستهدفين قرأوا الإشعار.</div>`
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+  } catch (err) {
+    console.error('[EASY-Q SA] notification read details failed:', err);
+    notify('تعذر عرض تفاصيل قراءة الإشعار', 'error');
+  }
+}
+
+function closeAdminNotificationDetailsModal() {
+  const overlay = $('eqsaAdminNoticeDetailsModal');
+  if (overlay) overlay.remove();
+}
+
+function renderAdminNotificationsLog() {
+  const rows = Array.isArray(SA.adminNotifications) ? SA.adminNotifications : [];
+
+  if (!rows.length) {
+    return `
+      <div class="eqsa-card eqsa-panel" style="margin-bottom:14px;border-radius:20px;">
+        <div class="eqsa-panel-title">
+          <h3>
+            <i class="fas fa-envelope-open-text" style="color:#0E146D;margin-left:8px;"></i>
+            سجل إشعارات الإدارة
+          </h3>
+          ${badge(0, '#64748B', '#F8FAFC')}
+        </div>
+
+        <div class="eqsa-empty" style="padding:22px;">
+          لا توجد إشعارات مرسلة حتى الآن.
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="eqsa-card eqsa-panel" style="margin-bottom:14px;border-radius:20px;">
+      <div class="eqsa-panel-title">
+        <h3>
+          <i class="fas fa-envelope-open-text" style="color:#0E146D;margin-left:8px;"></i>
+          سجل إشعارات الإدارة
+        </h3>
+        ${badge(rows.length, '#0E146D', '#EEF2FF')}
+      </div>
+
+      <div class="eqsa-table-wrap">
+        <table class="eqsa-table" style="min-width:980px;">
+          <thead>
+            <tr>
+              <th>الإشعار</th>
+              <th>النطاق</th>
+              <th>الأدوار</th>
+              <th>النوع</th>
+              <th>المستهدفين</th>
+              <th>قرأ</th>
+              <th>لم يقرأ</th>
+              <th>الحالة</th>
+              <th>الإرسال</th>
+              <th>تفاصيل</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${rows.slice(0, 30).map((row) => {
+              const targetCount = n(row.target_users_count);
+              const readCount = n(row.read_users_count);
+              const unreadCount = n(row.unread_users_count);
+
+              const targetLabel =
+                row.target_scope === 'all_businesses'
+                  ? 'كل المطاعم'
+                  : safeText(row.target_business_name, 'مطعم محدد');
+
+              const rolesLabel = Array.isArray(row.target_roles)
+                ? row.target_roles.join(' / ')
+                : safeText(row.target_roles, '—');
+
+              const severityLabel =
+                row.severity === 'warning' ? 'تنبيه' :
+                row.severity === 'important' ? 'مهم' :
+                row.severity === 'maintenance' ? 'صيانة' :
+                row.severity === 'subscription' ? 'اشتراك' :
+                'معلومة';
+
+              const severityColor =
+                row.severity === 'warning' ? '#D97706' :
+                row.severity === 'important' ? '#DC2626' :
+                row.severity === 'maintenance' ? '#7C3AED' :
+                row.severity === 'subscription' ? '#0E146D' :
+                '#2563EB';
+
+              const severityBg =
+                row.severity === 'warning' ? '#FFFBEB' :
+                row.severity === 'important' ? '#FEF2F2' :
+                row.severity === 'maintenance' ? '#F5F3FF' :
+                row.severity === 'subscription' ? '#EEF2FF' :
+                '#EFF6FF';
+
+              return `
+                <tr>
+                  <td>
+                    <div class="eqsa-name" style="
+                      max-width:240px;
+                      white-space:nowrap;
+                      overflow:hidden;
+                      text-overflow:ellipsis;
+                    ">
+                      ${esc(row.title || 'إشعار بدون عنوان')}
+                    </div>
+                    <div class="eqsa-sub" style="
+                      max-width:260px;
+                      white-space:nowrap;
+                      overflow:hidden;
+                      text-overflow:ellipsis;
+                    ">
+                      ${esc(row.body || '')}
+                    </div>
+                  </td>
+
+                  <td>
+                    <div class="eqsa-name" style="font-size:12px;">
+                      ${esc(row.target_scope === 'all_businesses' ? 'عام' : 'محدد')}
+                    </div>
+                    <div class="eqsa-sub" style="
+                      max-width:180px;
+                      white-space:nowrap;
+                      overflow:hidden;
+                      text-overflow:ellipsis;
+                    ">
+                      ${esc(targetLabel)}
+                    </div>
+                  </td>
+
+                  <td style="direction:ltr;text-align:right;">
+                    ${esc(rolesLabel)}
+                  </td>
+
+                  <td>
+                    ${badge(severityLabel, severityColor, severityBg)}
+                  </td>
+
+                  <td>${targetCount}</td>
+
+                  <td>
+                    ${badge(readCount, '#059669', '#ECFDF5')}
+                  </td>
+
+                  <td>
+                    ${badge(unreadCount, unreadCount > 0 ? '#DC2626' : '#64748B', unreadCount > 0 ? '#FEF2F2' : '#F8FAFC')}
+                  </td>
+
+                  <td>
+                    ${row.is_active ? badge('نشط', '#059669', '#ECFDF5') : badge('معطل', '#64748B', '#F8FAFC')}
+                  </td>
+
+                  <td>
+                    <div class="eqsa-sub">
+                      ${esc(fmtDateTime(row.created_at))}
+                    </div>
+                  </td>
+
+                  <td>
+                    <button
+                      type="button"
+                      class="eqsa-btn"
+                      onclick="EasyQSuperAdmin.showAdminNotificationReadDetails('${esc(row.notification_id)}')"
+                      style="
+                        min-height:34px;
+                        padding:7px 10px;
+                        font-size:12px;
+                        box-shadow:none;
+                      "
+                    >
+                      <i class="fas fa-eye"></i>
+                      تفاصيل
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      ${
+        rows.length > 30
+          ? `<div style="padding-top:10px;color:#64748B;font-size:12px;font-weight:900;">
+              يتم عرض آخر 30 إشعار فقط.
+            </div>`
+          : ''
+      }
+    </div>
+  `;
+}
+
 function renderAlerts() {
   const el = $('eqsaViewAlerts');
   if (!el) return;
 
   const expired = SA.businesses.filter((b) => statusInfo(b).key === 'expired');
-
   const suspended = SA.businesses.filter((b) => statusInfo(b).key === 'suspended');
-
   const cancelled = SA.businesses.filter((b) => statusInfo(b).key === 'cancelled');
-
   const grace = SA.businesses.filter((b) => statusInfo(b).key === 'grace');
 
   const expiring = SA.businesses.filter((b) => {
@@ -896,7 +1716,6 @@ function renderAlerts() {
   });
 
   const noPlan = SA.businesses.filter((b) => !b.plan_type && !b.plan);
-
   const limitsReached = SA.businesses.filter((b) => hasReachedAnyLimit(b));
 
   const unread = SA.supportSessions.filter((s) => {
@@ -906,84 +1725,364 @@ function renderAlerts() {
   const unresolvedErrors = SA.errorLogs.filter((e) => e.is_resolved !== true);
 
   el.innerHTML = `
-    ${pageHead('التنبيهات', 'كل ما يحتاج انتباهك قبل أن يتحول إلى مشكلة تشغيلية.', true)}
+    ${pageHead('التنبيهات', 'إرسال إشعارات إدارية ومتابعة الحالات المهمة بشكل مختصر.', true)}
 
-    <div class="eqsa-grid eqsa-stats" style="margin-bottom:18px;">
+    <div class="eqsa-card" style="
+      margin-bottom: 14px;
+      padding: 13px 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-radius: 20px;
+    ">
+      <div>
+        <div style="font-size:15px;font-weight:950;color:#0F172A;">
+          إشعارات الإدارة
+        </div>
+        <div style="font-size:12px;color:#64748B;margin-top:4px;line-height:1.6;">
+          أرسل إشعارًا للمطاعم. البطاقات أدناه مختصرة، والتفاصيل من أزرار العرض.
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="eqsa-btn primary"
+        onclick="EasyQSuperAdmin.openAdminNoticeComposer()"
+        style="min-height:40px;padding:10px 14px;"
+      >
+        <i class="fas fa-paper-plane"></i>
+        إرسال إشعار إداري
+      </button>
+    </div>
+
+    ${renderAdminNotificationsLog()}
+
+    <div class="eqsa-grid eqsa-stats" style="
+      margin-bottom: 14px;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 12px;
+    ">
       ${stat('إجمالي التنبيهات', countSmartAlerts(), 'fa-bell', '#0E146D')}
       ${stat('تنتهي قريبًا', expiring.length, 'fa-clock', '#F97316')}
       ${stat('تجاوز حدود', limitsReached.length, 'fa-gauge-high', '#7C3AED')}
       ${stat('أخطاء غير محلولة', unresolvedErrors.length, 'fa-bug', '#DC2626')}
     </div>
 
-    <div class="eqsa-grid" style="grid-template-columns:repeat(auto-fit,minmax(310px,1fr));">
-      ${alertPanel('تنتهي خلال 7 أيام', expiring, '#F97316', 'fa-clock')}
-      ${alertPanel('في فترة السماح', grace, '#D97706', 'fa-hourglass-half')}
-      ${alertPanel('منتهية', expired, '#DC2626', 'fa-times-circle')}
-      ${alertPanel('موقوفة', suspended, '#991B1B', 'fa-ban')}
-      ${alertPanel('ملغية', cancelled, '#64748B', 'fa-circle-xmark')}
+    <div style="
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 12px;
+    ">
+      ${alertPanel('تنتهي خلال 7 أيام', expiring, '#F97316', 'fa-clock', 'subscriptions')}
+      ${alertPanel('في فترة السماح', grace, '#D97706', 'fa-hourglass-half', 'subscriptions')}
+      ${alertPanel('منتهية', expired, '#DC2626', 'fa-times-circle', 'subscriptions')}
+    </div>
+
+    <div style="
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+      margin-bottom: 12px;
+    ">
       ${limitPanel(limitsReached)}
-      ${alertPanel('بدون خطة واضحة', noPlan, '#64748B', 'fa-file-circle-question')}
       ${supportPanel(unread)}
       ${errorPanel(unresolvedErrors)}
+    </div>
+
+    <div style="
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    ">
+      ${alertPanel('موقوفة', suspended, '#991B1B', 'fa-ban', 'subscriptions')}
+      ${alertPanel('ملغية', cancelled, '#64748B', 'fa-circle-xmark', 'subscriptions')}
+      ${alertPanel('بدون خطة واضحة', noPlan, '#64748B', 'fa-file-circle-question', 'restaurants')}
     </div>
   `;
 }
 
-  function alertPanel(title, rows, color, icon) {
-    return `<div class="eqsa-card eqsa-panel"><div class="eqsa-panel-title"><h3><i class="fas ${esc(icon)}" style="color:${esc(color)};margin-left:8px"></i>${esc(title)}</h3>${badge(rows.length, color, color + '12')}</div>${miniAlertList(rows.slice(0, 8))}</div>`;
+function compactAlertRows(rows, options = {}) {
+  const limit = options.limit || 4;
+  const emptyText = options.emptyText || 'لا توجد عناصر حاليًا.';
+  const type = options.type || 'business';
+  const view = options.view || 'restaurants';
+  const visibleRows = rows.slice(0, limit);
+  const extraCount = Math.max(rows.length - limit, 0);
+
+  if (!rows.length) {
+    return `
+      <div style="
+        padding: 16px;
+        text-align: center;
+        color: #64748B;
+        font-size: 12px;
+        font-weight: 900;
+        background: #F8FAFC;
+        border: 1px dashed #CBD5E1;
+        border-radius: 16px;
+      ">
+        ${esc(emptyText)}
+      </div>
+    `;
   }
 
-  function limitPanel(rows) {
-  return `
-    <div class="eqsa-card eqsa-panel">
-      <div class="eqsa-panel-title">
-        <h3>
-          <i class="fas fa-gauge-high" style="color:#7C3AED;margin-left:8px"></i>
-          تجاوز حدود الباقة
-        </h3>
-        ${badge(rows.length, '#7C3AED', '#F5F3FF')}
+  const html = visibleRows.map((row) => {
+    if (type === 'error') {
+      return `
+        <div class="eqsa-alert-item" style="
+          padding: 10px;
+          min-height: 58px;
+          align-items: center;
+        ">
+          <div style="min-width:0;">
+            <div class="eqsa-name" style="
+              font-size: 13px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 100%;
+            ">
+              ${esc(row.business_name || 'مطعم غير محدد')}
+            </div>
+
+            <div class="eqsa-sub" style="
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 100%;
+            ">
+              ${esc(row.error_code || 'ERROR')} · ${esc(fmtDateTime(row.created_at))}
+            </div>
+          </div>
+
+          <button class="eqsa-icon-btn" style="background:#DC2626;flex:0 0 auto;" onclick="EasyQSuperAdmin.showView('errors')" title="عرض الأخطاء">
+            <i class="fas fa-list"></i>
+          </button>
+        </div>
+      `;
+    }
+
+    if (type === 'support') {
+      const unreadCount = n(row.unread_for_super_admin_count || row.unread_count);
+      return `
+        <div class="eqsa-alert-item" style="
+          padding: 10px;
+          min-height: 58px;
+          align-items: center;
+        ">
+          <div style="min-width:0;">
+            <div class="eqsa-name" style="
+              font-size: 13px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 100%;
+            ">
+              ${esc(row.business_name || row.subject || 'جلسة دعم')}
+            </div>
+
+            <div class="eqsa-sub" style="
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              max-width: 100%;
+            ">
+              ${unreadCount ? esc(unreadCount + ' رسالة غير مقروءة') : 'لا توجد رسائل جديدة'}
+            </div>
+          </div>
+
+          <button class="eqsa-icon-btn" style="background:#0E146D;flex:0 0 auto;" onclick="EasyQSuperAdmin.showView('support')" title="فتح الدعم">
+            <i class="fas fa-headset"></i>
+          </button>
+        </div>
+      `;
+    }
+
+    const bid = esc(row.business_id || row.id || '');
+
+    return `
+      <div class="eqsa-alert-item" style="
+        padding: 10px;
+        min-height: 58px;
+        align-items: center;
+      ">
+        <div style="min-width:0;">
+          <div class="eqsa-name" style="
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+          ">
+            ${esc(row.business_name || row.name || 'مطعم')}
+          </div>
+
+          <div class="eqsa-sub" style="
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+          ">
+            ${esc(options.subText ? options.subText(row) : `${row.city || row.branch_name || '—'} · ${daysLabel(row.days_remaining)}`)}
+          </div>
+        </div>
+
+        <button class="eqsa-icon-btn" style="background:#0E146D;flex:0 0 auto;" onclick="EasyQSuperAdmin.viewBusiness('${bid}')" title="تفاصيل المطعم">
+          <i class="fas fa-eye"></i>
+        </button>
       </div>
+    `;
+  }).join('');
+
+  return `
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${html}
 
       ${
-        rows.length
-          ? `<div class="eqsa-alert-list">
-              ${rows.slice(0, 8).map((b) => {
-                const bid = esc(b.business_id || b.id || '');
-
-                return `
-                  <div class="eqsa-alert-item">
-                    <div>
-                      <div class="eqsa-name">${esc(b.business_name || b.name || 'مطعم')}</div>
-                      <div class="eqsa-sub">${esc(limitReachedText(b))}</div>
-                    </div>
-
-                    <div class="eqsa-mini-actions">
-                      <button class="eqsa-icon-btn" style="background:#0E146D;" onclick="EasyQSuperAdmin.viewBusiness('${bid}')" title="تفاصيل المطعم">
-                        <i class="fas fa-eye"></i>
-                      </button>
-
-                      <button class="eqsa-icon-btn" style="background:#7C3AED;" onclick="EasyQSuperAdmin.manageBusinessStatus('${bid}')" title="إدارة الاشتراك">
-                        <i class="fas fa-sliders-h"></i>
-                      </button>
-                    </div>
-                  </div>
-                `;
-              }).join('')}
-            </div>`
-          : `<div class="eqsa-empty">لا توجد مطاعم تجاوزت حدود الباقة.</div>`
+        extraCount > 0
+          ? `<button class="eqsa-btn" onclick="EasyQSuperAdmin.showView('${esc(view)}')" style="
+              justify-content:center;
+              min-height:36px;
+              padding:8px 10px;
+              font-size:12px;
+              box-shadow:none;
+            ">
+              عرض ${extraCount} إضافية
+            </button>`
+          : ''
       }
     </div>
   `;
 }
 
-  function supportPanel(rows) {
-    return `<div class="eqsa-card eqsa-panel"><div class="eqsa-panel-title"><h3><i class="fas fa-headset" style="color:#0E146D;margin-left:8px"></i>دعم غير مقروء</h3>${badge(rows.length, '#DC2626', '#FEF2F2')}</div>${miniSupportList(rows.slice(0, 8))}</div>`;
-  }
+function alertPanel(title, rows, color, icon, view = 'restaurants') {
+  return `
+    <div class="eqsa-card eqsa-panel" style="
+      padding: 13px;
+      border-radius: 20px;
+      min-height: 190px;
+    ">
+      <div class="eqsa-panel-title" style="margin-bottom:10px;">
+        <h3 style="
+          font-size: 14px;
+          display:flex;
+          align-items:center;
+          gap:7px;
+        ">
+          <i class="fas ${esc(icon)}" style="color:${esc(color)};"></i>
+          ${esc(title)}
+        </h3>
 
+        ${badge(rows.length, color, color + '12')}
+      </div>
 
-  function errorPanel(rows) {
-    return `<div class="eqsa-card eqsa-panel"><div class="eqsa-panel-title"><h3><i class="fas fa-bug" style="color:#DC2626;margin-left:8px"></i>أخطاء غير محلولة</h3>${badge(rows.length, '#DC2626', '#FEF2F2')}</div>${miniErrorList(rows.slice(0, 8))}</div>`;
-  }
+      ${compactAlertRows(rows, {
+        limit: 4,
+        emptyText: 'لا توجد حالات في هذه البطاقة.',
+        view
+      })}
+    </div>
+  `;
+}
+
+function limitPanel(rows) {
+  return `
+    <div class="eqsa-card eqsa-panel" style="
+      padding: 13px;
+      border-radius: 20px;
+      min-height: 190px;
+    ">
+      <div class="eqsa-panel-title" style="margin-bottom:10px;">
+        <h3 style="
+          font-size: 14px;
+          display:flex;
+          align-items:center;
+          gap:7px;
+        ">
+          <i class="fas fa-gauge-high" style="color:#7C3AED;"></i>
+          تجاوز حدود الباقة
+        </h3>
+
+        ${badge(rows.length, '#7C3AED', '#F5F3FF')}
+      </div>
+
+      ${compactAlertRows(rows, {
+        limit: 4,
+        emptyText: 'لا توجد مطاعم تجاوزت حدود الباقة.',
+        view: 'subscriptions',
+        subText: limitReachedText
+      })}
+    </div>
+  `;
+}
+
+function supportPanel(rows) {
+  return `
+    <div class="eqsa-card eqsa-panel" style="
+      padding: 13px;
+      border-radius: 20px;
+      min-height: 190px;
+    ">
+      <div class="eqsa-panel-title" style="margin-bottom:10px;">
+        <h3 style="
+          font-size: 14px;
+          display:flex;
+          align-items:center;
+          gap:7px;
+        ">
+          <i class="fas fa-headset" style="color:#0E146D;"></i>
+          دعم غير مقروء
+        </h3>
+
+        ${badge(rows.length, '#DC2626', '#FEF2F2')}
+      </div>
+
+      ${compactAlertRows(rows, {
+        limit: 4,
+        emptyText: 'لا توجد رسائل دعم غير مقروءة.',
+        type: 'support',
+        view: 'support'
+      })}
+    </div>
+  `;
+}
+
+function errorPanel(rows) {
+  return `
+    <div class="eqsa-card eqsa-panel" style="
+      padding: 13px;
+      border-radius: 20px;
+      min-height: 190px;
+    ">
+      <div class="eqsa-panel-title" style="margin-bottom:10px;">
+        <h3 style="
+          font-size: 14px;
+          display:flex;
+          align-items:center;
+          gap:7px;
+        ">
+          <i class="fas fa-bug" style="color:#DC2626;"></i>
+          أخطاء غير محلولة
+        </h3>
+
+        ${badge(rows.length, '#DC2626', '#FEF2F2')}
+      </div>
+
+      ${compactAlertRows(rows, {
+        limit: 4,
+        emptyText: 'لا توجد أخطاء غير محلولة.',
+        type: 'error',
+        view: 'errors'
+      })}
+    </div>
+  `;
+}
 
   function miniErrorList(rows) {
     if (!rows.length) return `<div class="eqsa-empty">لا توجد أخطاء غير محلولة.</div>`;
@@ -2238,6 +3337,11 @@ function clearSupportBusinessFilter() {
     sendSupportReply,
     verifySupportCode,
     closeSupportSession,
+    openAdminNoticeComposer,
+    closeAdminNoticeComposer,
+    sendAdminNotificationFromUI,
+    showAdminNotificationReadDetails,
+    closeAdminNotificationDetailsModal,
     closeModal
   };
 

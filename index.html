@@ -398,8 +398,66 @@ btn.onclick = function(e) {
       <div class="brand-text brand-loading" id="brandText">
   <i class="fas fa-spinner fa-spin"></i>
 </div>
-      <i class="fas fa-user-circle" style="color: rgba(255,255,255,0.5); margin: 0 8px; font-size: 16px;"></i>
-      <span id="currentUserName" style="color: rgba(255,255,255,0.9); font-size: 13px; font-weight: 500;">مدير النظام</span>
+      <div id="topbarUserArea" style="
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 8px;
+      ">
+        <i class="fas fa-user-circle" style="
+          color: rgba(255,255,255,0.5);
+          font-size: 16px;
+        "></i>
+
+        <span id="currentUserName" style="
+          color: rgba(255,255,255,0.9);
+          font-size: 13px;
+          font-weight: 500;
+        ">مدير النظام</span>
+
+        <button
+          type="button"
+          id="adminNotificationBellBtn"
+          onclick="openAdminNotificationModal()"
+          title="إشعارات الإدارة"
+          style="
+            display: none;
+            position: relative;
+            width: 32px;
+            height: 32px;
+            border: 1px solid rgba(255,255,255,0.18);
+            background: rgba(255,255,255,0.10);
+            color: #FFFFFF;
+            border-radius: 11px;
+            cursor: pointer;
+            align-items: center;
+            justify-content: center;
+          "
+        >
+          <i class="fas fa-envelope"></i>
+
+          <span
+            id="adminNotificationBadge"
+            style="
+              display: none;
+              position: absolute;
+              top: -5px;
+              right: -5px;
+              min-width: 17px;
+              height: 17px;
+              padding: 0 5px;
+              border-radius: 999px;
+              background: #DC2626;
+              color: #FFFFFF;
+              font-size: 10px;
+              font-weight: 900;
+              line-height: 17px;
+              text-align: center;
+              box-shadow: 0 0 0 2px rgba(6,4,39,0.95);
+            "
+          >0</span>
+        </button>
+      </div>
     </div>
   </div>
   <div class="status-bar">
