@@ -7,6 +7,7 @@
 // Global state
 let currentRequestId = null;
 let currentQueueNumber = null;
+let currentPublicQueueText = "--";
 let currentBusinessId = null;
 let currentCustomerId = null;
 let realtimeChannel = null;
@@ -150,6 +151,33 @@ function bookingText(key) {
 
 function bookingEnabled(key) {
   return easyQBookingSettings?.[key] !== false;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function safeImageUrl(value) {
+  const rawUrl = String(value ?? "").trim();
+
+  if (!rawUrl) return "";
+
+  try {
+    const parsedUrl = new URL(rawUrl, window.location.origin);
+
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return "";
+    }
+
+    return escapeHtml(parsedUrl.href);
+  } catch (err) {
+    return "";
+  }
 }
 
 function toggleBookingPageLanguage() {
@@ -491,6 +519,47 @@ async function getCurrentQueueNumber() {
     }
 }
 
+async function loadPublicCurrentQueueCount() {
+  if (!currentBusinessId) {
+    currentPublicQueueText = "--";
+    return currentPublicQueueText;
+  }
+
+  try {
+    const { data, error } = await supabase.rpc(
+      "easyq_public_current_queue_count_v1",
+      {
+        p_business_id: currentBusinessId
+      }
+    );
+
+    if (error) {
+      console.error("❌ فشل جلب الطابور الحالي العام:", error);
+      currentPublicQueueText = "--";
+      return currentPublicQueueText;
+    }
+
+    const count = Number(data || 0);
+
+    currentPublicQueueText = count > 0
+      ? String(count)
+      : "لا يوجد انتظار";
+
+    const queueEl = document.getElementById("liveQueueNumber");
+
+    if (queueEl) {
+      queueEl.innerText = currentPublicQueueText;
+    }
+
+    return currentPublicQueueText;
+
+  } catch (err) {
+    console.error("❌ خطأ غير متوقع أثناء جلب الطابور الحالي العام:", err);
+    currentPublicQueueText = "--";
+    return currentPublicQueueText;
+  }
+}
+
 async function getRemainingHoldTime() {
     if (!currentRequestId) return null;
     
@@ -574,11 +643,11 @@ function getEasyQPoweredByHtml() {
 function getBookingBusinessHeaderHtml() {
   const business = currentBusinessProfile || {};
 
-  const businessName = business.name || "EASY-Q";
-  const branchName = business.branch_name || "";
-  const cityName = business.city || "";
-  const addressText = business.address || "";
-  const logoUrl = business.logo_url || "";
+  const businessName = escapeHtml(business.name || "EASY-Q");
+  const branchName = escapeHtml(business.branch_name || "");
+  const cityName = escapeHtml(business.city || "");
+  const addressText = escapeHtml(business.address || "");
+const logoUrl = safeImageUrl(business.logo_url || "");
 
   const showLogo = bookingEnabled("show_business_logo");
   const showBusinessInfo = bookingEnabled("show_business_info");
@@ -648,50 +717,54 @@ async function renderBookingForm() {
       
       <div class="welcome-message">
         <i class="fas fa-hands-helping" style="margin-left: 9px; color: var(--booking-accent);"></i>
-        ${bookingText("welcome_message")}
+      ${escapeHtml(bookingText("welcome_message"))}
       </div>
                  <!-- سطر استعادة الحجز -->
       ${bookingEnabled("show_restore_hint") ? `
         <div class="restore-hint" style="text-align: center; margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 20px; font-size: 13px;">
-          <span style="color: rgba(255,255,255,0.8);">${bookingText("restore_hint_prefix")} </span>
-          <span onclick="openRestoreModal()" style="color: var(--booking-success); font-weight: bold; cursor: pointer; text-decoration: underline;">${bookingText("restore_hint_link")}</span>
-          <span style="color: rgba(255,255,255,0.8);"> ${bookingText("restore_hint_suffix")}</span>
+          <span style="color: rgba(255,255,255,0.8);">${escapeHtml(bookingText("restore_hint_prefix"))} </span>
+          <span onclick="openRestoreModal()" style="color: var(--booking-success); font-weight: bold; cursor: pointer; text-decoration: underline;">${escapeHtml(bookingText("restore_hint_link"))}</span>
+          <span style="color: rgba(255,255,255,0.8);"> ${escapeHtml(bookingText("restore_hint_suffix"))}</span>
         </div>
       ` : ""}
       
       ${showCurrentQueueConfig ? `
       <div class="current-queue-card" id="currentQueueCard">
-                <div class="current-queue-title">${bookingText("current_queue_title")}</div>
+      <div class="current-queue-title">${escapeHtml(bookingText("current_queue_title"))}</div>
         <div class="current-number-circle">
-          <div class="current-number" id="liveQueueNumber">${currentQueueNumber || '--'}</div>
+        <div class="current-number" id="liveQueueNumber">${escapeHtml(currentPublicQueueText || '--')}</div>
         </div>
-        <div class="current-queue-sub">${bookingText("current_queue_sub")}</div>
+         <div class="current-queue-sub">${escapeHtml(bookingText("current_queue_sub"))}</div>
       </div>
       ` : ''}
       
       <div class="booking-card">
         <div class="form-group">
-          <label class="form-label">${bookingText("name_label_text")}</label>
-<input type="text" id="customerName" class="form-input" placeholder="${bookingText("name_placeholder_text")}">
+<label class="form-label">${escapeHtml(bookingText("name_label_text"))}</label>
+<input type="text" id="customerName" class="form-input" placeholder="${escapeHtml(bookingText("name_placeholder_text"))}">
         </div>
         
         <div class="form-group">
-          <label class="form-label">${bookingText("phone_label_text")}</label>
-<input type="tel" id="customerPhone" class="form-input" placeholder="${bookingText("phone_placeholder_text")}" maxlength="10">
+<label class="form-label">${escapeHtml(bookingText("phone_label_text"))}</label>
+<input type="tel" id="customerPhone" class="form-input" placeholder="${escapeHtml(bookingText("phone_placeholder_text"))}" maxlength="10">
         </div>
         
         ${(zonesEnabled && bookingEnabled("show_zone_selector")) ? `
         <div class="form-group">
-          <label class="form-label">${bookingText("zone_label_text")}</label>
+          <label class="form-label">${escapeHtml(bookingText("zone_label_text"))}</label>
 <select id="customerZone" class="form-input">
-  <option value="">${bookingText("zone_no_preference_text")}</option>
-            ${availableZones.map(zone => `<option value="${zone}">${getBookingZoneLabel(zone)}</option>`).join('')}
+  <option value="">${escapeHtml(bookingText("zone_no_preference_text"))}</option>
+            ${availableZones.map(zone => {
+              const safeZoneValue = escapeHtml(zone);
+              const safeZoneLabel = escapeHtml(getBookingZoneLabel(zone));
+              return `<option value="${safeZoneValue}">${safeZoneLabel}</option>`;
+            }).join('')}
           </select>
         </div>
         ` : ''}
         
         <div class="form-group">
-          <label class="form-label">${bookingText("party_size_label_text")}</label>
+          <label class="form-label">${escapeHtml(bookingText("party_size_label_text"))}</label>
           <div class="party-stepper">
             <button class="stepper-btn" onclick="changePartySize(-1)">-</button>
             <span class="stepper-value" id="partySizeValue">2</span>
@@ -700,14 +773,14 @@ async function renderBookingForm() {
         </div>
         
        <button class="submit-btn" id="submitBookingBtn">
-       ${bookingText("submit_button_text")}
+              ${escapeHtml(bookingText("submit_button_text"))}
         </button>
       </div>
       
       ${bookingEnabled("show_notification_button") ? `
         <div id="notificationBtnContainer" class="hidden">
           <button class="notif-btn" id="enableNotifBtn">
-            <i class="fas fa-bell"></i> ${bookingText("notification_button_text")}
+       <i class="fas fa-bell"></i> ${escapeHtml(bookingText("notification_button_text"))}
           </button>
         </div>
       ` : ""}
@@ -815,8 +888,12 @@ async function renderStatusPage(requestData = null) {
   let bookingTime = formatTime(request.created_at);
 
   if (customerName.length > 15) {
-      customerName = customerName.substring(0, 15) + '...';
+      customerName = customerName.substring(0, 15) + '.';
   }
+
+  const safeCustomerName = escapeHtml(customerName);
+  const safeBookingCode = escapeHtml(request.booking_code || '---');
+  const safeRequestId = escapeHtml(request.id || '');
 
   window.originalQueueNumber = window.originalQueueNumber || request.original_queue_position || request.queue_position || 1;
   const originalQueueNumber = window.originalQueueNumber;
@@ -842,7 +919,7 @@ async function renderStatusPage(requestData = null) {
       .maybeSingle();
 
     if (!assignmentError && assignmentData?.dining_tables?.table_name) {
-      assignedTableName = assignmentData.dining_tables.table_name;
+      assignedTableName = escapeHtml(assignmentData.dining_tables.table_name);
     }
   }
 
@@ -886,13 +963,13 @@ if (isWaiting) {
       numberText = currentQueueNumber;
 
       if (currentQueueNumber === 2) {
-          labelText = bookingText("waiting_near_label");
+          labelText = escapeHtml(bookingText("waiting_near_label"));
           statusMessage = '';
       } else if (currentQueueNumber === 1) {
-          labelText = bookingText("waiting_next_label");
+          labelText = escapeHtml(bookingText("waiting_next_label"));
           statusMessage = '';
       } else {
-          labelText = bookingText("waiting_default_label");
+          labelText = escapeHtml(bookingText("waiting_default_label"));
           statusMessage = '';
       }
 
@@ -902,20 +979,20 @@ else if (isOffered) {
       if (remainingSeconds !== null && remainingSeconds > 0) {
           numberText = formatCountdownTime(remainingSeconds);
 
-          const tableReadyWithNumber = bookingText("table_ready_with_number_text")
+          const tableReadyWithNumber = escapeHtml(bookingText("table_ready_with_number_text"))
             .replace("{table}", `<span class="assigned-table-number">${assignedTableName}</span>`);
 
           labelText = assignedTableName
             ? `
-              <div class="turn-ready-title">${bookingText("ready_title_text")}</div>
+              <div class="turn-ready-title">${escapeHtml(bookingText("ready_title_text"))}</div>
               <div class="ready-table-line">${tableReadyWithNumber}</div>
             `
             : `
-              <div class="turn-ready-title">${bookingText("ready_title_text")}</div>
-              <div class="ready-table-line">${bookingText("table_ready_text")}</div>
+              <div class="turn-ready-title">${escapeHtml(bookingText("ready_title_text"))}</div>
+              <div class="ready-table-line">${escapeHtml(bookingText("table_ready_text"))}</div>
             `;
 
-          statusMessage = bookingText("ready_sub_text");
+          statusMessage = escapeHtml(bookingText("ready_sub_text"));
           showTimer = true;
       } else {
           numberText = '0';
@@ -926,14 +1003,14 @@ else if (isOffered) {
   }
 else if (isOccupied) {
       numberText = '🎉';
-      labelText = bookingText("occupied_title_text");
-      statusMessage = bookingText("occupied_sub_text");
+      labelText = escapeHtml(bookingText("occupied_title_text"));
+      statusMessage = escapeHtml(bookingText("occupied_sub_text"));
       showCancelButton = false;
   }
 else if (isCleaning) {
       numberText = '🙏';
-      labelText = bookingText("cleaning_title_text");
-      statusMessage = bookingText("cleaning_sub_text");
+      labelText = escapeHtml(bookingText("cleaning_title_text"));
+      statusMessage = escapeHtml(bookingText("cleaning_sub_text"));
       showCancelButton = false;
   }
   else {
@@ -983,12 +1060,12 @@ else if (isCleaning) {
       <div class="premium-waiting-card">
         <div class="premium-waiting-header">
           <span class="premium-line"></span>
-          <h2>${bookingText("status_page_title")}</h2>
+                    <h2>${escapeHtml(bookingText("status_page_title"))}</h2>
           <span class="premium-line"></span>
         </div>
         
         <div class="booking-details">
-          <span class="customer-name"><i class="fas fa-user"></i> ${customerName}</span>
+        <span class="customer-name"><i class="fas fa-user"></i> ${safeCustomerName}</span>
           <span class="separator">|</span>
           <span class="party-size"><i class="fas fa-user-friends"></i> ${partySize}</span>
           <span class="separator">|</span>
@@ -1021,24 +1098,25 @@ ${!isGuestViewOnly ? `
     <div class="booking-ref-code" style="text-align: center; margin: 10px 0;">
 
       ${bookingEnabled("share_booking_enabled") ? `
-        <div class="share-booking-hint" onclick="shareBookingViewOnly('${request.id}')">
-          <span>${bookingText("share_hint_text")}</span>
+              <div class="share-booking-hint" id="shareBookingViewOnlyBtn" data-request-id="${safeRequestId}">
+       <span>${escapeHtml(bookingText("share_hint_text"))}</span>
           <i class="fas fa-share-alt"></i>
         </div>
       ` : ""}
 
       <div style="color: #FF4444; font-weight: bold; font-size: 13px;">
-        ${bookingText("reference_label_text")}
+      ${escapeHtml(bookingText("reference_label_text"))}
         <span style="font-size: 16px; background: rgba(255,68,68,0.2); padding: 4px 12px; border-radius: 20px; display: inline-flex; align-items: center; gap: 8px;">
-          ${request.booking_code || '---'}
-          <i onclick="copyBookingCode('${request.booking_code}')" 
-             style="cursor: pointer; font-size: 12px; color: #FF8888;" 
+          ${safeBookingCode}
+          <i id="copyBookingCodeBtn"
+             data-code="${safeBookingCode}"
+             style="cursor: pointer; font-size: 12px; color: #fffefe;" 
              class="fas fa-copy"></i>
         </span>
       </div>
 
       <div style="color: #918d8d; font-size: 12px; margin-top: 8px;">
-        ${bookingText("reference_save_hint_text")}
+       ${escapeHtml(bookingText("reference_save_hint_text"))}
       </div>
 
     </div>
@@ -1046,7 +1124,7 @@ ${!isGuestViewOnly ? `
 ` : `
 <div class="guest-view-note">
   <i class="fas fa-eye"></i>
-  <span>${bookingText("guest_view_text")}</span>
+<span>${escapeHtml(bookingText("guest_view_text"))}</span>
 </div>
 `}
 <div class="premium-queue-status">
@@ -1062,21 +1140,21 @@ ${!isGuestViewOnly ? `
       isOffered
         ? bookingEnabled("cannot_attend_enabled") ? `
           <div class="cannot-attend-card" id="cannotAttendLink">
-            <div class="cannot-attend-title">${bookingText("cannot_attend_title")}</div>
+            <div class="cannot-attend-title">${escapeHtml(bookingText("cannot_attend_title"))}</div>
             <div class="cannot-attend-sub">
-              ${bookingText("cannot_attend_sub")}
+              ${escapeHtml(bookingText("cannot_attend_sub"))}
             </div>
           </div>
         ` : ""
         : bookingEnabled("cancel_waiting_enabled") ? `
           <div class="cancel-link" id="cancelBookingLink">
-            ${bookingText("cancel_waiting_text")}
+         ${escapeHtml(bookingText("cancel_waiting_text"))}
           </div>
         ` : ""
     }
   ` : `
     <div class="exit-link" id="exitBookingLink" style="text-align: center; margin: 20px auto; padding: 12px 25px; background: rgba(16,185,129,0.15); color: var(--booking-success); border-radius: 50px; cursor: pointer; font-weight: bold; font-size: 16px; width: fit-content;">
-      ${bookingText("exit_text")}
+     ${escapeHtml(bookingText("exit_text"))}
     </div>
   `}
 ` : ``}
@@ -1105,6 +1183,12 @@ ${!isGuestViewOnly ? `
   }
 
   document.getElementById('cancelBookingLink')?.addEventListener('click', cancelBooking);
+  document.getElementById('copyBookingCodeBtn')?.addEventListener('click', function () {
+    copyBookingCode(this.dataset.code || '', this);
+  });
+    document.getElementById('shareBookingViewOnlyBtn')?.addEventListener('click', function () {
+    shareBookingViewOnly(this.dataset.requestId || '');
+  });
   document.getElementById('cannotAttendLink')?.addEventListener('click', cannotAttendBooking);
   document.getElementById('exitBookingLink')?.addEventListener('click', async () => {
       await supabase
@@ -1156,7 +1240,7 @@ if (selectedCountry?.iso2 === "sa") {
   
   const submitBtn = document.getElementById('submitBookingBtn');
   submitBtn.disabled = true;
-  submitBtn.innerHTML = `<div class="spinner"></div> ${bookingText("checking_booking_text")}`;
+  submitBtn.innerHTML = `<div class="spinner"></div> ${escapeHtml(bookingText("checking_booking_text"))}`;
   
   try {
     // ✅ الخطوة 1: التحقق من وجود حجز نشط لنفس الجوال
@@ -1202,7 +1286,7 @@ return;
     }
     
     // ✅ الخطوة 2: لا يوجد حجز نشط، تابع إنشاء حجز جديد
-    submitBtn.innerHTML = `<div class="spinner"></div> ${bookingText("creating_booking_text")}`;
+  submitBtn.innerHTML = `<div class="spinner"></div> ${escapeHtml(bookingText("creating_booking_text"))}`;
     
     // استخدام RPC لإنشاء عميل
     const { data: customerId, error: customerError } = await supabase.rpc('create_customer_safe', {
@@ -1246,7 +1330,7 @@ return;
 } catch (err) {
   alert(`${bookingText("booking_failed_text")} ${err.message}`);
   submitBtn.disabled = false;
-  submitBtn.innerHTML = bookingText("submit_button_text");
+submitBtn.innerHTML = escapeHtml(bookingText("submit_button_text"));
 }
   
 }
@@ -1359,19 +1443,46 @@ function changePartySize(delta) {
   span.innerText = val;
 }
 
-function copyBookingCode(code) {
+function copyBookingCode(code, btn = null) {
   if (!code) return;
+
   navigator.clipboard.writeText(code);
-  
-  // إشعار مؤقت
-  const btn = event.target;
-  const originalClass = btn.className;
-  btn.className = 'fas fa-check';
+
+  if (btn) {
+    const originalClass = btn.className;
+    btn.className = 'fas fa-check';
+
+    setTimeout(() => {
+      btn.className = originalClass;
+    }, 1500);
+  }
+
+  const oldToast = document.getElementById('bookingCopyToast');
+  if (oldToast) oldToast.remove();
+
+  const toast = document.createElement('div');
+  toast.id = 'bookingCopyToast';
+  toast.innerText = `✅ تم نسخ الرقم المرجعي: ${code}`;
+  toast.style.cssText = `
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    background: rgba(5, 5, 5, 0.95);
+    color: #fff;
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 700;
+    z-index: 99999;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+  `;
+
+  document.body.appendChild(toast);
+
   setTimeout(() => {
-    btn.className = originalClass;
-  }, 1000);
-  
-  alert(`✅ تم نسخ الرقم المرجعي: ${code}`);
+    toast.remove();
+  }, 1800);
 }
 
 async function shareBookingViewOnly(requestId) {
@@ -1971,9 +2082,16 @@ async function startBookingPage() {
     }
 
     await getBusinessSettings();
-    await getCurrentQueueNumber();
+
+    if (showCurrentQueueConfig && !currentRequestId) {
+        await loadPublicCurrentQueueCount();
+    }
+
+    if (currentRequestId) {
+        await getCurrentQueueNumber();
+    }
+
     await renderUI();
-    
     // ✅ المكان الموحد والآمن لتشغيل منظومة المزامنة بالكامل بعد اكتمال بناء الصفحة
     if (currentRequestId) {
         setupRealtime();               // استدعاء عادي بدون await لأنها دالة عادية
