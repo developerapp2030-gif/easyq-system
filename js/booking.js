@@ -456,21 +456,25 @@ async function getCurrentQueueNumber() {
 
     if (!currentRequestId) return;
 
-    const { data: request, error } = await supabase
-        .from('table_requests')
-        .select('queue_position, status')
-        .eq('id', currentRequestId)
-        .maybeSingle()
+    const { data, error } = await supabase.rpc(
+        'easyq_public_view_booking_by_request_id_v1',
+        {
+            p_request_id: currentRequestId
+        }
+    );
 
-if (error) {
-    console.error('Queue Fetch Error:', error);
-    return;
-}
+    if (error) {
+        console.error('Queue Fetch Error:', error);
+        return;
+    }
 
-if (!request) return;
+    const request = data?.booking;
 
-currentQueueNumber =
-    request?.queue_position || '--';
+
+    if (!data?.success || !request) return;
+
+    currentQueueNumber =
+        request?.queue_position ?? '--';
 
     const queueEl =
         document.getElementById('liveQueueNumber');
@@ -504,14 +508,16 @@ async function renderUI() {
     const hasActiveBooking = currentRequestId && sessionStorage.getItem('booking_cancelled') !== 'true';
     
     if (hasActiveBooking) {
-        // جلب البيانات كاملة (*) لضمان عدم حدوث تضارب في الاسم
-        const { data: request, error } = await supabase
-            .from('table_requests')
-            .select('*')
-            .eq('id', currentRequestId)
-            .maybeSingle();
+        const { data, error } = await supabase.rpc(
+            'easyq_public_view_booking_by_request_id_v1',
+            {
+                p_request_id: currentRequestId
+            }
+        );
 
-        if (error || !request) {
+        const request = data?.booking || null;
+
+        if (error || !data?.success || !request) {
             console.log('❌ Booking not found, clearing localStorage');
             localStorage.removeItem('current_booking_id');
             currentRequestId = null;
@@ -527,11 +533,42 @@ async function renderUI() {
             return;
         }
         
-        // تمرير كائن الطلب كاملاً لمنع ظهور كلمة "ضيف"
         await renderStatusPage(request);
     } else {
         await renderBookingForm();
     }
+}
+
+function getEasyQPoweredByHtml() {
+  const easyQBrandLink = "https://easyq-system.vercel.app";
+
+  const easyTextColor = "#FFFFFF";
+  const qTextColor = "#033ec6";
+  const dashTextColor = "rgba(255,255,255,0.55)";
+  const sloganTextColor = "#FFFFFF";
+
+  const brandFontSize = "14px";
+  const qFontSize = "14px";
+  const sloganFontSize = "11px";
+
+  return `
+    <a
+      href="${easyQBrandLink}"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="easyq-powered-link"
+    >
+      <span class="easyq-powered-brand" style="font-size:${brandFontSize};">
+        <span style="color:${easyTextColor};">EASY</span><span style="color:${qTextColor}; font-size:${qFontSize};">Q</span>
+      </span>
+
+      <span class="easyq-powered-separator" style="color:${dashTextColor};">—</span>
+
+      <span class="easyq-powered-slogan" style="color:${sloganTextColor}; font-size:${sloganFontSize};">
+        نظام الطوابير وإدارة الطاولات باحترافية
+      </span>
+    </a>
+  `;
 }
 
 function getBookingBusinessHeaderHtml() {
@@ -667,13 +704,15 @@ async function renderBookingForm() {
         </button>
       </div>
       
-            ${bookingEnabled("show_notification_button") ? `
+      ${bookingEnabled("show_notification_button") ? `
         <div id="notificationBtnContainer" class="hidden">
           <button class="notif-btn" id="enableNotifBtn">
             <i class="fas fa-bell"></i> ${bookingText("notification_button_text")}
           </button>
         </div>
       ` : ""}
+
+      ${getEasyQPoweredByHtml()}
     </div>
   `;
   
@@ -746,14 +785,17 @@ async function renderStatusPage(requestData = null) {
   let request = requestData;
 
   if (!request) {
-    const { data, error } = await supabase
-      .from('table_requests')
-      .select('*')
-      .eq('id', currentRequestId)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc(
+      'easyq_public_view_booking_by_request_id_v1',
+      {
+        p_request_id: currentRequestId
+      }
+    );
 
-    if (error || !data) return;
-    request = data;
+    if (error || !data?.success || !data?.booking) return;
+
+    request = data.booking;
+
     if (!hasInitialStatusLoaded) hasInitialStatusLoaded = true;
   }
 
@@ -1038,6 +1080,8 @@ ${!isGuestViewOnly ? `
     </div>
   `}
 ` : ``}
+
+      ${getEasyQPoweredByHtml()}
     </div>
   `;
 
@@ -1135,14 +1179,21 @@ if (selectedCountry?.iso2 === "sa") {
       sessionStorage.setItem('booking_cancelled', 'false');
       sessionStorage.setItem('current_booking_id', currentRequestId);
       
-      // جلب بيانات الطلب كاملة لعرضها
-      const { data: existingRequest } = await supabase
-        .from('table_requests')
-        .select('*')
-        .eq('id', currentRequestId)
-        .single();
+      // جلب بيانات الحجز النشط من RPC الآمنة بدل القراءة المباشرة من table_requests
+      const { data: existingBookingData, error: existingBookingError } = await supabase.rpc(
+        'easyq_public_view_booking_by_request_id_v1',
+        {
+          p_request_id: currentRequestId
+        }
+      );
+
+      const existingRequest = existingBookingData?.booking || null;
+
+      if (existingBookingError || !existingBookingData?.success || !existingRequest) {
+        throw new Error('تعذر استعادة الحجز النشط');
+      }
       
-      alert(`⚠️ لديك حجز نشط بالفعل!\nرقمك في الانتظار: ${activeCheck.queue_position}\nسيتم استعادة الحجز الحالي.`);
+      alert(`⚠️ لديك حجز نشط بالفعل!\nرقمك في الانتظار: ${existingRequest.queue_position}\nسيتم استعادة الحجز الحالي.`);
       
 await renderStatusPage(existingRequest);
 setupRealtime();
@@ -1452,16 +1503,18 @@ function startCustomerSafetyPolling() {
             isSafetyRefreshRunning = true;
 
             try {
-                // ✅ تم تصحيح الأعمدة وحذف العمود غير الموجود customer_name
-                const { data: request, error } = await supabase
-                    .from('table_requests')
-                    .select('id,status,queue_position,original_queue_position,booking_code,requested_party_size,created_at,customer_id,customer_name_snapshot,customer_phone_snapshot')
-                    .eq('id', currentRequestId)
-                    .maybeSingle();
+                const { data, error } = await supabase.rpc(
+                    'easyq_public_view_booking_by_request_id_v1',
+                    {
+                        p_request_id: currentRequestId
+                    }
+                );
+
+                const request = data?.booking || null;
                 
                 if (error) throw error;
                 
-                if (!request) {
+                if (!data?.success || !request) {
                     console.log('⚠️ لم يتم العثور على الحجز في السيرفر، إنهاء الجلسة والعودة للنموذج');
                     if (realtimeChannel) supabase.removeChannel(realtimeChannel);
                     stopCustomerSafetyPolling();
@@ -1551,16 +1604,18 @@ async function safeRefreshCustomerStatus(reason = 'unknown') {
     console.log(`🔄 تحديث فوري لحالة العميل بسبب: [${reason}]`);
     
     try {
-        // ✅ تم تصحيح الأعمدة وحذف العمود غير الموجود customer_name
-        const { data: request, error } = await supabase
-            .from('table_requests')
-            .select('id,status,queue_position,original_queue_position,booking_code,requested_party_size,created_at,customer_id,customer_name_snapshot,customer_phone_snapshot')
-            .eq('id', currentRequestId)
-            .maybeSingle();
+        const { data, error } = await supabase.rpc(
+            'easyq_public_view_booking_by_request_id_v1',
+            {
+                p_request_id: currentRequestId
+            }
+        );
+
+        const request = data?.booking || null;
 
         if (error) throw error;
 
-        if (request) {
+        if (data?.success && request) {
             await renderStatusPage(request);
             lastRealtimePulse = Date.now();
             silentReconnectAttempts = 0;
@@ -1850,15 +1905,22 @@ async function startBookingPage() {
 
         await getBusinessSettings();
 
-        const { data: request, error } = await supabase
-            .from('table_requests')
-            .select('*')
-            .eq('id', currentRequestId)
-            .in('status', ['waiting', 'offered', 'occupied', 'cleaning', 'completed'])
-            .maybeSingle();
+        const { data, error } = await supabase.rpc(
+            'easyq_public_view_booking_by_request_id_v1',
+            {
+                p_request_id: currentRequestId
+            }
+        );
 
-        if (error || !request) {
-            console.error('❌ لم يتم العثور على الحجز المشترك:', error);
+        const request = data?.booking;
+
+        if (
+            error ||
+            !data?.success ||
+            !request ||
+            !['waiting', 'offered', 'occupied', 'cleaning', 'completed'].includes(request.status)
+        ) {
+            console.error('❌ لم يتم العثور على الحجز المشترك:', error || data);
             await renderBookingForm();
             return;
         }
@@ -1885,15 +1947,16 @@ async function startBookingPage() {
     if (bookingCode && !currentRequestId) {
         console.log('🔍 محاولة استعادة حجز عبر QR Code:', bookingCode);
         
-        // جلب الطلب باستخدام booking_code
-        const { data: request, error } = await supabase
-            .from('table_requests')
-            .select('*')
-            .eq('booking_code', bookingCode)
-            .in('status', ['waiting', 'offered', 'occupied'])
-            .maybeSingle();
+        const { data, error } = await supabase.rpc(
+            'easyq_public_view_booking_by_code_v1',
+            {
+                p_booking_code: bookingCode
+            }
+        );
+
+        const request = data?.booking || null;
         
-if (request && !error) {
+        if (!error && data?.success && request) {
             currentRequestId = request.id;
             currentQueueNumber = request.queue_position;
             localStorage.setItem('current_booking_id', currentRequestId);
