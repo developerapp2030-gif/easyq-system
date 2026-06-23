@@ -759,7 +759,18 @@ async function loadFloorPlan() {
 }
 
 async function loadActiveSettings() {
-  const businessId = currentUser?.business_id || BUSINESS_ID;
+  const businessId =
+    currentUser?.business_id ||
+    (typeof BUSINESS_ID !== 'undefined' ? BUSINESS_ID : null);
+
+  if (
+    !businessId ||
+    currentUser?.role === 'super_admin' ||
+    document.body.classList.contains('super-admin-mode')
+  ) {
+    return;
+  }
+
   try {
     const { data: floors } = await supabase
       .from('restaurant_settings')
@@ -767,17 +778,19 @@ async function loadActiveSettings() {
       .eq('business_id', businessId)
       .eq('setting_key', 'active_floors')
       .maybeSingle();
+
     if (floors?.setting_value) {
       globalActiveFloors = JSON.parse(floors.setting_value);
       localStorage.setItem('easyq_floors', JSON.stringify(globalActiveFloors));
     }
-    
+
     const { data: zones } = await supabase
       .from('restaurant_settings')
       .select('setting_value')
       .eq('business_id', businessId)
       .eq('setting_key', 'active_zones')
       .maybeSingle();
+
     if (zones?.setting_value) {
       globalActiveZones = JSON.parse(zones.setting_value);
       localStorage.setItem('easyq_zones', JSON.stringify(globalActiveZones));
@@ -1581,7 +1594,20 @@ function selectFloor(floorId, floorLabel) {
 }
 
 async function getActiveZones() {
-  const businessId = currentUser?.business_id || BUSINESS_ID;
+  const defaultZones = ['Indoor', 'Outdoor', 'VIP', 'Family', 'Smoking'];
+
+  const businessId =
+    currentUser?.business_id ||
+    (typeof BUSINESS_ID !== 'undefined' ? BUSINESS_ID : null);
+
+  if (
+    !businessId ||
+    currentUser?.role === 'super_admin' ||
+    document.body.classList.contains('super-admin-mode')
+  ) {
+    return defaultZones;
+  }
+
   try {
     const { data, error } = await supabase
       .from('restaurant_settings')
@@ -1589,23 +1615,42 @@ async function getActiveZones() {
       .eq('business_id', businessId)
       .eq('setting_key', 'active_zones')
       .maybeSingle();
+
     if (!error && data?.setting_value) {
       const parsed = JSON.parse(data.setting_value);
       localStorage.setItem('easyq_zones', JSON.stringify(parsed));
       return parsed;
     }
-  } catch (e) { console.warn(e); }
+  } catch (e) {
+    console.warn(e);
+  }
+
   const saved = localStorage.getItem('easyq_zones');
+
   if (saved) {
     try {
       return JSON.parse(saved);
     } catch (e) {}
   }
-  return ['Indoor', 'Outdoor', 'VIP', 'Family', 'Smoking'];
+
+  return defaultZones;
 }
 
 async function getActiveFloors() {
-  const businessId = currentUser?.business_id || BUSINESS_ID;
+  const defaultFloors = ['1', '2', '3'];
+
+  const businessId =
+    currentUser?.business_id ||
+    (typeof BUSINESS_ID !== 'undefined' ? BUSINESS_ID : null);
+
+  if (
+    !businessId ||
+    currentUser?.role === 'super_admin' ||
+    document.body.classList.contains('super-admin-mode')
+  ) {
+    return defaultFloors;
+  }
+
   try {
     const { data, error } = await supabase
       .from('restaurant_settings')
@@ -1613,19 +1658,25 @@ async function getActiveFloors() {
       .eq('business_id', businessId)
       .eq('setting_key', 'active_floors')
       .maybeSingle();
+
     if (!error && data?.setting_value) {
       const parsed = JSON.parse(data.setting_value);
       localStorage.setItem('easyq_floors', JSON.stringify(parsed));
       return parsed;
     }
-  } catch (e) { console.warn(e); }
+  } catch (e) {
+    console.warn(e);
+  }
+
   const saved = localStorage.getItem('easyq_floors');
+
   if (saved) {
     try {
       return JSON.parse(saved);
     } catch (e) {}
   }
-  return ['1', '2', '3'];
+
+  return defaultFloors;
 }
 
 async function updateZoneDropdowns() {

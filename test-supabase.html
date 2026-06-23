@@ -1,39 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>Test Supabase Connection</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EASY-Q</title>
+
+  <script>
+    window.location.replace('/index.html');
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: Arial, sans-serif;
+      background: #F8FAFC;
+      color: #0E146D;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .box {
+      background: #FFFFFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 18px;
+      padding: 24px;
+      max-width: 420px;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+    }
+
+    a {
+      color: #0E146D;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-    <h1>اختبار اتصال Supabase</h1>
-    <pre id="result">جاري الاختبار...</pre>
-
-    <script>
-        (async function testConnection() {
-            const SUPABASE_URL = 'https://zjdfadkonftkgljvzxoy.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqZGZhZGtvbmZ0a2dsanZ6eG95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3NTQ3NTQsImV4cCI6MjA4ODMzMDc1NH0.XZaHGtz3PdBh08m2P9ZM7Xsg3tCG4nskzsoc3wPT-_Q';
-            
-            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            
-            document.getElementById('result').innerHTML = '✅ supabase client created\nجاري اختبار الاتصال...';
-            
-            try {
-                // اختبار قراءة من جدول restaurant_settings
-                const { data, error } = await supabase
-                    .from('restaurant_settings')
-                    .select('*')
-                    .limit(1);
-                
-                if (error) {
-                    document.getElementById('result').innerHTML = '❌ خطأ: ' + error.message;
-                } else {
-                    document.getElementById('result').innerHTML = '✅ نجاح! الاتصال يعمل.\nالبيانات: ' + JSON.stringify(data, null, 2);
-                }
-            } catch (err) {
-                document.getElementById('result').innerHTML = '❌ استثناء: ' + err.message;
-            }
-        })();
-    </script>
+  <div class="box">
+    <h2>هذه الصفحة غير متاحة</h2>
+    <p>تم تعطيل صفحة الاختبار في بيئة الإنتاج.</p>
+    <p>
+      <a href="/index.html">العودة إلى لوحة التحكم</a>
+    </p>
+  </div>
 </body>
 </html>

@@ -7,107 +7,164 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function jsonResponse(status: number, body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  try {
-    if (req.method !== "POST") {
-      return new Response(
-        JSON.stringify({ success: false, message: "Method not allowed" }),
-        { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+  if (req.method !== "POST") {
+    return jsonResponse(405, {
+      success: false,
+      message: "Method not allowed",
+    });
+  }
 
+  try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !anonKey || !serviceRoleKey) {
-      throw new Error("Missing Supabase environment variables");
+    if (!supabaseUrl || !serviceRoleKey) {
+      return jsonResponse(500, {
+        success: false,
+        message: "إعدادات السيرفر غير مكتملة",
+      });
     }
 
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "").trim();
 
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, message: "Missing Authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!token) {
+      return jsonResponse(401, {
+        success: false,
+        message: "غير مصرح",
+      });
     }
-
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     const {
-      data: { user },
+      data: { user: authUser },
       error: authError,
-    } = await userClient.auth.getUser();
+    } = await adminClient.auth.getUser(token);
 
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ success: false, message: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (authError || !authUser) {
+      return jsonResponse(401, {
+        success: false,
+        message: "جلسة المستخدم غير صالحة",
+      });
     }
 
-    const { user_id } = await req.json();
+    const body = await req.json().catch(() => null);
 
-    if (!user_id) {
-      return new Response(
-        JSON.stringify({ success: false, message: "user_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!body || typeof body !== "object") {
+      return jsonResponse(400, {
+        success: false,
+        message: "صيغة الطلب غير صحيحة",
+      });
+    }
+
+    const userId = String(body.user_id || "").trim();
+
+    if (!userId) {
+      return jsonResponse(400, {
+        success: false,
+        message: "معرف الموظف مطلوب",
+      });
     }
 
     const { data: requester, error: requesterError } = await adminClient
       .from("app_users")
-      .select("id, role, business_id, is_active")
-      .eq("auth_id", user.id)
-      .single();
+      .select("id, role, business_id, is_active, username, display_name")
+      .eq("auth_id", authUser.id)
+      .maybeSingle();
 
     if (requesterError || !requester) {
-      throw new Error("Requester user not found");
+      return jsonResponse(403, {
+        success: false,
+        message: "غير مصرح",
+      });
     }
 
-    if (requester.role !== "admin" || requester.is_active !== true) {
-      return new Response(
-        JSON.stringify({ success: false, message: "ليس لديك صلاحية لحذف الموظفين" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (requester.is_active !== true) {
+      return jsonResponse(403, {
+        success: false,
+        message: "حسابك غير نشط",
+      });
     }
 
-    if (requester.id === user_id) {
-      return new Response(
-        JSON.stringify({ success: false, message: "لا يمكنك حذف حسابك الحالي" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (requester.role !== "admin") {
+      return jsonResponse(403, {
+        success: false,
+        message: "ليس لديك صلاحية حذف الموظفين",
+      });
+    }
+
+    if (!requester.business_id) {
+      return jsonResponse(403, {
+        success: false,
+        message: "لا يمكن تحديد المطعم للمستخدم الحالي",
+      });
+    }
+
+    if (requester.id === userId) {
+      return jsonResponse(400, {
+        success: false,
+        message: "لا يمكنك حذف حسابك الحالي",
+      });
     }
 
     const { data: targetUser, error: targetError } = await adminClient
       .from("app_users")
-      .select("id, username, display_name, role, business_id, auth_id")
-      .eq("id", user_id)
+      .select("id, username, display_name, role, business_id, auth_id, is_active")
+      .eq("id", userId)
       .eq("business_id", requester.business_id)
-      .single();
+      .maybeSingle();
 
     if (targetError || !targetUser) {
-      throw new Error("الموظف غير موجود أو لا يتبع نفس المطعم");
+      return jsonResponse(404, {
+        success: false,
+        message: "الموظف غير موجود أو لا يتبع هذا المطعم",
+      });
     }
 
     if (!["manager", "staff"].includes(targetUser.role)) {
-      return new Response(
-        JSON.stringify({ success: false, message: "يمكن حذف المشرف أو الموظف فقط" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      return jsonResponse(403, {
+        success: false,
+        message: "يمكن حذف المدير التشغيلي أو الموظف فقط",
+      });
+    }
+
+    const deletedUserSnapshot = {
+      id: targetUser.id,
+      username: targetUser.username,
+      display_name: targetUser.display_name,
+      role: targetUser.role,
+      auth_id: targetUser.auth_id,
+    };
+
+    if (targetUser.auth_id) {
+      const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(
+        targetUser.auth_id
       );
+
+      if (deleteAuthError) {
+        console.error("delete-user auth delete error:", deleteAuthError);
+
+        return jsonResponse(500, {
+          success: false,
+          message: "فشل حذف حساب الدخول المرتبط بالموظف",
+        });
+      }
     }
 
     const { error: deleteAppUserError } = await adminClient
@@ -117,41 +174,58 @@ serve(async (req) => {
       .eq("business_id", requester.business_id);
 
     if (deleteAppUserError) {
-      throw deleteAppUserError;
+      console.error("delete-user app_users delete error:", deleteAppUserError);
+
+      return jsonResponse(500, {
+        success: false,
+        message: "تم حذف حساب الدخول، لكن فشل حذف سجل الموظف من قاعدة البيانات. راجع الدعم.",
+      });
     }
 
-    if (targetUser.auth_id) {
-      const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(
-        targetUser.auth_id
-      );
+    await adminClient
+      .from("business_activity_logs")
+      .insert({
+        business_id: requester.business_id,
 
-      if (deleteAuthError) {
-        throw deleteAuthError;
-      }
-    }
+        actor_user_id: requester.id,
+        actor_display_name: requester.display_name || requester.username || "مستخدم",
+        actor_role: requester.role,
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "تم حذف الموظف بالكامل",
-        deleted_user: {
-          id: targetUser.id,
-          username: targetUser.username,
-          display_name: targetUser.display_name,
+        action_key: "user_deleted",
+        action_label: "حذف موظف",
+
+        target_type: "app_user",
+        target_id: deletedUserSnapshot.id,
+        target_label:
+          deletedUserSnapshot.display_name ||
+          deletedUserSnapshot.username ||
+          "موظف",
+
+        details: {
+          username: deletedUserSnapshot.username || "",
+          display_name: deletedUserSnapshot.display_name || "",
+          role: deletedUserSnapshot.role || "",
+          auth_deleted: Boolean(deletedUserSnapshot.auth_id),
         },
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      });
+
+    return jsonResponse(200, {
+      success: true,
+      message: "تم حذف الموظف بالكامل",
+      deleted_user: {
+        id: deletedUserSnapshot.id,
+        username: deletedUserSnapshot.username,
+        display_name: deletedUserSnapshot.display_name,
+        role: deletedUserSnapshot.role,
+      },
+    });
 
   } catch (error) {
     console.error("delete-user error:", error);
 
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: error?.message || "فشل حذف الموظف",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse(500, {
+      success: false,
+      message: "فشل حذف الموظف",
+    });
   }
 });

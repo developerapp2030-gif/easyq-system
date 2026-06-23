@@ -446,21 +446,76 @@ async function checkReservationTimers() {
 // ============================================================
 
 async function restoreExpiredBooking(reqId) {
-  const { error } = await supabase
-    .from("table_requests")
-    .update({ 
-      status: "waiting", 
-      request_source: "restored", 
-      created_at: new Date().toISOString(), 
-      expired_at: null 
-    })
-    .eq("id", reqId);
-  if (error) {
-    console.log(error);
-    alert("Restore failed");
+  if (!reqId) return;
+
+  window.easyqRestoringExpiredBookings = window.easyqRestoringExpiredBookings || new Set();
+
+  if (window.easyqRestoringExpiredBookings.has(reqId)) {
     return;
   }
-  await loadAll();
+
+  window.easyqRestoringExpiredBookings.add(reqId);
+
+  const clickedBtn =
+    window.event?.currentTarget ||
+    window.event?.target?.closest?.("button") ||
+    null;
+
+  const oldBtnHtml = clickedBtn ? clickedBtn.innerHTML : "";
+  const oldBtnOpacity = clickedBtn ? clickedBtn.style.opacity : "";
+  const oldBtnCursor = clickedBtn ? clickedBtn.style.cursor : "";
+
+  if (clickedBtn) {
+    clickedBtn.disabled = true;
+    clickedBtn.style.opacity = "0.65";
+    clickedBtn.style.cursor = "not-allowed";
+    clickedBtn.innerHTML = `
+      <i class="fas fa-spinner fa-spin"></i>
+      ${currentLang === "ar" ? "جاري الاسترجاع..." : "Restoring..."}
+    `;
+  }
+
+  try {
+    const { error } = await supabase
+      .from("table_requests")
+      .update({
+        status: "waiting",
+        request_source: "restored",
+        created_at: new Date().toISOString(),
+        expired_at: null
+      })
+      .eq("id", reqId);
+
+    if (error) {
+      console.log(error);
+      alert(currentLang === "ar" ? "فشل استرجاع الحجز" : "Restore failed");
+
+      if (clickedBtn) {
+        clickedBtn.disabled = false;
+        clickedBtn.style.opacity = oldBtnOpacity;
+        clickedBtn.style.cursor = oldBtnCursor;
+        clickedBtn.innerHTML = oldBtnHtml;
+      }
+
+      return;
+    }
+
+    await loadAll();
+
+  } catch (err) {
+    console.error("Restore expired booking error:", err);
+    alert(currentLang === "ar" ? "حدث خطأ أثناء استرجاع الحجز" : "Restore failed");
+
+    if (clickedBtn) {
+      clickedBtn.disabled = false;
+      clickedBtn.style.opacity = oldBtnOpacity;
+      clickedBtn.style.cursor = oldBtnCursor;
+      clickedBtn.innerHTML = oldBtnHtml;
+    }
+
+  } finally {
+    window.easyqRestoringExpiredBookings.delete(reqId);
+  }
 }
 
 // ============================================================

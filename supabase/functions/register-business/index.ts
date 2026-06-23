@@ -8,16 +8,13 @@ const corsHeaders = {
 }
 
 function jsonResponse(body: Record<string, unknown>, status = 200) {
-  return new Response(
-    JSON.stringify(body),
-    {
-      status,
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-      },
-    }
-  )
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+    },
+  })
 }
 
 function getErrorMessage(error: unknown) {
@@ -43,6 +40,134 @@ function normalizeAuthErrorMessage(message: string) {
   return message
 }
 
+function getClientIp(req: Request) {
+  const cfIp = req.headers.get('cf-connecting-ip')
+  if (cfIp) return cfIp.trim()
+
+  const forwarded = req.headers.get('x-forwarded-for')
+  if (forwarded) return forwarded.split(',')[0].trim()
+
+  const realIp = req.headers.get('x-real-ip')
+  if (realIp) return realIp.trim()
+
+  return 'unknown'
+}
+
+async function logRegistrationAttempt(
+  supabaseAdmin: ReturnType<typeof createClient> | null,
+  payload: {
+    email: string
+    phone: string
+    ip_address: string
+    success: boolean
+    failure_reason: string | null
+  }
+) {
+  if (!supabaseAdmin) return
+
+  try {
+    await supabaseAdmin
+      .from('registration_attempts')
+      .insert({
+        email: payload.email || null,
+        phone: payload.phone || null,
+        ip_address: payload.ip_address || 'unknown',
+        success: payload.success,
+        failure_reason: payload.failure_reason,
+      })
+  } catch (logError) {
+    console.error('registration attempt log failed:', logError)
+  }
+}
+
+async function countRegistrationAttempts(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  column: 'email' | 'phone' | 'ip_address',
+  value: string,
+  sinceIso: string,
+  successOnly = false
+) {
+  let query = supabaseAdmin
+    .from('registration_attempts')
+    .select('id', { count: 'exact', head: true })
+    .eq(column, value)
+    .gte('created_at', sinceIso)
+
+  if (successOnly) {
+    query = query.eq('success', true)
+  }
+
+  const { count, error } = await query
+
+  if (error) {
+    console.error('registration attempts count failed:', error)
+    return 0
+  }
+
+  return count || 0
+}
+
+async function enforceRegistrationRateLimit(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  params: {
+    email: string
+    phone: string
+    ip_address: string
+  }
+) {
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+
+  const emailAttempts = await countRegistrationAttempts(
+    supabaseAdmin,
+    'email',
+    params.email,
+    oneHourAgo
+  )
+
+  if (emailAttempts >= 5) {
+    return 'تم تسجيل محاولات كثيرة على هذا البريد خلال وقت قصير. حاول لاحقًا.'
+  }
+
+  const phoneAttempts = await countRegistrationAttempts(
+    supabaseAdmin,
+    'phone',
+    params.phone,
+    oneHourAgo
+  )
+
+  if (phoneAttempts >= 5) {
+    return 'تم تسجيل محاولات كثيرة على هذا الرقم خلال وقت قصير. حاول لاحقًا.'
+  }
+
+  if (params.ip_address && params.ip_address !== 'unknown') {
+    const ipAttempts = await countRegistrationAttempts(
+      supabaseAdmin,
+      'ip_address',
+      params.ip_address,
+      oneHourAgo
+    )
+
+    if (ipAttempts >= 10) {
+      return 'تم تسجيل محاولات كثيرة من نفس الاتصال خلال وقت قصير. حاول لاحقًا.'
+    }
+
+    const ipSuccessfulRegistrations = await countRegistrationAttempts(
+      supabaseAdmin,
+      'ip_address',
+      params.ip_address,
+      oneDayAgo,
+      true
+    )
+
+    if (ipSuccessfulRegistrations >= 5) {
+      return 'تم إنشاء عدة حسابات من نفس الاتصال خلال اليوم. تواصل مع الدعم لإكمال التسجيل.'
+    }
+  }
+
+  return null
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -63,6 +188,10 @@ serve(async (req) => {
   let createdAuthUserId: string | null = null
   let createdBusinessId: string | null = null
 
+  let email = ''
+  let phone = ''
+  let ipAddress = getClientIp(req)
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     const serviceRoleKey =
@@ -82,16 +211,42 @@ serve(async (req) => {
 
     supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
 
-    const body = await req.json()
+    const body = await req.json().catch(() => null)
 
-    const email = String(body.email || '').trim().toLowerCase()
+    if (!body || typeof body !== 'object') {
+      await logRegistrationAttempt(supabaseAdmin, {
+        email,
+        phone,
+        ip_address: ipAddress,
+        success: false,
+        failure_reason: 'invalid_json_body',
+      })
+
+      return jsonResponse(
+        {
+          success: false,
+          message: 'صيغة الطلب غير صحيحة',
+        },
+        400
+      )
+    }
+
+    email = String(body.email || '').trim().toLowerCase()
     const password = String(body.password || '').trim()
     const business_name = String(body.business_name || '').trim()
-    const phone = String(body.phone || '').trim()
+    phone = String(body.phone || '').trim()
     const city = String(body.city || '').trim()
     const display_name = String(body.display_name || '').trim()
 
     if (!email || !password || !business_name || !display_name || !phone || !city) {
+      await logRegistrationAttempt(supabaseAdmin, {
+        email,
+        phone,
+        ip_address: ipAddress,
+        success: false,
+        failure_reason: 'missing_required_fields',
+      })
+
       return jsonResponse(
         {
           success: false,
@@ -102,6 +257,14 @@ serve(async (req) => {
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      await logRegistrationAttempt(supabaseAdmin, {
+        email,
+        phone,
+        ip_address: ipAddress,
+        success: false,
+        failure_reason: 'invalid_email',
+      })
+
       return jsonResponse(
         {
           success: false,
@@ -111,17 +274,15 @@ serve(async (req) => {
       )
     }
 
-    if (password.length < 8) {
-      return jsonResponse(
-        {
-          success: false,
-          message: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
-        },
-        400
-      )
-    }
-
     if (!/^05\d{8}$/.test(phone)) {
+      await logRegistrationAttempt(supabaseAdmin, {
+        email,
+        phone,
+        ip_address: ipAddress,
+        success: false,
+        failure_reason: 'invalid_phone',
+      })
+
       return jsonResponse(
         {
           success: false,
@@ -131,7 +292,48 @@ serve(async (req) => {
       )
     }
 
-    // 1. إنشاء مستخدم في Supabase Auth
+    const rateLimitMessage = await enforceRegistrationRateLimit(supabaseAdmin, {
+      email,
+      phone,
+      ip_address: ipAddress,
+    })
+
+    if (rateLimitMessage) {
+      await logRegistrationAttempt(supabaseAdmin, {
+        email,
+        phone,
+        ip_address: ipAddress,
+        success: false,
+        failure_reason: 'rate_limited',
+      })
+
+      return jsonResponse(
+        {
+          success: false,
+          message: rateLimitMessage,
+        },
+        429
+      )
+    }
+
+    if (password.length < 8) {
+      await logRegistrationAttempt(supabaseAdmin, {
+        email,
+        phone,
+        ip_address: ipAddress,
+        success: false,
+        failure_reason: 'weak_password',
+      })
+
+      return jsonResponse(
+        {
+          success: false,
+          message: 'كلمة المرور يجب أن تكون 8 أحرف على الأقل',
+        },
+        400
+      )
+    }
+
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
@@ -151,7 +353,6 @@ serve(async (req) => {
 
     createdAuthUserId = authUser.user.id
 
-    // 2. إنشاء سجل في جدول businesses
     const { data: business, error: businessError } = await supabaseAdmin
       .from('businesses')
       .insert({
@@ -171,9 +372,6 @@ serve(async (req) => {
 
     createdBusinessId = business.id
 
-    // 3. إنشاء ترخيص تجريبي قبل app_users
-    // مهم جدًا: Trigger حدود المستخدمين على app_users يفحص وجود ترخيص للمطعم.
-    // لذلك يجب إنشاء الترخيص قبل إنشاء مدير المطعم في app_users.
     const { error: licenseError } = await supabaseAdmin
       .from('licenses')
       .insert({
@@ -194,7 +392,6 @@ serve(async (req) => {
 
     if (licenseError) throw licenseError
 
-    // 4. إنشاء سجل في app_users (مدير المطعم)
     const { error: userError } = await supabaseAdmin
       .from('app_users')
       .insert({
@@ -208,7 +405,6 @@ serve(async (req) => {
 
     if (userError) throw userError
 
-    // 5. إنشاء إعدادات افتراضية للمطعم
     const { error: settingsError } = await supabaseAdmin
       .from('business_settings')
       .insert({
@@ -226,6 +422,14 @@ serve(async (req) => {
       })
 
     if (settingsError) throw settingsError
+
+    await logRegistrationAttempt(supabaseAdmin, {
+      email,
+      phone,
+      ip_address: ipAddress,
+      success: true,
+      failure_reason: null,
+    })
 
     return jsonResponse(
       {
@@ -245,7 +449,6 @@ serve(async (req) => {
       createdBusinessId,
     })
 
-    // تنظيف آمن عند الفشل حتى لا يبقى مطعم بدون ترخيص أو مستخدم بدون اكتمال التسجيل
     if (supabaseAdmin && createdBusinessId) {
       try {
         await supabaseAdmin
@@ -279,6 +482,14 @@ serve(async (req) => {
         console.error('register-business auth cleanup failed:', cleanupAuthError)
       }
     }
+
+    await logRegistrationAttempt(supabaseAdmin, {
+      email,
+      phone,
+      ip_address: ipAddress,
+      success: false,
+      failure_reason: message,
+    })
 
     return jsonResponse(
       {

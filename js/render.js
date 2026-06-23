@@ -2,6 +2,33 @@
 // RENDER STATUS SUMMARY
 // ============================================================
 
+function renderEscapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderSafeImageUrl(value) {
+  const rawUrl = String(value ?? "").trim();
+
+  if (!rawUrl) return "";
+
+  try {
+    const parsedUrl = new URL(rawUrl, window.location.origin);
+
+    if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+      return "";
+    }
+
+    return parsedUrl.href;
+  } catch (err) {
+    return "";
+  }
+}
+
 function renderStatusSummary() {
   const data = floorData.filter(table => 
     globalActiveFloors.includes(String(table.floor_number)) && 
@@ -124,7 +151,7 @@ container.style.cssText = `
   overflow: visible;
 `;
 
-const businessLogoUrl = window.currentBusinessProfile?.logo_url;
+const businessLogoUrl = renderSafeImageUrl(window.currentBusinessProfile?.logo_url);
 
 if (businessLogoUrl) {
   const watermark = document.createElement("div");
@@ -177,7 +204,8 @@ card.style.top = top + 'px';
       };
     }
     
-    const status = table.status || "available";
+   const allowedTableStatuses = ["available", "reserved", "occupied", "cleaning", "disabled", "pending"];
+    const status = allowedTableStatuses.includes(table.status) ? table.status : "available";
     
     // استعادة ذكية لبيانات العميل المفقودة للطاولات المشغولة من الكاش المحلي للمتصفح
     if (status === "occupied") {
@@ -198,13 +226,21 @@ card.style.top = top + 'px';
       ? "table-info-busy"
       : "table-info-free";
     
+const safeTableName = renderEscapeHtml(table.table_name || "");
+const safeTableId = renderEscapeHtml(table.id || "");
+const safeCustomerName = renderEscapeHtml(
+  table.customer_name
+    ? String(table.customer_name).substring(0, 12)
+    : ""
+);
+
 const seatsLabel = table.customer_name && table.requested_party_size
-  ? `${table.requested_party_size}/${table.capacity}`
-  : `${table.capacity}`;
+  ? `${renderEscapeHtml(table.requested_party_size)}/${renderEscapeHtml(table.capacity)}`
+  : `${renderEscapeHtml(table.capacity)}`;
 
 const nameHtml = `
   <span class="table-name">
-    <span class="table-title-text">${table.table_name}</span>
+    <span class="table-title-text">${safeTableName}</span>
     <span class="table-seat-label">
       <i class="fas fa-user-friends"></i> ${seatsLabel}
     </span>
@@ -236,14 +272,14 @@ const nameHtml = `
         timerHtml = `00:00`;
       }
     }
-    
+const safeTimerHtml = renderEscapeHtml(timerHtml);   
 const whatsappNotifyHtml =
   (status === "reserved" && table.customer_name && table.active_assignment_id)
     ? `
       <button
         type="button"
         class="table-whatsapp-notify ${table.whatsapp_notified ? "notified" : "pending"}"
-        onclick="event.stopPropagation(); openTableWhatsAppNotifyModal('${table.id}')"
+        data-table-id="${safeTableId}"
         title="${table.whatsapp_notified ? "تم الإبلاغ عبر واتساب" : "إبلاغ العميل عبر واتساب"}"
       >
         <i class="fab fa-whatsapp"></i>
@@ -262,14 +298,16 @@ card.innerHTML = `
       ${nameHtml}
     </div>
 
-    ${table.customer_name ? `<div class="table-customer">${table.customer_name.substring(0, 12)}</div>` : ""}
-
+    ${table.customer_name ? `<div class="table-customer">${safeCustomerName}</div>` : ""}
     ${table.customer_name ? `<div class="table-divider"></div>` : ""}
 
-    ${timerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${timerHtml}</div>` : ""}
+      ${safeTimerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${safeTimerHtml}</div>` : ""}
   </div>
 `;
-
+card.querySelector('.table-whatsapp-notify')?.addEventListener('click', function (event) {
+  event.stopPropagation();
+  openTableWhatsAppNotifyModal(this.dataset.tableId || '');
+});
     container.appendChild(card);
   });
 }
@@ -408,11 +446,19 @@ card.style.top = top + 'px';
       }
     };
     
-    const status = table.status || "available";
+    const allowedTableStatuses = ["available", "reserved", "occupied", "cleaning", "disabled", "pending"];
+    const status = allowedTableStatuses.includes(table.status) ? table.status : "available";
     const isBusy = (status === "reserved" || status === "occupied" || status === "cleaning");
     
-    const nameHtml = `<span class="table-name">${table.table_name}</span>`;
-    const capacityHtml = `<span class="table-capacity"><i class="fas fa-chair"></i> ${table.capacity}</span>`;
+    const safeTableName = renderEscapeHtml(table.table_name || "");
+    const safeCustomerName = renderEscapeHtml(
+      table.customer_name
+        ? String(table.customer_name).substring(0, 12)
+        : ""
+    );
+
+    const nameHtml = `<span class="table-name">${safeTableName}</span>`;
+    const capacityHtml = `<span class="table-capacity"><i class="fas fa-chair"></i> ${renderEscapeHtml(table.capacity)}</span>`;
     
 let timerHtml = "";
 
@@ -443,7 +489,8 @@ timerHtml = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '
     timerHtml = `00:00`;
   }
 }
-    
+
+const safeTimerHtml = renderEscapeHtml(timerHtml);
 card.innerHTML = `
   <div class="table-status-bar ${status}"></div>
 
@@ -458,11 +505,10 @@ card.innerHTML = `
       ${nameHtml}
     </div>
 
-    ${table.customer_name ? `<div class="table-customer">${table.customer_name.substring(0, 12)}</div>` : ""}
-
+    ${table.customer_name ? `<div class="table-customer">${safeCustomerName}</div>` : ""}
     ${table.customer_name ? `<div class="table-divider"></div>` : ""}
 
-    ${timerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${timerHtml}</div>` : ""}
+   ${safeTimerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${safeTimerHtml}</div>` : ""}
   </div>
 `;
     container.appendChild(card);
@@ -619,47 +665,59 @@ if (rawPhone) {
   const phoneStr = String(rawPhone).replace(/\D/g, "");
   phoneDisplay = phoneStr.length >= 5 ? phoneStr.slice(-5) : phoneStr;
 }
+
+const safePhoneDisplay = renderEscapeHtml(phoneDisplay);
     
 let zoneDisplayText = currentLang === 'ar' ? "بدون تفضيل" : "No Preference";
+
 if (w.zone_name && w.zone_name !== "") {
-    const zoneMap = currentLang === 'ar' ? {
-        "Indoor": "داخلي",
-        "VIP": "VIP",
-        "Smoking": "مدخنين",
-        "Family": "عائلي",
-        "Outdoor": "خارجي"
-    } : {
-        "Indoor": "Indoor",
-        "VIP": "VIP",
-        "Smoking": "Smoking",
-        "Family": "Family",
-        "Outdoor": "Outdoor"
-    };
-    zoneDisplayText = zoneMap[w.zone_name] || w.zone_name;
+  const zoneMap = currentLang === 'ar' ? {
+    "Indoor": "داخلي",
+    "VIP": "VIP",
+    "Smoking": "مدخنين",
+    "Family": "عائلي",
+    "Outdoor": "خارجي"
+  } : {
+    "Indoor": "Indoor",
+    "VIP": "VIP",
+    "Smoking": "Smoking",
+    "Family": "Family",
+    "Outdoor": "Outdoor"
+  };
+
+  zoneDisplayText = zoneMap[w.zone_name] || w.zone_name;
 }
+
+const safeZoneDisplayText = renderEscapeHtml(zoneDisplayText);
     
-    const queueNum = w.queue_position || "?";
+    const queueNum = renderEscapeHtml(w.queue_position || "?");
+    const safeWaitingPartySize = renderEscapeHtml(w.requested_party_size || 0);
 const customerNameText = String(w.customer_name || "ضيف").trim() || "ضيف";
 
-const customerNameShort = customerNameText.length > 18
-  ? customerNameText.slice(0, 18) + "..."
+const customerNameShort = customerNameText.length > 15
+  ? customerNameText.slice(0, 15)
   : customerNameText;
 
-const safeCustomerNameText = customerNameShort
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&#039;");
+const safeCustomerNameText = renderEscapeHtml(customerNameShort);
 const repeatVisitCount = Number(w.repeat_visit_count_30_days || 0);
+const safeBookingCode = renderEscapeHtml(w.booking_code || "");
+const safeQrCustomerName = renderEscapeHtml(customerNameText || "ضيف");
+const safeQueuePosition = renderEscapeHtml(w.queue_position || "?");
+const safeRequestStatus = renderEscapeHtml(w.status || "");
+const safeCustomerPhone = renderEscapeHtml(String(w.phone || w.customer_phone || w.customer_phone_snapshot || ""));
+const safeRequestId = renderEscapeHtml(w.request_id || "");
+const safeRepeatVisitCount = renderEscapeHtml(repeatVisitCount);
+const safeWaitingTimeText = renderEscapeHtml(timeSince(w.local_time || w.created_at || w.request_time));
 
 // لا نعرض الكأس داخل بطاقة الطابور حتى لا يزاحم الاسم والجوال.
 // التنبيه التفصيلي يبقى كما هو داخل مودل QR.
 const repeatCupHtml = '';
 
-const queueBadgeTitle = repeatVisitCount > 0
-  ? `زارنا ${repeatVisitCount} مرات خلال 30 يوم`
-  : 'رقم الطابور';
+const queueBadgeTitle = renderEscapeHtml(
+  repeatVisitCount > 0
+    ? `زارنا ${repeatVisitCount} مرات خلال 30 يوم`
+    : 'رقم الطابور'
+);
 
 const queueBadgeStyle = repeatVisitCount > 0
   ? `
@@ -705,14 +763,14 @@ const queueBadgeHtml = `
       sourceIcon = "fa-whatsapp";
       iconClass = "fab";
     }
-    
+    const safeSourceLabel = renderEscapeHtml(sourceLabel);
     card.innerHTML = `
       <div class="waiting-row-top">
         <div class="waiting-left-group">
-          <span class="source-badge"><i class="${iconClass} ${sourceIcon}"></i> ${sourceLabel}</span>
+           <span class="source-badge"><i class="${iconClass} ${sourceIcon}"></i> ${safeSourceLabel}</span>
                     <span class="customer-name-part" style="display:inline-flex; align-items:center; gap:4px;">
             ${repeatCupHtml}
-            <span>${safeCustomerNameText}${phoneDisplay ? ` - ${phoneDisplay}` : ""}</span>
+            <span>${safeCustomerNameText}${safePhoneDisplay ? ` - ${safePhoneDisplay}` : ""}</span>
           </span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
@@ -721,15 +779,40 @@ const queueBadgeHtml = `
       </div>
       <hr class="waiting-divider">
       <div class="waiting-row-bottom">
-        <span class="detail-item"><i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}</span>
+        <span class="detail-item"><i class="fas fa-map-marker-alt"></i> ${safeZoneDisplayText}</span>
 
-        <span class="detail-item"><i class="fas fa-user-friends"></i> ${w.requested_party_size || 0}</span>
-
-                ${w.booking_code ? `<span class="detail-item booking-code-link" onclick="event.stopPropagation(); showQRModal('${w.booking_code}', '${(w.customer_name || "ضيف").replace(/'/g, "\\'")}', '${w.queue_position || "?"}', '${w.status}', '${String(w.phone || w.customer_phone || w.customer_phone_snapshot || "").replace(/'/g, "\\'")}', '${w.request_id || ""}', '${repeatVisitCount}')"><i class="fas fa-qrcode"></i> ${w.booking_code}</span>` : ''}
-
-      <span class="detail-item"><i class="fas fa-clock"></i> ${timeSince(w.local_time || w.created_at || w.request_time)}</span>
+        <span class="detail-item"><i class="fas fa-user-friends"></i> ${safeWaitingPartySize}</span>
+                ${w.booking_code ? `
+                  <span
+                    class="detail-item booking-code-link js-open-qr-modal"
+                    data-booking-code="${safeBookingCode}"
+                    data-customer-name="${safeQrCustomerName}"
+                    data-queue-position="${safeQueuePosition}"
+                    data-request-status="${safeRequestStatus}"
+                    data-customer-phone="${safeCustomerPhone}"
+                    data-request-id="${safeRequestId}"
+                    data-repeat-visit-count="${safeRepeatVisitCount}"
+                  >
+                    <i class="fas fa-qrcode"></i> ${safeBookingCode}
+                  </span>
+                ` : ''}
+      <span class="detail-item"><i class="fas fa-clock"></i> ${safeWaitingTimeText}</span>
       </div>
     `;
+
+    card.querySelector('.js-open-qr-modal')?.addEventListener('click', function (event) {
+      event.stopPropagation();
+
+      showQRModal(
+        this.dataset.bookingCode || "",
+        this.dataset.customerName || "ضيف",
+        this.dataset.queuePosition || "?",
+        this.dataset.requestStatus || "",
+        this.dataset.customerPhone || "",
+        this.dataset.requestId || "",
+        this.dataset.repeatVisitCount || "0"
+      );
+    });
     
     if ((w.queue_position == 1 || w.queue_position == 2) && w.phone) {
       const alreadyNotified = sessionStorage.getItem(`notified_soon_${w.request_id}`);
@@ -872,15 +955,27 @@ async function renderExpiredList() {
       zoneDisplayText = zoneMap[e.zone_name] || e.zone_name;
     }
 
+    const safeExpiredCustomerName = renderEscapeHtml(
+      (customerName || "ضيف").substring(0, 18)
+    );
+
+    const safeExpiredSourceLabel = renderEscapeHtml(sourceLabel);
+    const safeExpiredCustomerPhone = renderEscapeHtml(customerPhone || "");
+    const safeExpiredZoneDisplayText = renderEscapeHtml(zoneDisplayText);
+    const safeExpiredBookingCode = renderEscapeHtml(e.booking_code || "");
+    const safeExpiredPartySize = renderEscapeHtml(e.requested_party_size || 0);
+    const safeExpiredId = renderEscapeHtml(e.id || "");
+    const safeExpiredTimeText = renderEscapeHtml(timeSince(e.expired_at || e.created_at));
+
     html += `
       <div class="expired-card" style="display: flex; flex-direction: column; gap: 10px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
           <span style="font-weight: 700; font-size: 14px; color: var(--text-primary);">
-            ${(customerName || "ضيف").substring(0, 18)}${customerPhone ? ` - ${customerPhone}` : ""}
+             ${safeExpiredCustomerName}${safeExpiredCustomerPhone ? ` - ${safeExpiredCustomerPhone}` : ""}
           </span>
 
           <span style="background: var(--gray-300); color: var(--gray-700); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
-            <i class="${iconClass} ${sourceIcon}"></i> ${sourceLabel}
+            <i class="${iconClass} ${sourceIcon}"></i> ${safeExpiredSourceLabel}
           </span>
         </div>
 
@@ -888,26 +983,26 @@ async function renderExpiredList() {
 
         <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--gray-600);">
           <span style="display: inline-flex; align-items: center; gap: 4px;">
-            <i class="fas fa-map-marker-alt"></i> ${zoneDisplayText}
+            <i class="fas fa-map-marker-alt"></i> ${safeExpiredZoneDisplayText}
           </span>
 
           <span style="display: inline-flex; align-items: center; gap: 4px;">
-            <i class="fas fa-user-friends"></i> ${e.requested_party_size || 0}
+                        <i class="fas fa-user-friends"></i> ${safeExpiredPartySize}
           </span>
 
 ${e.booking_code ? `
   <span style="display: inline-flex; align-items: center; gap: 4px; color: #06372E; font-weight: 600;">
-    <i class="fas fa-qrcode"></i> ${e.booking_code}
+    <i class="fas fa-qrcode"></i> ${safeExpiredBookingCode}
   </span>
 ` : ""}
 
 <span style="display: inline-flex; align-items: center; gap: 4px;">
-  <i class="fas fa-clock"></i> ${timeSince(e.expired_at || e.created_at)}
+ <i class="fas fa-clock"></i> ${safeExpiredTimeText}
 </span>
         </div>
 
         <div style="display: flex; justify-content: center; margin-top: 5px;">
-          <button onclick="restoreExpiredBooking('${e.id}')" style="padding: 8px 25px; border-radius: 20px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(16,185,129,0.15); color: var(--success); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+ <button class="js-restore-expired-booking" data-expired-id="${safeExpiredId}" style="padding: 8px 25px; border-radius: 20px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(16,185,129,0.15); color: var(--success); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
             <i class="fas fa-undo-alt"></i> ${currentLang === 'ar' ? 'استرجاع الحجز' : 'Restore Booking'}
           </button>
         </div>
@@ -916,6 +1011,12 @@ ${e.booking_code ? `
   });
 
   container.innerHTML = html;
+
+    container.querySelectorAll('.js-restore-expired-booking').forEach(button => {
+    button.addEventListener('click', function () {
+      restoreExpiredBooking(this.dataset.expiredId || '');
+    });
+  });
 
   console.log("✅ تم تحديث الواجهة بعدد", safeExpiredData.length, "بطاقات");
 }

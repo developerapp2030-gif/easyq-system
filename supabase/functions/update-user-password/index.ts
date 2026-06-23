@@ -1,15 +1,32 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
-serve(async (req) => {
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-  };
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
 
+function jsonResponse(status: number, body: Record<string, unknown>) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...corsHeaders,
+      "Content-Type": "application/json",
+    },
+  });
+}
+
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return jsonResponse(405, {
+      success: false,
+      message: "Method not allowed",
+    });
   }
 
   try {
@@ -17,191 +34,185 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
     if (!supabaseUrl || !serviceRoleKey) {
-      return new Response(
-        JSON.stringify({ success: false, message: "إعدادات السيرفر غير مكتملة" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse(500, {
+        success: false,
+        message: "إعدادات السيرفر غير مكتملة",
+      });
     }
 
-    const authHeader = req.headers.get("Authorization");
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "").trim();
 
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ success: false, message: "غير مصرح" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!token) {
+      return jsonResponse(401, {
+        success: false,
+        message: "غير مصرح",
+      });
     }
 
     const adminSupabase = createClient(supabaseUrl, serviceRoleKey);
 
-    const userSupabase = createClient(supabaseUrl, serviceRoleKey, {
-      global: {
-        headers: {
-          Authorization: authHeader,
-        },
-      },
-    });
-
     const {
       data: { user: authUser },
       error: authError,
-    } = await userSupabase.auth.getUser();
+    } = await adminSupabase.auth.getUser(token);
 
     if (authError || !authUser) {
-      return new Response(
-        JSON.stringify({ success: false, message: "جلسة المستخدم غير صالحة" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse(401, {
+        success: false,
+        message: "جلسة المستخدم غير صالحة",
+      });
     }
 
-    const body = await req.json();
-    const targetUserId = body.target_user_id;
-    const newPassword = body.new_password;
+    const body = await req.json().catch(() => null);
+
+    if (!body || typeof body !== "object") {
+      return jsonResponse(400, {
+        success: false,
+        message: "صيغة الطلب غير صحيحة",
+      });
+    }
+
+    const targetUserId = String(body.target_user_id || "").trim();
+    const newPassword = String(body.new_password || "");
 
     if (!targetUserId) {
-      return new Response(
-        JSON.stringify({ success: false, message: "معرف الموظف مطلوب" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse(400, {
+        success: false,
+        message: "معرف الموظف مطلوب",
+      });
     }
 
-    if (!newPassword || String(newPassword).length < 8) {
-      return new Response(
-        JSON.stringify({ success: false, message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!newPassword || newPassword.length < 8) {
+      return jsonResponse(400, {
+        success: false,
+        message: "كلمة المرور يجب أن تكون 8 أحرف على الأقل",
+      });
     }
 
-    // جلب المستخدم الذي ينفذ العملية
     const { data: actor, error: actorError } = await adminSupabase
       .from("app_users")
       .select("id, role, business_id, is_active, username, display_name")
       .eq("auth_id", authUser.id)
-      .eq("is_active", true)
-      .single();
+      .maybeSingle();
 
     if (actorError || !actor) {
-      return new Response(
-        JSON.stringify({ success: false, message: "غير مصرح" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse(403, {
+        success: false,
+        message: "غير مصرح",
+      });
     }
 
-    if (actor.role === "super_admin") {
-      return new Response(
-        JSON.stringify({ success: false, message: "هذه العملية مخصصة للوحة المطعم فقط" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (actor.is_active !== true) {
+      return jsonResponse(403, {
+        success: false,
+        message: "حسابك غير نشط",
+      });
     }
 
-    // التحقق من صلاحية إدارة الموظفين
-    const { data: permission, error: permissionError } = await adminSupabase
-      .from("role_permissions")
-      .select("is_enabled")
-      .eq("role", actor.role)
-      .eq("permission_key", "manage_users")
-      .single();
-
-    if (permissionError || !permission?.is_enabled) {
-      return new Response(
-        JSON.stringify({ success: false, message: "ليس لديك صلاحية لإدارة الموظفين" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (actor.role !== "admin") {
+      return jsonResponse(403, {
+        success: false,
+        message: "ليس لديك صلاحية تغيير كلمات مرور الموظفين",
+      });
     }
 
-    // جلب الموظف المستهدف من نفس المطعم
+    if (!actor.business_id) {
+      return jsonResponse(403, {
+        success: false,
+        message: "لا يمكن تحديد المطعم للمستخدم الحالي",
+      });
+    }
+
+    if (actor.id === targetUserId) {
+      return jsonResponse(400, {
+        success: false,
+        message: "لا يمكنك تغيير كلمة مرور حسابك الحالي من إدارة الموظفين",
+      });
+    }
+
     const { data: targetUser, error: targetError } = await adminSupabase
       .from("app_users")
-      .select("id, auth_id, role, business_id, username, display_name")
+      .select("id, auth_id, role, business_id, username, display_name, is_active")
       .eq("id", targetUserId)
       .eq("business_id", actor.business_id)
-      .single();
+      .maybeSingle();
 
     if (targetError || !targetUser) {
-      return new Response(
-        JSON.stringify({ success: false, message: "الموظف غير موجود أو لا يتبع هذا المطعم" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse(404, {
+        success: false,
+        message: "الموظف غير موجود أو لا يتبع هذا المطعم",
+      });
     }
 
-    if (targetUser.role === "super_admin") {
-      return new Response(
-        JSON.stringify({ success: false, message: "لا يمكن تعديل حساب سوبر أدمن" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (!["manager", "staff"].includes(targetUser.role)) {
+      return jsonResponse(403, {
+        success: false,
+        message: "يمكن تغيير كلمة مرور المدير التشغيلي أو الموظف فقط",
+      });
     }
 
     if (!targetUser.auth_id) {
-      return new Response(
-        JSON.stringify({ success: false, message: "هذا الموظف لا يملك حساب دخول مرتبط" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse(400, {
+        success: false,
+        message: "هذا الموظف لا يملك حساب دخول مرتبط",
+      });
     }
 
-    // تغيير كلمة المرور في Supabase Auth
-    const { error: updatePasswordError } = await adminSupabase.auth.admin.updateUserById(
-      targetUser.auth_id,
-      {
+    const { error: updatePasswordError } =
+      await adminSupabase.auth.admin.updateUserById(targetUser.auth_id, {
         password: newPassword,
-      }
-    );
+      });
 
-if (updatePasswordError) {
-  return new Response(
-    JSON.stringify({
-      success: false,
-      message: "فشل تغيير كلمة المرور",
-      details: updatePasswordError.message,
-    }),
-    { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-}
+    if (updatePasswordError) {
+      console.error("update-user-password auth error:", updatePasswordError);
 
-// تسجيل العملية في سجل نشاط المطعم
-await adminSupabase
-  .from("business_activity_logs")
-  .insert({
-    business_id: actor.business_id,
-
-    actor_user_id: actor.id,
-    actor_display_name: actor.display_name || actor.username || "مستخدم",
-    actor_role: actor.role,
-
-    action_key: "user_password_changed",
-    action_label: "تغيير كلمة مرور موظف",
-
-    target_type: "app_user",
-    target_id: targetUser.id,
-    target_label: targetUser.display_name || targetUser.username || "موظف",
-
-    details: {
-      username: targetUser.username || "",
-      password_changed: true
+      return jsonResponse(500, {
+        success: false,
+        message: "فشل تغيير كلمة المرور",
+      });
     }
-  });
 
-return new Response(
-      JSON.stringify({
-        success: true,
-        message: "تم تغيير كلمة مرور الموظف بنجاح",
-        user: {
-          id: targetUser.id,
-          username: targetUser.username,
-          display_name: targetUser.display_name,
-          role: targetUser.role,
+    await adminSupabase
+      .from("business_activity_logs")
+      .insert({
+        business_id: actor.business_id,
+
+        actor_user_id: actor.id,
+        actor_display_name: actor.display_name || actor.username || "مستخدم",
+        actor_role: actor.role,
+
+        action_key: "user_password_changed",
+        action_label: "تغيير كلمة مرور موظف",
+
+        target_type: "app_user",
+        target_id: targetUser.id,
+        target_label: targetUser.display_name || targetUser.username || "موظف",
+
+        details: {
+          username: targetUser.username || "",
+          target_role: targetUser.role,
+          password_changed: true,
         },
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+      });
+
+    return jsonResponse(200, {
+      success: true,
+      message: "تم تغيير كلمة مرور الموظف بنجاح",
+      user: {
+        id: targetUser.id,
+        username: targetUser.username,
+        display_name: targetUser.display_name,
+        role: targetUser.role,
+      },
+    });
 
   } catch (err) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: "حدث خطأ غير متوقع",
-        details: String(err?.message || err),
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("update-user-password error:", err);
+
+    return jsonResponse(500, {
+      success: false,
+      message: "حدث خطأ غير متوقع",
+    });
   }
 });
