@@ -3780,15 +3780,19 @@ html[dir="ltr"] .qr-info-row {
 }
 
 /* ============================================================
-   TABLE SIDE SEATS / EXTENSIONS
+   TABLE SIDE SEATS / EXTENSIONS - FINAL
    ============================================================ */
 
 :root {
-  --table-seat-ext-color: #8A8A8A;
-  --table-seat-ext-opacity: 0.42;
-  --table-seat-ext-radius: 2px;
-  --table-seat-ext-length: 20px;
-  --table-seat-ext-depth: 2px;
+  --table-seat-ext-color: #c4c2c2;
+  --table-seat-ext-opacity: 0.80;
+  --table-seat-ext-radius: 8px;
+  --table-seat-ext-length: 40px;
+  --table-seat-ext-depth: 2.7px;
+}
+
+.table-card {
+  overflow: visible !important;
 }
 
 .table-side-seat {
@@ -3837,54 +3841,3 @@ html[dir="ltr"] .qr-info-row {
   transform: translateY(-50%);
 }
 
-/* ============================================================
-   TEST TABLE SEATS - CSS ONLY
-   ============================================================ */
-
-:root {
-  --table-seat-ext-color: #c4c2c2;
-  --table-seat-ext-opacity: 0.80;
-  --table-seat-ext-radius: 8px;
-  --table-seat-ext-length: 40px;
-  --table-seat-ext-depth: 2.7px;
-}
-
-.table-card {
-  overflow: visible !important;
-}
-
-/* المقعد العلوي والسفلي */
-.table-card::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: calc(var(--table-seat-ext-depth) * -1);
-  width: var(--table-seat-ext-length);
-  height: var(--table-seat-ext-depth);
-  transform: translateX(-50%);
-  background: var(--table-seat-ext-color);
-opacity: var(--table-seat-ext-opacity);
-  border-radius: var(--table-seat-ext-radius);
-  pointer-events: none;
-  z-index: -1;
-  box-shadow:
-    0 calc(80px + var(--table-seat-ext-depth)) 0 var(--table-seat-ext-color)
-}
-
-/* المقعد الأيسر والأيمن */
-.table-card::after {
-  content: "";
-  position: absolute;
-  left: calc(var(--table-seat-ext-depth) * -1);
-  top: 50%;
-  width: var(--table-seat-ext-depth);
-  height: var(--table-seat-ext-length);
-  transform: translateY(-50%);
-  background: var(--table-seat-ext-color);
-  opacity: var(--table-seat-ext-opacity);
-  border-radius: var(--table-seat-ext-radius);
-  pointer-events: none;
-  z-index: -1;
-  box-shadow:
-    calc(88px + var(--table-seat-ext-depth)) 0 0 var(--table-seat-ext-color);
-}

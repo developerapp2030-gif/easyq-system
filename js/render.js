@@ -288,7 +288,11 @@ const whatsappNotifyHtml =
     : "";
 
 card.innerHTML = `
-  
+  <span class="table-side-seat top"></span>
+  <span class="table-side-seat bottom"></span>
+  <span class="table-side-seat right"></span>
+  <span class="table-side-seat left"></span>
+
   ${whatsappNotifyHtml}
 
   <div class="table-status-bar ${status}"></div>
@@ -301,7 +305,7 @@ card.innerHTML = `
     ${table.customer_name ? `<div class="table-customer">${safeCustomerName}</div>` : ""}
     ${table.customer_name ? `<div class="table-divider"></div>` : ""}
 
-      ${safeTimerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${safeTimerHtml}</div>` : ""}
+    ${safeTimerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${safeTimerHtml}</div>` : ""}
   </div>
 `;
 card.querySelector('.table-whatsapp-notify')?.addEventListener('click', function (event) {
@@ -492,6 +496,11 @@ timerHtml = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '
 
 const safeTimerHtml = renderEscapeHtml(timerHtml);
 card.innerHTML = `
+  <span class="table-side-seat top"></span>
+  <span class="table-side-seat bottom"></span>
+  <span class="table-side-seat right"></span>
+  <span class="table-side-seat left"></span>
+
   <div class="table-status-bar ${status}"></div>
 
   <div class="table-info ${
@@ -508,7 +517,7 @@ card.innerHTML = `
     ${table.customer_name ? `<div class="table-customer">${safeCustomerName}</div>` : ""}
     ${table.customer_name ? `<div class="table-divider"></div>` : ""}
 
-   ${safeTimerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${safeTimerHtml}</div>` : ""}
+    ${safeTimerHtml ? `<div class="table-timer"><i class="far fa-clock"></i> ${safeTimerHtml}</div>` : ""}
   </div>
 `;
     container.appendChild(card);
@@ -765,17 +774,100 @@ const queueBadgeHtml = `
     }
     const safeSourceLabel = renderEscapeHtml(sourceLabel);
     card.innerHTML = `
-      <div class="waiting-row-top">
-        <div class="waiting-left-group">
-           <span class="source-badge"><i class="${iconClass} ${sourceIcon}"></i> ${safeSourceLabel}</span>
-                    <span class="customer-name-part" style="display:inline-flex; align-items:center; gap:4px;">
-            ${repeatCupHtml}
-            <span>${safeCustomerNameText}${safePhoneDisplay ? ` - ${safePhoneDisplay}` : ""}</span>
-          </span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
+      <div
+        class="waiting-row-top"
+        style="
+          direction:rtl;
+          display:grid;
+          grid-template-columns:auto minmax(0, 1fr) auto auto;
+          align-items:center;
+          gap:6px;
+          width:100%;
+          min-width:0;
+          overflow:hidden;
+          white-space:nowrap;
+        "
+      >
+        <span
+          class="waiting-queue-part"
+          style="
+            min-width:30px;
+            max-width:40px;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            overflow:hidden;
+            white-space:nowrap;
+            flex:0 0 auto;
+          "
+        >
           ${queueBadgeHtml}
-        </div>
+        </span>
+
+        <span
+          class="customer-name-part"
+          style="
+            direction:rtl;
+            min-width:0;
+            max-width:100%;
+            display:inline-flex;
+            align-items:center;
+            justify-content:flex-start;
+            gap:4px;
+            overflow:hidden;
+            white-space:nowrap;
+            font-size:clamp(10px, 1.1vw, 13px);
+            line-height:1.2;
+          "
+        >
+          ${repeatCupHtml}
+          <span
+            style="
+              display:inline-block;
+              min-width:0;
+              max-width:100%;
+              overflow:hidden;
+              white-space:nowrap;
+              text-overflow:clip;
+            "
+          >${safeCustomerNameText}</span>
+        </span>
+
+        ${safePhoneDisplay ? `
+          <span
+            class="waiting-phone-part"
+            style="
+              direction:ltr;
+              display:inline-block;
+              flex:0 0 auto;
+              min-width:0;
+              max-width:58px;
+              overflow:hidden;
+              white-space:nowrap;
+              text-overflow:clip;
+              font-size:clamp(9px, 0.95vw, 12px);
+              font-weight:800;
+              color:rgba(15,23,42,0.62);
+            "
+          >
+          ${safePhoneDisplay} -
+          </span>
+        ` : ""}
+
+        <span
+          class="source-badge"
+          style="
+            direction:rtl;
+            flex:0 0 auto;
+            max-width:72px;
+            overflow:hidden;
+            white-space:nowrap;
+            text-overflow:clip;
+            font-size:clamp(9px, 0.95vw, 11px);
+          "
+        >
+          <i class="${iconClass} ${sourceIcon}"></i> ${safeSourceLabel}
+        </span>
       </div>
       <hr class="waiting-divider">
       <div class="waiting-row-bottom">

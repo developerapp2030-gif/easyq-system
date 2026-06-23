@@ -3049,12 +3049,11 @@ async function handleBusinessLogoFileSelected(event) {
     'image/png',
     'image/jpeg',
     'image/jpg',
-    'image/webp',
-    'image/svg+xml'
+    'image/webp'
   ];
 
   if (!allowedTypes.includes(file.type)) {
-    showAlert('صيغة الشعار غير مدعومة. استخدم PNG أو JPG أو WEBP أو SVG');
+  showAlert('صيغة الشعار غير مدعومة. استخدم PNG أو JPG أو WEBP فقط');
     event.target.value = '';
     return;
   }
@@ -3068,12 +3067,7 @@ async function handleBusinessLogoFileSelected(event) {
     return;
   }
 
-  // SVG لا يتم قصه عبر Canvas، نرفعه مباشرة كما هو
-  if (file.type === 'image/svg+xml') {
-    await uploadBusinessLogoFile(file, 'svg');
-    event.target.value = '';
-    return;
-  }
+
 
   openBusinessLogoCropper(file);
   event.target.value = '';
@@ -3327,8 +3321,9 @@ async function applyBusinessLogoCropAndUpload() {
       return;
     }
 
-    closeBusinessLogoCropper();
     await uploadBusinessLogoBlob(blob, 'png');
+
+    closeBusinessLogoCropper();
 
   } catch (err) {
     console.error('❌ خطأ أثناء تجهيز الشعار:', err);

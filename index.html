@@ -2119,22 +2119,48 @@ btn.onclick = function(e) {
           ">
             كلمة المرور الجديدة
           </label>
-          <input
-            id="myAccountNewPassword"
-            type="password"
-            class="walkin-input"
-            placeholder="8 أحرف على الأقل"
-            autocomplete="new-password"
-            style="
-              height: 42px;
-              width: 100%;
-              border-radius: 13px;
-              background: #F8FAFC;
-              border: 1px solid #E5E7EB;
-              font-weight: 800;
-              padding: 0 12px;
-            "
-          >
+<div style="position: relative;">
+  <input
+    id="myAccountNewPassword"
+    type="password"
+    class="walkin-input"
+    placeholder="8 أحرف على الأقل"
+    autocomplete="new-password"
+    style="
+      height: 42px;
+      width: 100%;
+      border-radius: 13px;
+      background: #F8FAFC;
+      border: 1px solid #E5E7EB;
+      font-weight: 800;
+      padding: 0 42px 0 12px;
+    "
+  >
+
+  <button
+    type="button"
+    onclick="toggleMyAccountPasswordVisibility('myAccountNewPassword', 'myAccountNewPasswordEye')"
+    title="إظهار / إخفاء كلمة المرور"
+    style="
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: #64748B;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    "
+  >
+    <i class="fas fa-eye" id="myAccountNewPasswordEye"></i>
+  </button>
+</div>
         </div>
 
         <div style="min-width: 0;">
@@ -2147,22 +2173,48 @@ btn.onclick = function(e) {
           ">
             تأكيد كلمة المرور
           </label>
-          <input
-            id="myAccountConfirmPassword"
-            type="password"
-            class="walkin-input"
-            placeholder="أعد كتابة كلمة المرور"
-            autocomplete="new-password"
-            style="
-              height: 42px;
-              width: 100%;
-              border-radius: 13px;
-              background: #F8FAFC;
-              border: 1px solid #E5E7EB;
-              font-weight: 800;
-              padding: 0 12px;
-            "
-          >
+<div style="position: relative;">
+  <input
+    id="myAccountConfirmPassword"
+    type="password"
+    class="walkin-input"
+    placeholder="أعد كتابة كلمة المرور"
+    autocomplete="new-password"
+    style="
+      height: 42px;
+      width: 100%;
+      border-radius: 13px;
+      background: #F8FAFC;
+      border: 1px solid #E5E7EB;
+      font-weight: 800;
+      padding: 0 42px 0 12px;
+    "
+  >
+
+  <button
+    type="button"
+    onclick="toggleMyAccountPasswordVisibility('myAccountConfirmPassword', 'myAccountConfirmPasswordEye')"
+    title="إظهار / إخفاء كلمة المرور"
+    style="
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: #64748B;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    "
+  >
+    <i class="fas fa-eye" id="myAccountConfirmPasswordEye"></i>
+  </button>
+</div>
         </div>
       </div>
 
@@ -5071,6 +5123,181 @@ document.addEventListener('click', function(e) {
   }
 })();
 </script>
+
+
+<!-- Business Logo Cropper Modal -->
+<div
+  id="businessLogoCropperModal"
+  style="
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 999999;
+    background: rgba(15, 23, 42, 0.62);
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    direction: rtl;
+  "
+>
+  <div
+    style="
+      width: min(440px, calc(100vw - 28px));
+      background: #FFFFFF;
+      border-radius: 22px;
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.30);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    "
+  >
+    <div
+      style="
+        padding: 16px 18px;
+        background: linear-gradient(135deg, #0E146D 0%, #060427 100%);
+        color: #FFFFFF;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      "
+    >
+      <div style="font-weight: 900; font-size: 15px;">
+        تعديل شعار المطعم
+      </div>
+
+      <button
+        type="button"
+        onclick="closeBusinessLogoCropper()"
+        style="
+          width: 34px;
+          height: 34px;
+          border: none;
+          border-radius: 12px;
+          background: rgba(255,255,255,0.12);
+          color: #FFFFFF;
+          cursor: pointer;
+          font-size: 20px;
+          line-height: 1;
+        "
+      >
+        ×
+      </button>
+    </div>
+
+    <div style="padding: 18px;">
+      <div
+        style="
+          display: flex;
+          justify-content: center;
+          margin-bottom: 14px;
+        "
+      >
+        <canvas
+          id="businessLogoCropCanvas"
+          width="512"
+          height="512"
+          style="
+            width: min(300px, 72vw);
+            height: min(300px, 72vw);
+            border-radius: 18px;
+            background: #111827;
+            cursor: grab;
+            touch-action: none;
+            display: block;
+          "
+        ></canvas>
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <label
+          style="
+            display: block;
+            font-size: 12px;
+            font-weight: 900;
+            color: #374151;
+            margin-bottom: 8px;
+          "
+        >
+          تكبير / تصغير الشعار
+        </label>
+
+        <input
+          type="range"
+          id="businessLogoCropZoom"
+          min="1"
+          max="3"
+          step="0.05"
+          value="1"
+          oninput="setBusinessLogoCropZoom(this.value)"
+          style="width: 100%;"
+        >
+      </div>
+
+      <div
+        id="businessLogoUploadOverlay"
+        style="
+          display: none;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          background: #F8FAFF;
+          border: 1px solid #E6EAF5;
+          border-radius: 14px;
+          padding: 10px;
+          color: #0E146D;
+          font-size: 12px;
+          font-weight: 900;
+          margin-bottom: 14px;
+        "
+      >
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>جاري رفع الشعار...</span>
+      </div>
+
+      <div
+        style="
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        "
+      >
+        <button
+          type="button"
+          onclick="resetBusinessLogoCropper()"
+          style="
+            border: 1px solid #E5E7EB;
+            background: #F8FAFC;
+            color: #111827;
+            border-radius: 14px;
+            padding: 11px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 900;
+          "
+        >
+          إعادة ضبط
+        </button>
+
+        <button
+          type="button"
+          onclick="applyBusinessLogoCropAndUpload()"
+          style="
+            border: none;
+            background: #0E146D;
+            color: #FFFFFF;
+            border-radius: 14px;
+            padding: 11px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 900;
+          "
+        >
+          تطبيق ورفع
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- Business Support Modal -->
 <div id="businessSupportModal" class="modal-backdrop">

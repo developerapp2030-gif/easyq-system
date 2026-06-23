@@ -2776,6 +2776,20 @@ function myAccountText(arText, enText) {
   return getMyAccountLang() === 'en' ? enText : arText;
 }
 
+function toggleMyAccountPasswordVisibility(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById(iconId);
+
+  if (!input) return;
+
+  const shouldShow = input.type === 'password';
+  input.type = shouldShow ? 'text' : 'password';
+
+  if (icon) {
+    icon.className = shouldShow ? 'fas fa-eye-slash' : 'fas fa-eye';
+  }
+}
+
 function applyMyAccountModalText() {
   const modal = document.getElementById('myAccountModal');
   if (!modal) return;
@@ -2997,17 +3011,12 @@ async function saveMyAccount() {
   }
 
   try {
-    // تحديث الاسم الظاهر في app_users فقط للمستخدم الحالي
     const { data: updatedUser, error: updateUserError } = await supabase
-      .from('app_users')
-      .update({
-        display_name: newDisplayName
-      })
-      .eq('id', currentUser.id)
-      .select('*')
-      .single();
+      .rpc('easyq_update_my_display_name', {
+        p_display_name: newDisplayName
+      });
 
-    if (updateUserError) {
+    if (updateUserError || !updatedUser) {
       console.error('فشل تحديث الاسم الظاهر:', updateUserError);
       showAlert(myAccountText(
         'فشل تحديث الاسم الظاهر',
@@ -3016,7 +3025,6 @@ async function saveMyAccount() {
       return;
     }
 
-    // تغيير كلمة المرور في Supabase Auth للمستخدم نفسه فقط
     if (newPassword) {
       const { error: passwordError } = await supabase.auth.updateUser({
         password: newPassword
@@ -3024,10 +3032,28 @@ async function saveMyAccount() {
 
       if (passwordError) {
         console.error('فشل تغيير كلمة المرور:', passwordError);
-        showAlert(myAccountText(
-          'تم تحديث الاسم، لكن فشل تغيير كلمة المرور',
-          'Display name was updated, but password change failed'
-        ));
+
+        const passwordErrorMessage =
+          passwordError.message ||
+          passwordError.error_description ||
+          passwordError.msg ||
+          '';
+
+        const translatedPasswordError =
+          passwordErrorMessage.includes('New password should be different from the old password')
+            ? myAccountText(
+                'كلمة المرور الجديدة يجب أن تكون مختلفة عن كلمة المرور السابقة',
+                'The new password must be different from the old password'
+              )
+            : passwordErrorMessage;
+
+        showAlert(
+          myAccountText(
+            `تم تحديث الاسم، لكن فشل تغيير كلمة المرور: ${translatedPasswordError}`,
+            `Display name was updated, but password change failed: ${translatedPasswordError}`
+          )
+        );
+
         return;
       }
     }
@@ -5481,7 +5507,7 @@ function renderUsersModalStaticText() {
         </div>
         <div class="eq-users-hero-sub">
           ${usersModalText(
-            'إدارة حسابات الموظفين، الأدوار، وحالة الدخول من واجهة واحدة بدون التأثير على منطق النظام.',
+            'إدارة حسابات الموظفين، الأدوار، وحالة الدخول.',
             'Manage staff accounts, roles, and access status from one place without changing system logic.'
           )}
         </div>
@@ -6224,7 +6250,6 @@ if (isSelf) {
 updateTopbarUserIdentity(updatedUser);
 }
 
-    closeEditUserModal();
 
     const newPasswordInput = document.getElementById('editUserNewPassword');
     const confirmPasswordInput = document.getElementById('editUserConfirmPassword');
