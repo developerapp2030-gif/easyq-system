@@ -44,12 +44,14 @@
 <script src="js/crud.js"></script>
 <script src="js/render.js"></script>
 <script src="js/events.js"></script>
+<script src="js/table-actions.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/super-admin.js"></script>
 <script src="js/restaurant-dashboard.js"></script>
 <script src="js/restaurant-reports.js"></script>
 <script src="js/restaurant-customers.js"></script>
 <script src="js/restaurant-queue.js"></script>
+<script src="js/restaurant-reservations.js"></script>
 <script src="js/app.js"></script>
 <script>
     // حل القائمة الجانبية - كود مستقل تماماً عن باقي الملفات
@@ -557,30 +559,34 @@ btn.onclick = function(e) {
       </div>
     </div>
 
-    <!-- ==================== Reservations / الحجوزات ==================== -->
-    <div class="sidebar-nav-section">
-      <div class="main-menu-item" data-menu="reservations">
-        <div class="menu-title">
-          <i class="fas fa-calendar-alt"></i>
-          <span>الحجوزات</span>
-        </div>
-        <i class="fas fa-chevron-right toggle-icon"></i>
-      </div>
-      <div class="sub-menu" data-submenu="reservations">
-        <div class="sub-menu-item" data-view="res-calendar">
-          <i class="fas fa-calendar"></i> <span>عرض التقويم</span>
-        </div>
-        <div class="sub-menu-item" data-view="res-upcoming">
-          <i class="fas fa-arrow-right"></i> <span>القادمة</span>
-        </div>
-        <div class="sub-menu-item" data-view="res-confirmed">
-          <i class="fas fa-check-circle"></i> <span>المؤكدة</span>
-        </div>
-        <div class="sub-menu-item" data-view="res-add">
-          <i class="fas fa-plus-circle"></i> <span>إضافة حجز</span>
-        </div>
-      </div>
+<!-- ==================== Reservations / الحجوزات ==================== -->
+<div class="sidebar-nav-section">
+  <div class="main-menu-item" data-menu="reservations">
+    <div class="menu-title">
+      <i class="fas fa-calendar-alt"></i>
+      <span>الحجوزات</span>
     </div>
+    <i class="fas fa-chevron-right toggle-icon"></i>
+  </div>
+
+  <div class="sub-menu" data-submenu="reservations">
+    <div class="sub-menu-item" data-view="reservations-calendar">
+      <i class="fas fa-calendar-days"></i> <span>تقويم الحجوزات</span>
+    </div>
+
+    <div class="sub-menu-item" data-view="reservations-upcoming">
+      <i class="fas fa-clock"></i> <span>الحجوزات</span>
+    </div>
+
+    <div class="sub-menu-item" data-view="reservations-completed">
+      <i class="fas fa-circle-check"></i> <span>الحجوزات المكتملة</span>
+    </div>
+
+    <div class="sub-menu-item" data-view="reservations-add">
+      <i class="fas fa-plus-circle"></i> <span>إضافة حجز</span>
+    </div>
+  </div>
+</div>
 
     <!-- ==================== Customers / العملاء ==================== -->
     <div class="sidebar-nav-section">
@@ -648,7 +654,12 @@ btn.onclick = function(e) {
         <div class="menu-title">
           <i class="fas fa-cog"></i>
           <span>الإعدادات</span>
-          <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+          <span
+  class="admin-badge"
+  data-ar="مدير"
+  data-en="Admin"
+  style="font-size: 10px; background: var(--primary); color: #FFFFFF !important; padding: 2px 6px; border-radius: 20px;"
+>Admin</span>
         </div>
         <i class="fas fa-chevron-right toggle-icon"></i>
       </div>
@@ -659,12 +670,7 @@ btn.onclick = function(e) {
 <div class="sub-menu-item" data-view="settings-queue" onclick="openQueueRulesModal()">
   <i class="fas fa-clock"></i> <span>قواعد الطابور</span>
 </div>
-        <div class="sub-menu-item" data-view="settings-tables">
-          <i class="fas fa-chair"></i> <span>أنواع الطاولات</span>
-        </div>
-        <div class="sub-menu-item" data-view="settings-preferences">
-          <i class="fas fa-sliders-h"></i> <span>تفضيلات النظام</span>
-        </div>
+
       </div>
     </div>
 
@@ -674,7 +680,12 @@ btn.onclick = function(e) {
         <div class="menu-title">
           <i class="fas fa-user-tie"></i>
           <span>الموظفين</span>
-          <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+          <span
+  class="admin-badge"
+  data-ar="مدير"
+  data-en="Admin"
+  style="font-size: 10px; background: var(--primary); color: #FFFFFF !important; padding: 2px 6px; border-radius: 20px;"
+>Admin</span>
         </div>
         <i class="fas fa-chevron-right toggle-icon"></i>
       </div>
@@ -697,7 +708,12 @@ btn.onclick = function(e) {
     <div class="menu-title">
       <i class="fas fa-store"></i>
       <span>إدارة الفرع</span>
-      <span style="font-size: 10px; background: var(--primary); padding: 2px 6px; border-radius: 20px;">Admin</span>
+      <span
+  class="admin-badge"
+  data-ar="مدير"
+  data-en="Admin"
+  style="font-size: 10px; background: var(--primary); color: #FFFFFF !important; padding: 2px 6px; border-radius: 20px;"
+>Admin</span>
     </div>
     <i class="fas fa-chevron-right toggle-icon"></i>
   </div>
@@ -2883,10 +2899,10 @@ function updateSidebarTexts(lang, runDelayed = true) {
       "tables-list": { ar: "قائمة الطاولات", en: "Tables List" },
       "tables-status": { ar: "حالة الطاولات", en: "Tables Status" },
 
-      "res-calendar": { ar: "عرض التقويم", en: "Calendar View" },
-      "res-upcoming": { ar: "القادمة", en: "Upcoming" },
-      "res-confirmed": { ar: "المؤكدة", en: "Confirmed" },
-      "res-add": { ar: "إضافة حجز", en: "Add Reservation" },
+      "reservations-calendar": { ar: "تقويم الحجوزات", en: "Reservations Calendar" },
+      "reservations-upcoming": { ar: "القادمة", en: "Upcoming" },
+      "reservations-completed": { ar: "الحجوزات المكتملة", en: "Completed Reservations" },
+      "reservations-add": { ar: "إضافة حجز", en: "Add Reservation" },
 
       "customers-list": { ar: "قائمة العملاء", en: "Customer List" },
       "customers-profiles": { ar: "ملفات العملاء", en: "Customer Profiles" },
@@ -2956,7 +2972,13 @@ function updateSidebarTexts(lang, runDelayed = true) {
       el.innerText = value[current];
     }
   });
+  document.querySelectorAll('.admin-badge').forEach(badge => {
+    badge.innerText = current === 'ar'
+      ? (badge.dataset.ar || 'مدير')
+      : (badge.dataset.en || 'Admin');
 
+    badge.style.color = '#FFFFFF';
+  });
   /*
     بعض ملفات الأقسام تضيف بنودًا للسايدبار بعد تحميل الصفحة.
     لذلك نعيد الترجمة عدة مرات قصيرة بعد تبديل اللغة بدون التأثير على أي منطق.

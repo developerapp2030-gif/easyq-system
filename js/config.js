@@ -126,7 +126,6 @@ const PERMISSION_KEYS = [
     { key: 'manage_users', ar: 'إدارة الموظفين', en: 'Manage Staff' },
     { key: 'manage_zones', ar: 'إدارة المناطق', en: 'Manage Zones' },
     { key: 'manage_floors', ar: 'إدارة الطوابق', en: 'Manage Floors' },
-    { key: 'manage_settings', ar: 'إدارة الإعدادات العامة', en: 'Manage Settings' },
     { key: 'manage_timers', ar: 'إدارة المؤقتات', en: 'Manage Timers' },
     { key: 'manage_alerts', ar: 'إدارة التنبيهات', en: 'Manage Alerts' },
 
@@ -134,6 +133,14 @@ const PERMISSION_KEYS = [
     { key: 'manage_business_profile', ar: 'إعداد بيانات المطعم / الفرع', en: 'Manage Business Profile' },
     { key: 'manage_booking_page', ar: 'إعدادات واجهة الحجز', en: 'Manage Booking Page' },
     { key: 'open_booking_qr', ar: 'فتح واجهة الحجز QR', en: 'Open Booking QR Page' },
+
+    // الحجوزات
+    { key: 'manage_reservations', ar: 'إدارة الحجوزات', en: 'Manage Reservations' },
+    { key: 'view_reservations', ar: 'عرض الحجوزات', en: 'View Reservations' },
+    { key: 'add_reservations', ar: 'إضافة حجز', en: 'Add Reservation' },
+    { key: 'edit_reservations', ar: 'تعديل حجز', en: 'Edit Reservation' },
+    { key: 'cancel_reservations', ar: 'إلغاء حجز', en: 'Cancel Reservation' },
+    { key: 'complete_reservations', ar: 'إنهاء / إكمال حجز', en: 'Complete Reservation' },
 
     // الاشتراك والدعم
     { key: 'manage_subscription', ar: 'إدارة الحساب والاشتراكات', en: 'Manage Subscription' },

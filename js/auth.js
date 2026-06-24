@@ -35,6 +35,116 @@ function escapeAdminNotificationHtml(value) {
     .replace(/'/g, '&#039;');
 }
 
+function getAdminNotificationAllowedLinkHosts() {
+  const currentHost = window.location.hostname || '';
+
+return Array.from(new Set([
+  currentHost,
+
+  // دومين النظام الحالي
+  'easyq-system.vercel.app',
+
+// HyperPay / HyperBill - روابط الفواتير والدفع
+'hyperbill.hyperpay.com',
+
+// WhatsApp - روابط التواصل الموثوقة فقط
+'wa.me',
+'api.whatsapp.com',
+'web.whatsapp.com',
+
+// أضف هنا دومينك الرسمي عند تفعيله
+  // 'easyqsa.com',
+  // 'www.easyqsa.com'
+]
+    .map(host => String(host || '').trim().toLowerCase())
+    .filter(Boolean)
+  ));
+}
+
+function isAdminNotificationSafeLink(rawUrl) {
+  try {
+    const parsedUrl = new URL(String(rawUrl || '').trim());
+
+    if (parsedUrl.protocol !== 'https:') {
+      return false;
+    }
+
+    if (parsedUrl.username || parsedUrl.password) {
+      return false;
+    }
+
+    const allowedHosts = getAdminNotificationAllowedLinkHosts();
+    const linkHost = parsedUrl.hostname.toLowerCase();
+
+    return allowedHosts.includes(linkHost);
+
+  } catch (err) {
+    return false;
+  }
+}
+
+function formatAdminNotificationBodyHtml(value) {
+  const text = String(value ?? '');
+
+  const urlRegex = /https?:\/\/[^\s<>"'`]+/gi;
+
+  let html = '';
+  let lastIndex = 0;
+
+  text.replace(urlRegex, function (match, offset) {
+    html += escapeAdminNotificationHtml(text.slice(lastIndex, offset));
+
+    let cleanUrl = match;
+    let trailingText = '';
+
+    while (/[.,،؛:!?؟)\]]$/.test(cleanUrl)) {
+      trailingText = cleanUrl.slice(-1) + trailingText;
+      cleanUrl = cleanUrl.slice(0, -1);
+    }
+
+    if (isAdminNotificationSafeLink(cleanUrl)) {
+      const safeHref = escapeAdminNotificationHtml(new URL(cleanUrl).href);
+      const safeText = escapeAdminNotificationHtml(cleanUrl);
+
+      html += `
+        <a
+          href="${safeHref}"
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+style="
+  color:#0E146D;
+  font-size:10px;
+  font-weight:700;
+  text-decoration:underline;
+  text-underline-offset:3px;
+  word-break:break-all;
+"
+        >${safeText}</a>
+      `;
+    } else {
+      html += `
+        <span
+          title="${escapeAdminNotificationHtml(adminNotificationText('رابط غير موثوق وغير قابل للفتح', 'Untrusted link disabled'))}"
+          style="
+            color:#B42318;
+            font-weight:1000;
+            word-break:break-all;
+          "
+        >${escapeAdminNotificationHtml(cleanUrl)}</span>
+      `;
+    }
+
+    html += escapeAdminNotificationHtml(trailingText);
+    lastIndex = offset + match.length;
+
+    return match;
+  });
+
+  html += escapeAdminNotificationHtml(text.slice(lastIndex));
+
+  return html;
+}
+
 function getAdminNotificationSeverityMeta(severity) {
   const key = String(severity || 'info').toLowerCase();
 
@@ -281,29 +391,65 @@ function openAdminNotificationModal(notificationId) {
         </div>
 
         <div style="
-          font-size: 18px;
-          font-weight: 900;
-          color: #111827;
-          line-height: 1.5;
-          margin-bottom: 10px;
+          margin-bottom: 12px;
         ">
-          ${escapeAdminNotificationHtml(notification.title)}
+          <div style="
+            font-size: 12px;
+            font-weight: 900;
+            color: #64748B;
+            margin-bottom: 7px;
+          ">
+            ${adminNotificationText('عنوان الإشعار', 'Notice Title')}
+          </div>
+
+          <div style="
+            background: #edeff3;
+            border: 1px solid #DDE3F5;
+            border-radius: 16px;
+            padding: 8px 12px;
+            color: #111827;
+            font-size: 17px;
+            font-weight: 1000;
+            line-height: 1.25;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.045);
+            word-break: break-word;
+          ">
+            ${escapeAdminNotificationHtml(notification.title)}
+          </div>
         </div>
 
         <div style="
-          background: #F8FAFF;
-          border: 1px solid #E6EAF5;
-          border-radius: 16px;
-          padding: 14px;
-          color: #374151;
-          font-size: 16px;
-          line-height: 2;
-          font-weight: 700;
-          white-space: pre-wrap;
-          max-height: 300px;
-          overflow: auto;
+          margin-bottom: 4px;
         ">
-          ${escapeAdminNotificationHtml(notification.body)}
+          <div style="
+            font-size: 12px;
+            font-weight: 900;
+            color: #82868b;
+            margin-bottom: 7px;
+          ">
+            ${adminNotificationText('نص الرسالة', 'Message')}
+          </div>
+
+          <div style="
+            background: #fefefe;
+            border: 1px solid #DDE3F5;
+            border-radius: 16px;
+            padding: 10px 14px;
+            color: #010c1e;
+            font-size: 16px;
+            line-height: 1.75;
+            font-weight: 800;
+            white-space: pre-wrap;
+            word-break: break-word;
+            height: auto;
+            min-height: unset;
+            max-height: min(42dvh, 360px);
+            overflow-y: auto;
+            display: block;
+            text-align: start;
+            vertical-align: top;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.75);
+          ">${formatAdminNotificationBodyHtml(notification.body)}</div>
         </div>
 
         <div style="
@@ -4724,7 +4870,17 @@ const reportsSection = document.querySelector('[data-menu="reports"]');
   
 const settingsSection = document.querySelector('[data-menu="settings"]');
 if (settingsSection) {
-  settingsSection.style.display = canDo('manage_settings') ? 'block' : 'none';
+  const canSeeAnySettingsItem =
+    canDo('manage_business_profile') ||
+    canDo('manage_booking_page') ||
+    canDo('open_booking_qr') ||
+    canDo('manage_zones') ||
+    canDo('manage_floors') ||
+    canDo('manage_timers') ||
+    canDo('manage_alerts') ||
+    canDo('manage_subscription');
+
+  settingsSection.style.display = canSeeAnySettingsItem ? 'block' : 'none';
 }
 
 // ربط زر الدعم الحي كبند أساسي مستقل بعد ضبط الصلاحيات
@@ -6907,59 +7063,494 @@ function renderPermissionsTabs() {
   applyPermissionsModalStaticText();
   applyPermissionsDesignerStyle();
 
-  const enabledCount = PERMISSION_KEYS.filter(item => {
-    return permissionsDraft?.[activePermissionsRole]?.[item.key] === true;
-  }).length;
-
   container.innerHTML = `
-    <div class="eq-permissions-hero">
-      <div>
-        <div class="eq-permissions-hero-title">
-          <i class="fas fa-user-shield"></i>
-          <span>
-            ${permissionsModalText('مركز إدارة الصلاحيات', 'Permissions Control Center')}
-          </span>
-        </div>
-
-        <div class="eq-permissions-hero-sub">
-          ${permissionsModalText(
-            'تحكم بصلاحيات المشرف والموظف من مكان واحد بدون التأثير على صلاحيات مالك الحساب.',
-            'Manage manager and staff permissions in one place without affecting the account owner permissions.'
-          )}
-        </div>
-      </div>
-
-      <div class="eq-permissions-hero-count">
-        <strong>${enabledCount}</strong>
-        <span>${permissionsModalText('مفعلة', 'enabled')}</span>
-      </div>
-    </div>
-
-    <div class="eq-permissions-note">
-      <i class="fas fa-circle-info"></i>
-      ${permissionsModalText(
-        'مالك الحساب / الأدمن يملك جميع الصلاحيات دائمًا. تظهر تغييرات الصلاحيات تلقائيًا خلال 60 ثانية كحد أقصى، أو مباشرة عند تحديث الصفحة.',
-        'The account owner / admin always has all permissions. Permission changes appear automatically within 60 seconds at most, or immediately after refreshing the page.'
-      )}
-    </div>
-
     <div class="eq-permissions-tabs">
-      ${EASYQ_PERMISSION_ROLES.map(role => `
-        <button
-          type="button"
-          class="eq-permissions-role-tab ${activePermissionsRole === role.key ? 'active' : ''}"
-          onclick="switchPermissionsRole('${role.key}')"
-        >
-          <i class="fas ${role.icon}"></i>
-          <span>${permissionsModalText(role.ar, role.en)}</span>
-        </button>
-      `).join('')}
+      ${EASYQ_PERMISSION_ROLES.map(role => {
+        const enabledCount = PERMISSION_KEYS.filter(item => {
+          return permissionsDraft?.[role.key]?.[item.key] === true;
+        }).length;
+
+        return `
+          <button
+            type="button"
+            class="eq-permissions-role-tab ${activePermissionsRole === role.key ? 'active' : ''}"
+            onclick="switchPermissionsRole('${role.key}')"
+          >
+            <span class="eq-permissions-role-main">
+              <i class="fas ${role.icon}"></i>
+              <span>${permissionsModalText(role.ar, role.en)}</span>
+            </span>
+
+            <span class="eq-permissions-role-count">
+              ${enabledCount}/${PERMISSION_KEYS.length}
+            </span>
+          </button>
+        `;
+      }).join('')}
     </div>
 
     <div id="permissionsRolePanel"></div>
   `;
 
   renderPermissionsRolePanel(activePermissionsRole);
+}
+
+function applyPermissionsDesignerStyle() {
+  let style = document.getElementById('eqPermissionsDesignerStyle');
+
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'eqPermissionsDesignerStyle';
+    document.head.appendChild(style);
+  }
+
+  style.textContent = `
+    /* ============================================================
+       CLEAN FULL PAGE PERMISSIONS UI
+       نفس فكرة صفحات السايد بار الكبيرة بدون هيرو وبدون تنبيه طويل
+       ============================================================ */
+
+    #permissionsModal.modal-backdrop {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100dvh !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      background: #F5F7FF !important;
+      z-index: 999999 !important;
+      align-items: stretch !important;
+      justify-content: stretch !important;
+      overflow: hidden !important;
+    }
+
+    #permissionsModal.show {
+      display: flex !important;
+    }
+
+    #permissionsModal .modal {
+      width: 100vw !important;
+      height: 100dvh !important;
+      max-width: none !important;
+      max-height: none !important;
+      margin: 0 !important;
+      padding: 16px 18px !important;
+      border-radius: 0 !important;
+      background: #F5F7FF !important;
+      border: none !important;
+      box-shadow: none !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+
+    #permissionsModal .modal-title {
+      flex: 0 0 auto !important;
+      width: min(1180px, 100%) !important;
+      margin: 0 auto 4px !important;
+      padding: 0 !important;
+      min-height: 38px !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 10px !important;
+      color: #0E146D !important;
+      font-size: 20px !important;
+      font-weight: 1000 !important;
+      line-height: 1.3 !important;
+    }
+
+    #permissionsModal .modal-title i {
+      width: 36px !important;
+      height: 36px !important;
+      border-radius: 12px !important;
+      background: #0E146D !important;
+      color: #FFFFFF !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 15px !important;
+      flex-shrink: 0 !important;
+    }
+
+    #permissionsModal .modal-sub {
+      flex: 0 0 auto !important;
+      width: min(1180px, 100%) !important;
+      margin: 0 auto 12px !important;
+      padding: 0 !important;
+      color: #64748B !important;
+      font-size: 13px !important;
+      font-weight: 800 !important;
+      line-height: 1.5 !important;
+    }
+
+    #permissionsList {
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      width: min(1180px, 100%) !important;
+      margin: 0 auto !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+    }
+
+    #permissionsList .eq-permissions-tabs {
+      flex: 0 0 auto !important;
+      display: grid !important;
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      gap: 10px !important;
+      background: #E9ECF8 !important;
+      border: 1px solid #DDE3F5 !important;
+      border-radius: 18px !important;
+      padding: 8px !important;
+    }
+
+    #permissionsList .eq-permissions-role-tab {
+      min-height: 48px !important;
+      border: 1px solid transparent !important;
+      background: #FFFFFF !important;
+      color: #111827 !important;
+      border-radius: 14px !important;
+      cursor: pointer !important;
+      padding: 0 12px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 10px !important;
+      transition: .16s ease !important;
+      font-size: 13px !important;
+      font-weight: 1000 !important;
+    }
+
+    #permissionsList .eq-permissions-role-tab:hover {
+      border-color: rgba(14, 20, 109, 0.18) !important;
+      transform: translateY(-1px) !important;
+    }
+
+    #permissionsList .eq-permissions-role-tab.active {
+      background: #0E146D !important;
+      color: #FFFFFF !important;
+      border-color: #0E146D !important;
+      box-shadow: 0 10px 22px rgba(14,20,109,0.18) !important;
+    }
+
+    #permissionsList .eq-permissions-role-main {
+      min-width: 0 !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      white-space: nowrap !important;
+    }
+
+    #permissionsList .eq-permissions-role-main i {
+      width: 28px !important;
+      height: 28px !important;
+      border-radius: 10px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      background: #EEF2FF !important;
+      color: #0E146D !important;
+      font-size: 13px !important;
+      flex-shrink: 0 !important;
+    }
+
+    #permissionsList .eq-permissions-role-tab.active .eq-permissions-role-main i {
+      background: rgba(255,255,255,0.14) !important;
+      color: #FFFFFF !important;
+    }
+
+    #permissionsList .eq-permissions-role-count {
+      flex: 0 0 auto !important;
+      min-width: 52px !important;
+      height: 26px !important;
+      border-radius: 999px !important;
+      background: #F4F6FF !important;
+      color: #0E146D !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      font-size: 11px !important;
+      font-weight: 1000 !important;
+    }
+
+    #permissionsList .eq-permissions-role-tab.active .eq-permissions-role-count {
+      background: rgba(255,255,255,0.16) !important;
+      color: #FFFFFF !important;
+    }
+
+    #permissionsRolePanel {
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+      border: 1px solid #E5E7F2 !important;
+      border-radius: 20px !important;
+      background: #FFFFFF !important;
+      display: flex !important;
+      flex-direction: column !important;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045) !important;
+    }
+
+    #permissionsRolePanel .eq-permissions-panel-top {
+      flex: 0 0 auto !important;
+      padding: 12px 14px !important;
+      background: #FFFFFF !important;
+      border-bottom: 1px solid #E5E7F2 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 12px !important;
+    }
+
+    #permissionsRolePanel .eq-permissions-panel-title {
+      min-width: 0 !important;
+      color: #111827 !important;
+      font-size: 14px !important;
+      font-weight: 1000 !important;
+      line-height: 1.35 !important;
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+    }
+
+    #permissionsRolePanel .eq-permissions-panel-title i {
+      color: #0E146D !important;
+    }
+
+    #permissionsRolePanel .eq-permissions-panel-sub {
+      margin-top: 3px !important;
+      color: #64748B !important;
+      font-size: 11.5px !important;
+      font-weight: 850 !important;
+      line-height: 1.4 !important;
+    }
+
+    #permissionsRolePanel .eq-permissions-all-btn {
+      border: none !important;
+      background: #EEF2FF !important;
+      color: #0E146D !important;
+      min-height: 36px !important;
+      padding: 0 12px !important;
+      border-radius: 12px !important;
+      cursor: pointer !important;
+      font-weight: 1000 !important;
+      font-size: 12px !important;
+      white-space: nowrap !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+      flex-shrink: 0 !important;
+    }
+
+    #permissionsRolePanel .eq-permissions-all-btn:hover {
+      background: #E0E7FF !important;
+    }
+
+    #permissionsRolePanel .eq-permissions-scroll {
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow-y: auto !important;
+      padding: 12px !important;
+      scrollbar-width: thin !important;
+    }
+
+    #permissionsRolePanel .eq-permissions-grid {
+      display: grid !important;
+      grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+      gap: 10px !important;
+    }
+
+    #permissionsRolePanel .eq-permission-card {
+      min-height: 54px !important;
+      background: #FFFFFF !important;
+      border: 1px solid #E5E7EB !important;
+      border-radius: 15px !important;
+      padding: 9px 10px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      gap: 8px !important;
+      box-shadow: 0 5px 13px rgba(15, 23, 42, 0.03) !important;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease !important;
+    }
+
+    #permissionsRolePanel .eq-permission-card.is-on {
+      background: #F4F6FF !important;
+      border-color: rgba(14, 20, 109, 0.18) !important;
+    }
+
+    #permissionsRolePanel .eq-permission-card:hover {
+      transform: translateY(-1px) !important;
+      border-color: rgba(14, 20, 109, 0.24) !important;
+    }
+
+    #permissionsRolePanel .eq-permission-name {
+      font-size: 12px !important;
+      font-weight: 950 !important;
+      color: #111827 !important;
+      line-height: 1.45 !important;
+      min-width: 0 !important;
+    }
+
+    #permissionsRolePanel .eq-permission-state {
+      display: block !important;
+      margin-top: 2px !important;
+      font-size: 10px !important;
+      font-weight: 850 !important;
+      color: #64748B !important;
+    }
+
+    #permissionsRolePanel .eq-permission-card.is-on .eq-permission-state {
+      color: #0E146D !important;
+    }
+
+    #permissionsRolePanel .toggle-switch {
+      flex-shrink: 0 !important;
+      transform: scale(0.9) !important;
+      transform-origin: center !important;
+    }
+
+    #permissionsModal .modal > div:last-child {
+      flex: 0 0 auto !important;
+      width: min(1180px, 100%) !important;
+      margin: 10px auto 0 !important;
+      padding: 10px 0 0 !important;
+      border-top: 1px solid rgba(14, 20, 109, 0.10) !important;
+      display: flex !important;
+      gap: 10px !important;
+      background: transparent !important;
+    }
+
+    #permissionsModal .settings-save,
+    #permissionsModal .settings-close {
+      min-height: 44px !important;
+      border-radius: 14px !important;
+      font-size: 14px !important;
+      font-weight: 1000 !important;
+    }
+
+    @media (max-width: 1180px) {
+      #permissionsRolePanel .eq-permissions-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      }
+    }
+
+    @media (max-width: 860px) {
+      #permissionsRolePanel .eq-permissions-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      }
+    }
+
+    @media (max-width: 620px) {
+      #permissionsModal .modal {
+        padding: 12px !important;
+      }
+
+      #permissionsModal .modal-title {
+        font-size: 17px !important;
+      }
+
+      #permissionsList .eq-permissions-tabs {
+        grid-template-columns: 1fr !important;
+      }
+
+      #permissionsRolePanel .eq-permissions-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      #permissionsRolePanel .eq-permissions-panel-top {
+        align-items: stretch !important;
+        flex-direction: column !important;
+      }
+
+      #permissionsRolePanel .eq-permissions-all-btn {
+        width: 100% !important;
+      }
+
+      #permissionsModal .modal > div:last-child {
+        flex-direction: column !important;
+      }
+    }
+  `;
+}
+
+function renderPermissionsRolePanel(roleKey) {
+  const panel = document.getElementById('permissionsRolePanel');
+  if (!panel) return;
+
+  applyPermissionsDesignerStyle();
+
+  const roleInfo = EASYQ_PERMISSION_ROLES.find(role => role.key === roleKey);
+
+  const roleName = permissionUiText(
+    roleInfo?.ar || 'الدور',
+    roleInfo?.en || 'Role'
+  );
+
+  const enabledCount = PERMISSION_KEYS.filter(item => {
+    return permissionsDraft?.[roleKey]?.[item.key] === true;
+  }).length;
+
+  panel.innerHTML = `
+    <div class="eq-permissions-panel-top">
+      <div style="min-width:0;">
+        <div class="eq-permissions-panel-title">
+          <i class="fas ${roleInfo?.icon || 'fa-user-shield'}"></i>
+          <span>${roleName}</span>
+        </div>
+
+        <div class="eq-permissions-panel-sub">
+          ${enabledCount}/${PERMISSION_KEYS.length}
+          ${permissionUiText('صلاحية مفعلة', 'permissions enabled')}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="eq-permissions-all-btn"
+        onclick="toggleAllPermissionsForRole('${roleKey}')"
+      >
+        <i class="fas fa-check-double"></i>
+        ${permissionUiText('تحديد / إلغاء الكل', 'Toggle All')}
+      </button>
+    </div>
+
+    <div class="eq-permissions-scroll">
+      <div class="eq-permissions-grid">
+        ${PERMISSION_KEYS.map(permissionItem => {
+          const isEnabled = permissionsDraft?.[roleKey]?.[permissionItem.key] === true;
+
+          return `
+            <div class="eq-permission-card ${isEnabled ? 'is-on' : ''}">
+              <div class="eq-permission-name">
+                ${permissionUiText(permissionItem.ar, permissionItem.en)}
+                <span class="eq-permission-state">
+                  ${isEnabled
+                    ? permissionUiText('مفعلة', 'Enabled')
+                    : permissionUiText('معطلة', 'Disabled')
+                  }
+                </span>
+              </div>
+
+              <button
+                type="button"
+                class="toggle-switch ${isEnabled ? 'active' : ''}"
+                onclick="togglePermissionDraft('${roleKey}', '${permissionItem.key}')"
+                data-role="${roleKey}"
+                data-key="${permissionItem.key}"
+                title="${isEnabled
+                  ? permissionUiText('اضغط للتعطيل', 'Click to disable')
+                  : permissionUiText('اضغط للتفعيل', 'Click to enable')
+                }">
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
 }
 
 function switchPermissionsRole(roleKey) {
@@ -7416,6 +8007,9 @@ function renderPermissionsRolePanel(roleKey) {
 }
 
 function togglePermissionDraft(roleKey, permissionKey) {
+  const scrollBox = document.querySelector('#permissionsRolePanel .eq-permissions-scroll');
+  const previousScrollTop = scrollBox ? scrollBox.scrollTop : 0;
+
   if (!permissionsDraft[roleKey]) {
     permissionsDraft[roleKey] = {};
   }
@@ -7423,6 +8017,26 @@ function togglePermissionDraft(roleKey, permissionKey) {
   permissionsDraft[roleKey][permissionKey] = !permissionsDraft[roleKey][permissionKey];
 
   renderPermissionsRolePanel(roleKey);
+
+  requestAnimationFrame(() => {
+    const newScrollBox = document.querySelector('#permissionsRolePanel .eq-permissions-scroll');
+
+    if (newScrollBox) {
+      newScrollBox.scrollTop = previousScrollTop;
+    }
+
+    const toggledButton = document.querySelector(
+      `#permissionsRolePanel .toggle-switch[data-role="${roleKey}"][data-key="${permissionKey}"]`
+    );
+
+    if (toggledButton) {
+      try {
+        toggledButton.focus({ preventScroll: true });
+      } catch (e) {
+        toggledButton.focus();
+      }
+    }
+  });
 }
 
 function toggleAllPermissionsForRole(roleKey) {
