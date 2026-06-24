@@ -670,6 +670,13 @@ body.dark::before {
   transform: translateY(-3px);
 }
 
+/* اسم العميل أثناء التنظيف يظهر باهتًا للتمييز عن المشغولة */
+.table-status-bar.cleaning + .table-info .table-customer {
+  color: rgba(15, 23, 42, 0.38);
+  font-weight: 600;
+  opacity: 0.72;
+}
+
 .table-divider {
   width: 90%;
   height: 1px;
@@ -991,7 +998,7 @@ body.dark::before {
 .guest-input button {
   width: 44px;
   height: 38px;
-  background: #f0f2f5;
+  background: #f5f5f0;
   border: none;
   border-radius: 10px;
   font-size: 18px;

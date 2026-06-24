@@ -22,6 +22,85 @@ function getRemainingReservationText(reservedAt) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
+function formatRemainingFromExpiresAt(expiresAt) {
+  if (!expiresAt) return "";
+
+  const endTime = new Date(expiresAt).getTime();
+
+  if (!Number.isFinite(endTime)) return "";
+
+  const diff = endTime - Date.now();
+
+  if (diff <= 0) return "00:00";
+
+  const totalSeconds = Math.ceil(diff / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function getTableTimerText(table) {
+  if (!table) return "";
+
+  const status = table.status || "available";
+
+  /*
+    مصدر الوقت الرسمي:
+    - reserved: من hold_expires_at إذا وجد، وإلا fallback على reserved_at
+    - cleaning: من cleaning_expires_at إذا وجد، وإلا fallback على cleaningTimers للجلسة الحالية
+    - occupied: من occupied_at إذا وجد، وإلا fallback على seated_at/ reserved_at/ request_time
+  */
+  if (status === "reserved") {
+    if (table.hold_expires_at) {
+      return formatRemainingFromExpiresAt(table.hold_expires_at);
+    }
+
+    if (table.reserved_at) {
+      return getRemainingReservationText(table.reserved_at);
+    }
+
+    return "";
+  }
+
+  if (status === "cleaning") {
+    if (table.cleaning_expires_at) {
+      return formatRemainingFromExpiresAt(table.cleaning_expires_at);
+    }
+
+    if (cleaningTimers[table.id]) {
+      const remainingMs = cleaningTimers[table.id].expiresAt - Date.now();
+
+      if (remainingMs <= 0) return "00:00";
+
+      const totalSeconds = Math.ceil(remainingMs / 1000);
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+
+      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    return "";
+  }
+
+  if (status === "occupied") {
+    const seatedTime =
+      table.occupied_at ||
+      table.seated_at ||
+      table.reserved_at ||
+      table.request_time;
+
+    return seatedTime ? timeSince(seatedTime) : "";
+  }
+
+  if (table.customer_name) {
+    if (table.reserved_at) return timeSince(table.reserved_at);
+    if (table.request_time) return timeSince(table.request_time);
+  }
+
+  return "";
+}
+
 function isValidSaudiMobile(phone) {
   return /^05\d{8}$/.test(phone);
 }
@@ -159,43 +238,55 @@ function updateAllTimers() {
     timerElements.forEach((timerEl) => {
       const card = timerEl.closest('.table-card');
       if (!card) return;
-      
-      const tableId = card.getAttribute('data-id');
-      const table = floorData.find(t => t.id == tableId);
-      
-      if (table && (table.status === 'occupied' || table.status === 'reserved' || table.status === 'cleaning')) {
-        let newTime = "";
-        
-if (table.status === "reserved" && table.reserved_at) {
-  newTime = getRemainingReservationText(table.reserved_at);
 
-} else if (table.status === "occupied") {
-  const seatedTime = table.seated_at || table.reserved_at || table.request_time;
-  if (seatedTime) {
-    newTime = timeSince(seatedTime);
-  }
+      const tableId = card.getAttribute('data-id') || card.getAttribute('data-table-id');
+      if (!tableId) return;
 
-} else if (table.status === "cleaning" && cleaningTimers[table.id]) {
-  const remainingMs = cleaningTimers[table.id].expiresAt - Date.now();
+      const table = floorData.find(t => String(t.id) === String(tableId));
+      if (!table) return;
 
-  if (remainingMs > 0) {
-    const remainingSeconds = Math.ceil(remainingMs / 1000);
-    const mins = Math.floor(remainingSeconds / 60);
-    const secs = remainingSeconds % 60;
-    newTime = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  } else {
-    newTime = `00:00`;
-  }
+      /*
+        عند انتهاء وقت التنظيف من المصدر الرسمي cleaning_expires_at
+        نعيد الطاولة تلقائياً إلى متاحة.
+        نستخدم Set لمنع تكرار نفس الطلب كل ثانية قبل انتهاء التحديث.
+      */
+      if (table.status === 'cleaning' && table.cleaning_expires_at) {
+        const expiresAt = new Date(table.cleaning_expires_at).getTime();
 
-} else if (table.reserved_at) {
-  newTime = timeSince(table.reserved_at);
+        if (Number.isFinite(expiresAt) && Date.now() >= expiresAt) {
+          if (!window.easyqCleaningAutoReleaseInProgress) {
+            window.easyqCleaningAutoReleaseInProgress = new Set();
+          }
 
-} else if (table.request_time) {
-  newTime = timeSince(table.request_time);
-}
-        
+          if (!window.easyqCleaningAutoReleaseInProgress.has(String(table.id))) {
+            window.easyqCleaningAutoReleaseInProgress.add(String(table.id));
+
+            timerEl.innerHTML = `<i class="far fa-clock"></i> 00:00`;
+
+            if (typeof changeTableStatus === 'function') {
+              changeTableStatus(table.id, 'available')
+                .catch(err => {
+                  console.error('❌ فشل تحويل الطاولة من تنظيف إلى متاحة:', err);
+                })
+                .finally(() => {
+                  window.easyqCleaningAutoReleaseInProgress.delete(String(table.id));
+                });
+            }
+          }
+
+          return;
+        }
+      }
+
+      if (table.status === 'occupied' || table.status === 'reserved' || table.status === 'cleaning') {
+        const newTime = typeof getTableTimerText === 'function'
+          ? getTableTimerText(table)
+          : '';
+
         if (newTime) {
           timerEl.innerHTML = `<i class="far fa-clock"></i> ${newTime}`;
+        } else {
+          timerEl.innerHTML = '';
         }
       }
     });

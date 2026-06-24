@@ -507,18 +507,29 @@ body.theme-premium .waiting-list .waiting-card:first-child {
   box-shadow: 0 0 0 1px rgba(198,146,58,0.12), 0 12px 28px rgba(198,146,58,0.10) !important;
 }
 
-/* ارتفاع لوحة الانتظار مثل منطقة العمل */
+/* محاذاة نهاية قائمة الانتظار مع نهاية فلور كانفس */
 body.theme-premium .main-content {
   align-items: stretch !important;
 }
 
 body.theme-premium .right-panel-container {
   height: 100% !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 body.theme-premium .waiting-sidebar {
-  height: 100% !important;
-  min-height: 100% !important;
+  flex: 1 1 auto !important;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  border-radius: var(--premium-radius) !important;
+  overflow: hidden !important;
+}
+
+body.theme-premium .waiting-list {
+  min-height: 0 !important;
 }
 
 /* مودال إضافة عميل محلي: في المنتصف وبأعلى الشاشة */
@@ -1676,7 +1687,7 @@ body.theme-premium .waiting-actions {
 }
 
 body.theme-premium .waiting-header-standalone .icon-btn {
-  width: 40px !important;
+  width: 45px !important;
   height: 40px !important;
   min-height: 40px !important;
   padding: 0 !important;

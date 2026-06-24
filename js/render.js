@@ -248,30 +248,11 @@ const nameHtml = `
 `;
     const capacityHtml = `<span class="table-capacity"><i class="fas fa-chair"></i> ${table.capacity}</span>`;
     
-    let timerHtml = "";
-    if (table.customer_name) {
-      if (table.status === "reserved" && table.reserved_at) {
-        timerHtml = getRemainingReservationText(table.reserved_at);
-      } else if (table.status === "occupied") {
-        // حساب وقت جلوس العميل الفعلي على الطاولة المشغولة تصاعدياً
-        const seatedTime = table.seated_at || table.reserved_at || table.request_time;
-        if (seatedTime) timerHtml = timeSince(seatedTime);
-      } else if (table.reserved_at) {
-        timerHtml = timeSince(table.reserved_at);
-      } else if (table.request_time) {
-        timerHtml = timeSince(table.request_time);
-      }
-    } else if (table.status === "cleaning" && cleaningTimers[table.id]) {
-      const remainingMs = cleaningTimers[table.id].expiresAt - Date.now();
-      if (remainingMs > 0) {
-      const remainingSeconds = Math.ceil(remainingMs / 1000);
-      const mins = Math.floor(remainingSeconds / 60);
-      const secs = remainingSeconds % 60;
-      timerHtml = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-      } else {
-        timerHtml = `00:00`;
-      }
-    }
+let timerHtml = "";
+
+if (typeof getTableTimerText === "function") {
+  timerHtml = getTableTimerText(table);
+}
 const safeTimerHtml = renderEscapeHtml(timerHtml);   
 const whatsappNotifyHtml =
   (status === "reserved" && table.customer_name && table.active_assignment_id)
@@ -1093,9 +1074,13 @@ ${e.booking_code ? `
 </span>
         </div>
 
-        <div style="display: flex; justify-content: center; margin-top: 5px;">
- <button class="js-restore-expired-booking" data-expired-id="${safeExpiredId}" style="padding: 8px 25px; border-radius: 20px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(16,185,129,0.15); color: var(--success); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 5px;">
+          <button class="js-restore-expired-booking" data-expired-id="${safeExpiredId}" style="padding: 8px 18px; border-radius: 20px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(16,185,129,0.15); color: var(--success); display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
             <i class="fas fa-undo-alt"></i> ${currentLang === 'ar' ? 'استرجاع الحجز' : 'Restore Booking'}
+          </button>
+
+          <button class="js-close-expired-request" data-expired-id="${safeExpiredId}" title="${currentLang === 'ar' ? 'إلغاء الطلب' : 'Cancel Request'}" style="width: 34px; height: 34px; border-radius: 50%; font-size: 12px; font-weight: 800; border: none; cursor: pointer; background: rgba(239,68,68,0.13); color: #DC2626; display: inline-flex; align-items: center; justify-content: center;">
+            <i class="fas fa-times"></i>
           </button>
         </div>
       </div>
@@ -1107,6 +1092,12 @@ ${e.booking_code ? `
     container.querySelectorAll('.js-restore-expired-booking').forEach(button => {
     button.addEventListener('click', function () {
       restoreExpiredBooking(this.dataset.expiredId || '');
+    });
+  });
+
+  container.querySelectorAll('.js-close-expired-request').forEach(button => {
+    button.addEventListener('click', function () {
+      closeExpiredRequest(this.dataset.expiredId || '');
     });
   });
 

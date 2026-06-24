@@ -63,16 +63,22 @@ async function changeTableStatus(tableId, newStatus) {
             console.log('✅ تم تحديث الطلب بنجاح:', reqData);
         }
         
+        const occupiedAt = new Date().toISOString();
+
         const { error: assignError } = await supabase
             .from('table_assignments')
-            .update({ status: 'occupied' })
+            .update({
+              status: 'occupied',
+              occupied_at: occupiedAt
+            })
             .eq('table_id', tableId)
             .eq('status', 'offered');
             
         if (assignError) {
             console.error('❌ فشل تحديث التعيين table_assignments:', assignError);
         } else {
-            console.log('✅ تم تحديث حالة التعيين بنجاح إلى occupied');
+            table.seated_at = occupiedAt;
+            console.log('✅ تم تحديث حالة التعيين بنجاح إلى occupied مع حفظ وقت الجلوس');
         }
     } else {
         console.warn('⚠️ لم يتم العثور على تعيين نشط (offered) لهذه الطاولة.');
@@ -103,36 +109,68 @@ async function changeTableStatus(tableId, newStatus) {
   
   table.status = newStatus;
 
-  // ✅ تحديث حالة الطلب عند تنظيف الطاولة
+  // ✅ تحديث حالة الطلب والتعيين عند تنظيف الطاولة
   if (newStatus === 'cleaning') {
-    // جلب التعيين النشط لهذه الطاولة
+    const holdMinutes = Number(settings.cleaning_hold_minutes || 10);
+    const cleaningStartedAt = new Date();
+    const cleaningExpiresAt = new Date(cleaningStartedAt.getTime() + (holdMinutes * 60 * 1000));
+
+    /*
+      نقبل التنظيف من:
+      - occupied: عميل كان جالساً وانتهت خدمته
+      - offered: حجز كان على الطاولة وتم تحويلها للتنظيف مباشرة
+      - reserved: احتياط إذا كان هناك سجل قديم بهذه الحالة
+    */
     const { data: assignment } = await supabase
         .from('table_assignments')
-        .select('request_id')
+        .select('id, request_id, status')
         .eq('table_id', tableId)
-        .eq('status', 'occupied')
+        .in('status', ['occupied', 'offered', 'reserved'])
+        .order('assigned_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
     
     if (assignment?.request_id) {
-        // تحديث حالة الطلب إلى cleaning
-        await supabase
+        const { error: requestCleaningError } = await supabase
             .from('table_requests')
             .update({ status: 'cleaning' })
             .eq('id', assignment.request_id);
-        console.log(`✅ تم تحديث حالة الطلب إلى cleaning للطاولة ${table.table_name}`);
+
+        if (requestCleaningError) {
+          console.error('❌ فشل تحديث حالة الطلب إلى cleaning:', requestCleaningError);
+          showAlert(`فشل تحديث حالة الطلب: ${requestCleaningError.message}`);
+          return false;
+        }
+
+        const { error: assignmentCleaningError } = await supabase
+            .from('table_assignments')
+            .update({
+              status: 'cleaning',
+              cleaning_started_at: cleaningStartedAt.toISOString(),
+              cleaning_expires_at: cleaningExpiresAt.toISOString()
+            })
+            .eq('id', assignment.id);
+
+        if (assignmentCleaningError) {
+          console.error('❌ فشل تحديث حالة التعيين إلى cleaning:', assignmentCleaningError);
+          showAlert(`فشل تحديث حالة التعيين: ${assignmentCleaningError.message}`);
+          return false;
+        }
+
+        console.log(`✅ تم تحديث الطلب والتعيين إلى cleaning للطاولة ${table.table_name}`);
     }
-  }
-  
-  if (newStatus === 'cleaning') {
-    const holdMinutes = Number(settings.cleaning_hold_minutes || 10);
-    // مؤقت التنظيف (كائن مع id و expiresAt)
+
+    /*
+      نبقي مؤقت المتصفح للعمل الفوري داخل نفس الجلسة،
+      لكن مصدر الوقت الرسمي أصبح محفوظاً في table_assignments.cleaning_expires_at.
+    */
     cleaningTimers[tableId] = {
       id: setTimeout(async () => {
         console.log(`⏰ انتهى وقت التنظيف للطاولة ${table.table_name}`);
         await changeTableStatus(tableId, 'available');
         showPersistentAlert(`🧹 انتهى وقت التنظيف للطاولة ${table.table_name}`);
       }, holdMinutes * 60 * 1000),
-      expiresAt: Date.now() + (holdMinutes * 60 * 1000)
+      expiresAt: cleaningExpiresAt.getTime()
     };
   }
   
@@ -523,35 +561,93 @@ async function restoreExpiredBooking(reqId) {
 // ============================================================
 
 async function closeExpiredRequest(reqId) {
-  console.log("=== بدء حذف الطلب ===");
-  console.log("المعرف المستلم:", reqId);
-  
   if (!reqId) {
-    alert("لا يوجد معرف للطلب");
+    showAlert(currentLang === "ar"
+      ? "لا يمكن تحديد الطلب المراد إلغاؤه"
+      : "Could not identify the booking to cancel");
     return;
   }
-  
+
+  const confirmMessage = currentLang === "ar"
+    ? "هل أنت متأكد من إلغاء هذا الطلب؟"
+    : "Are you sure you want to cancel this booking?";
+
+  if (!confirm(confirmMessage)) {
+    return;
+  }
+
+  const clickedBtn =
+    window.event?.currentTarget ||
+    window.event?.target?.closest?.("button") ||
+    null;
+
+  const oldBtnHtml = clickedBtn ? clickedBtn.innerHTML : "";
+  const oldBtnOpacity = clickedBtn ? clickedBtn.style.opacity : "";
+  const oldBtnCursor = clickedBtn ? clickedBtn.style.cursor : "";
+
+  if (clickedBtn) {
+    clickedBtn.disabled = true;
+    clickedBtn.style.opacity = "0.65";
+    clickedBtn.style.cursor = "not-allowed";
+    clickedBtn.innerHTML = currentLang === "ar"
+      ? '<i class="fas fa-spinner fa-spin"></i> جاري الإلغاء'
+      : '<i class="fas fa-spinner fa-spin"></i> Cancelling';
+  }
+
   try {
-    const { error } = await supabase
-      .from("table_requests")
-      .delete()
-      .eq("id", reqId);
-    
+    const { error } = await supabase.rpc("delete_booking", {
+      p_request_id: reqId
+    });
+
     if (error) {
-      console.log("❌ خطأ في الحذف:", error);
-      alert("فشل حذف الطلب: " + error.message);
+      console.error("Expired booking cancel error:", error);
+
+      if (clickedBtn) {
+        clickedBtn.disabled = false;
+        clickedBtn.style.opacity = oldBtnOpacity;
+        clickedBtn.style.cursor = oldBtnCursor;
+        clickedBtn.innerHTML = oldBtnHtml;
+      }
+
+      showAlert(currentLang === "ar"
+        ? "فشل إلغاء الطلب، حاول مرة أخرى"
+        : "Failed to cancel booking, please try again");
       return;
     }
-    
-    console.log("✅ تم حذف الطلب نهائياً من قاعدة البيانات");
-    
-    await renderExpiredList();
-    await loadWaitingList();
-    
-    console.log("✅ تم تحديث الواجهة بنجاح");
+
+    showSuccessNotification(currentLang === "ar"
+      ? "تم إلغاء الطلب بنجاح"
+      : "Booking cancelled successfully");
+
+    try {
+      if (typeof cachedExpiredData !== "undefined" && Array.isArray(cachedExpiredData)) {
+        cachedExpiredData = cachedExpiredData.filter(item => String(item.id) !== String(reqId));
+      }
+
+      const expiredCard = clickedBtn?.closest?.(".expired-card");
+      if (expiredCard) {
+        expiredCard.remove();
+      } else if (typeof renderExpiredList === "function") {
+        await renderExpiredList();
+      }
+
+    } catch (uiErr) {
+      console.warn("تم إلغاء الطلب بنجاح، لكن حدث خطأ بسيط أثناء تحديث واجهة المنتهية:", uiErr);
+    }
+
   } catch (err) {
-    console.log("❌ خطأ غير متوقع:", err);
-    alert("حدث خطأ غير متوقع");
+    console.error("Expired booking cancel unexpected error:", err);
+
+    if (clickedBtn) {
+      clickedBtn.disabled = false;
+      clickedBtn.style.opacity = oldBtnOpacity;
+      clickedBtn.style.cursor = oldBtnCursor;
+      clickedBtn.innerHTML = oldBtnHtml;
+    }
+
+    showAlert(currentLang === "ar"
+      ? "حدث خطأ أثناء إلغاء الطلب"
+      : "An error occurred while cancelling the booking");
   }
 }
 
@@ -603,6 +699,97 @@ if (!party || party < 1) {
   if (fullPhone && !isValidSaudiMobile(fullPhone)) {
     alert("رقم الجوال غير صحيح");
     return;
+  }
+
+  /*
+    منع تكرار عميل محلي إذا كان نفس رقم الجوال موجوداً حالياً في الطابور.
+    الفحص الأول من waitingData سريع وفوري.
+    الفحص الثاني من قاعدة البيانات للتأكد إذا كانت الواجهة لم تتحدث بعد.
+  */
+  if (fullPhone) {
+    const normalizeQueuePhone = (phone) => {
+      const digits = String(phone || "").replace(/\D/g, "");
+
+      if (digits.startsWith("9665") && digits.length >= 12) {
+        return "0" + digits.substring(3);
+      }
+
+      if (digits.startsWith("5") && digits.length === 9) {
+        return "0" + digits;
+      }
+
+      if (digits.startsWith("05") && digits.length === 10) {
+        return digits;
+      }
+
+      return digits;
+    };
+
+    const normalizedFullPhone = normalizeQueuePhone(fullPhone);
+
+    const localDuplicate = Array.isArray(waitingData)
+      ? waitingData.find(item => {
+          const status = String(item.status || "").toLowerCase();
+
+          if (!["waiting", "offered", "restored"].includes(status)) {
+            return false;
+          }
+
+          const existingPhone =
+            item.phone ||
+            item.customer_phone ||
+            item.customer_phone_snapshot ||
+            "";
+
+          return normalizeQueuePhone(existingPhone) === normalizedFullPhone;
+        })
+      : null;
+
+    if (localDuplicate) {
+      alert(
+        currentLang === "ar"
+          ? "لا يمكن إضافة العميل، يوجد عميل في الطابور بنفس رقم الجوال"
+          : "This phone number already exists in the queue"
+      );
+      return;
+    }
+
+    const { data: latestWaitingRows, error: duplicateCheckError } = await supabase
+      .from("waiting_list_full")
+      .select("request_id, queue_position, status, phone, customer_phone, customer_phone_snapshot")
+      .eq("business_id", currentUser.business_id)
+      .in("status", ["waiting", "offered", "restored"]);
+
+    if (duplicateCheckError) {
+      console.error("Duplicate walk-in phone check error:", duplicateCheckError);
+      alert(
+        currentLang === "ar"
+          ? "تعذر التحقق من تكرار رقم الجوال، حاول مرة أخرى"
+          : "Could not verify duplicate phone number, please try again"
+      );
+      return;
+    }
+
+    const dbDuplicate = Array.isArray(latestWaitingRows)
+      ? latestWaitingRows.find(item => {
+          const existingPhone =
+            item.phone ||
+            item.customer_phone ||
+            item.customer_phone_snapshot ||
+            "";
+
+          return normalizeQueuePhone(existingPhone) === normalizedFullPhone;
+        })
+      : null;
+
+    if (dbDuplicate) {
+      alert(
+        currentLang === "ar"
+          ? "لا يمكن إضافة العميل، يوجد عميل في الطابور بنفس رقم الجوال"
+          : "This phone number already exists in the queue"
+      );
+      return;
+    }
   }
   
   const saveBtn = document.getElementById('walkInSaveBtn');
