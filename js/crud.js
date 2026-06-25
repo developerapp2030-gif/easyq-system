@@ -8,182 +8,261 @@ async function changeTableStatus(tableId, newStatus) {
     console.error(`طاولة غير موجودة: ${tableId}`);
     return false;
   }
-  
+
   console.log(`📝 تغيير حالة الطاولة ${table.table_name} من ${table.status} إلى ${newStatus}`);
-  
-  // تنظيف ذكي لمؤقت التنظيف من الذاكرة
+
+  // تنظيف مؤقتات الذاكرة عند تغيير الحالة
   if (cleaningTimers[tableId]) {
     const timerId = cleaningTimers[tableId].id || cleaningTimers[tableId];
     clearTimeout(timerId);
     delete cleaningTimers[tableId];
   }
+
   if (reservationTimers[tableId]) {
     clearTimeout(reservationTimers[tableId]);
     delete reservationTimers[tableId];
   }
+
   if (table.status === "occupied" && newStatus !== "occupied") {
     stopTableTimer(tableId, table.table_name);
   }
-  
-  // إدارة كاش المتصفح لبيانات العميل لضمان عدم الاختفاء
+
   if (newStatus === "occupied") {
+    /*
+      المسار الآمن الجديد للتحويل إلى مشغول:
+      لا نحدث dining_tables / table_requests / table_assignments من الواجهة.
+      نستدعي RPC واحدة تقوم بتحديث الثلاثة داخل عملية واحدة.
+    */
+    const { data: occupiedResult, error: occupiedError } = await supabase.rpc(
+      "easyq_mark_table_occupied_v1",
+      {
+        p_table_id: tableId,
+        p_business_id: currentUser?.business_id || null
+      }
+    );
+
+    if (occupiedError) {
+      console.error("❌ فشل تحويل الطاولة إلى مشغولة:", occupiedError);
+      showAlert(`فشل تحويل الطاولة إلى مشغولة: ${occupiedError.message}`);
+      return false;
+    }
+
+    if (occupiedResult?.success === false) {
+      console.warn("⚠️ رفض تحويل الطاولة إلى مشغولة:", occupiedResult);
+      showAlert(occupiedResult.message || "لا يمكن تحويل هذه الطاولة إلى مشغولة");
+      return false;
+    }
+
     startTableTimer(tableId, table.table_name);
-    
+
     if (table.customer_name) {
       const occupiedData = {
         customer_name: table.customer_name,
         requested_party_size: table.requested_party_size,
-        seated_at: new Date().toISOString()
+        seated_at: occupiedResult?.occupied_at || new Date().toISOString()
       };
+
       sessionStorage.setItem(`occupied_table_${tableId}`, JSON.stringify(occupiedData));
     }
-    
-    // جلب التعيين النشط لهذه الطاولة
-    const { data: assignment } = await supabase
-        .from('table_assignments')
-        .select('request_id')
-        .eq('table_id', tableId)
-        .eq('status', 'offered')
-        .maybeSingle();
-    console.log('🔍 assignment found:', assignment);
 
-    if (assignment?.request_id) {
-        console.log('🔄 جاري تحديث الطلب:', assignment.request_id);
-        
-        const { data: reqData, error: reqError } = await supabase
-            .from('table_requests')
-            .update({ status: 'occupied' })
-            .eq('id', assignment.request_id)
-            .select();
-        
-        if (reqError) {
-            console.error('❌ فشل تحديث الطلب table_requests:', reqError);
-            showAlert(`فشل تحديث حالة الطلب: ${reqError.message}`);
-        } else {
-            console.log('✅ تم تحديث الطلب بنجاح:', reqData);
-        }
-        
-        const occupiedAt = new Date().toISOString();
+    table.status = "occupied";
+    table.seated_at = occupiedResult?.occupied_at || new Date().toISOString();
 
-        const { error: assignError } = await supabase
-            .from('table_assignments')
-            .update({
-              status: 'occupied',
-              occupied_at: occupiedAt
-            })
-            .eq('table_id', tableId)
-            .eq('status', 'offered');
-            
-        if (assignError) {
-            console.error('❌ فشل تحديث التعيين table_assignments:', assignError);
-        } else {
-            table.seated_at = occupiedAt;
-            console.log('✅ تم تحديث حالة التعيين بنجاح إلى occupied مع حفظ وقت الجلوس');
-        }
-    } else {
-        console.warn('⚠️ لم يتم العثور على تعيين نشط (offered) لهذه الطاولة.');
-    }
+    await loadAll();
+    renderFloorPlan();
+    renderStatusSummary();
+
+    return true;
   } else {
     // إذا تحولت لأي حالة أخرى غير المشغولة، يتم تفريغ كاش الطاولة فوراً
     sessionStorage.removeItem(`occupied_table_${tableId}`);
   }
-  
-  if (newStatus === "available") {
-    const { error: cleanError } = await supabase.rpc('clean_table_assignments', {
-      p_table_id: tableId
-    });
-    if (cleanError) console.error("Error cleaning assignments:", cleanError);
-    stopTableTimer(tableId, table.table_name);
+
+  /*
+    المسار الآمن الجديد للتنظيف:
+    لا نحدث dining_tables / table_requests / table_assignments من الواجهة.
+    نستدعي RPC واحدة تقوم بتحديث الثلاثة داخل عملية واحدة.
+  */
+  if (newStatus === "cleaning") {
+    const holdMinutes = Number(settings.cleaning_hold_minutes || 10);
+
+    const { data: cleaningResult, error: cleaningError } = await supabase.rpc(
+      "easyq_start_table_cleaning_v1",
+      {
+        p_table_id: tableId,
+        p_business_id: currentUser?.business_id || null,
+        p_cleaning_minutes: holdMinutes
+      }
+    );
+
+    if (cleaningError) {
+      console.error("❌ فشل بدء تنظيف الطاولة:", cleaningError);
+      showAlert(`فشل بدء تنظيف الطاولة: ${cleaningError.message}`);
+      return false;
+    }
+
+    if (cleaningResult?.success === false) {
+      console.warn("⚠️ رفض بدء التنظيف:", cleaningResult);
+      showAlert(cleaningResult.message || "لا يمكن بدء تنظيف هذه الطاولة");
+      return false;
+    }
+
+    const cleaningExpiresAt = cleaningResult?.cleaning_expires_at
+      ? new Date(cleaningResult.cleaning_expires_at)
+      : new Date(Date.now() + (holdMinutes * 60 * 1000));
+
+    const remainingMs = Math.max(0, cleaningExpiresAt.getTime() - Date.now());
+
+    cleaningTimers[tableId] = {
+      id: setTimeout(async () => {
+        console.log(`⏰ انتهى وقت التنظيف للطاولة ${table.table_name}`);
+        await changeTableStatus(tableId, "available");
+        showPersistentAlert(`🧹 انتهى وقت التنظيف للطاولة ${table.table_name}`);
+      }, remainingMs),
+      expiresAt: cleaningExpiresAt.getTime()
+    };
+
+    table.status = "cleaning";
+
+    await loadAll();
+    renderFloorPlan();
+    renderStatusSummary();
+
+    return true;
   }
-  
+
+  if (newStatus === "pending") {
+    /*
+      المسار الآمن لحالة المعاينة:
+      لا يسمح بوضع الطاولة في pending إذا عليها طلب أو تعيين نشط.
+    */
+    const { data: pendingResult, error: pendingError } = await supabase.rpc(
+      "easyq_set_table_pending_v1",
+      {
+        p_table_id: tableId,
+        p_business_id: currentUser?.business_id || null
+      }
+    );
+
+    if (pendingError) {
+      console.error("❌ فشل تحويل الطاولة إلى معاينة:", pendingError);
+      showAlert(`فشل تحويل الطاولة إلى معاينة: ${pendingError.message}`);
+      return false;
+    }
+
+    if (pendingResult?.success === false) {
+      console.warn("⚠️ رفض تحويل الطاولة إلى معاينة:", pendingResult);
+      showAlert(pendingResult.message || "لا يمكن تحويل هذه الطاولة إلى معاينة");
+      return false;
+    }
+
+    stopTableTimer(tableId, table.table_name);
+
+    table.status = "pending";
+
+    await loadAll();
+    renderFloorPlan();
+    renderStatusSummary();
+
+    return true;
+  }
+
+  if (newStatus === "disabled") {
+    /*
+      المسار الآمن لتعطيل الطاولة:
+      لا يسمح بتعطيل طاولة عليها طلب أو تعيين نشط.
+    */
+    const { data: disabledResult, error: disabledError } = await supabase.rpc(
+      "easyq_set_table_disabled_v1",
+      {
+        p_table_id: tableId,
+        p_business_id: currentUser?.business_id || null
+      }
+    );
+
+    if (disabledError) {
+      console.error("❌ فشل تعطيل الطاولة:", disabledError);
+      showAlert(`فشل تعطيل الطاولة: ${disabledError.message}`);
+      return false;
+    }
+
+    if (disabledResult?.success === false) {
+      console.warn("⚠️ رفض تعطيل الطاولة:", disabledResult);
+      showAlert(disabledResult.message || "لا يمكن تعطيل هذه الطاولة");
+      return false;
+    }
+
+    stopTableTimer(tableId, table.table_name);
+
+    table.status = "disabled";
+
+    await loadAll();
+    renderFloorPlan();
+    renderStatusSummary();
+
+    return true;
+  }
+
+  if (newStatus === "available") {
+    /*
+      المسار الآمن الجديد للتحويل إلى متاحة:
+      - لا يسمح بتحرير reserved/occupied مباشرة.
+      - يسمح فقط بـ cleaning → available.
+      - يسمح بإعادة disabled/pending إلى available إذا لا يوجد assignment نشط.
+    */
+    const { data: availableResult, error: availableError } = await supabase.rpc(
+      "easyq_set_table_available_v1",
+      {
+        p_table_id: tableId,
+        p_business_id: currentUser?.business_id || null
+      }
+    );
+
+    if (availableError) {
+      console.error("❌ فشل تحويل الطاولة إلى متاحة:", availableError);
+      showAlert(`فشل تحويل الطاولة إلى متاحة: ${availableError.message}`);
+      return false;
+    }
+
+    if (availableResult?.success === false) {
+      console.warn("⚠️ رفض تحويل الطاولة إلى متاحة:", availableResult);
+      showAlert(availableResult.message || "لا يمكن تحويل هذه الطاولة إلى متاحة");
+      return false;
+    }
+
+    stopTableTimer(tableId, table.table_name);
+
+    table.status = "available";
+
+    await loadAll();
+    renderFloorPlan();
+    renderStatusSummary();
+
+    return true;
+  }
+
   const { error } = await supabase
-    .from('dining_tables')
+    .from("dining_tables")
     .update({ status: newStatus })
-    .eq('id', tableId);
-  
+    .eq("id", tableId);
+
   if (error) {
     console.error(error);
     showAlert(`فشل تغيير حالة الطاولة: ${error.message}`);
     return false;
   }
-  
+
   table.status = newStatus;
 
-  // ✅ تحديث حالة الطلب والتعيين عند تنظيف الطاولة
-  if (newStatus === 'cleaning') {
-    const holdMinutes = Number(settings.cleaning_hold_minutes || 10);
-    const cleaningStartedAt = new Date();
-    const cleaningExpiresAt = new Date(cleaningStartedAt.getTime() + (holdMinutes * 60 * 1000));
-
-    /*
-      نقبل التنظيف من:
-      - occupied: عميل كان جالساً وانتهت خدمته
-      - offered: حجز كان على الطاولة وتم تحويلها للتنظيف مباشرة
-      - reserved: احتياط إذا كان هناك سجل قديم بهذه الحالة
-    */
-    const { data: assignment } = await supabase
-        .from('table_assignments')
-        .select('id, request_id, status')
-        .eq('table_id', tableId)
-        .in('status', ['occupied', 'offered', 'reserved'])
-        .order('assigned_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-    
-    if (assignment?.request_id) {
-        const { error: requestCleaningError } = await supabase
-            .from('table_requests')
-            .update({ status: 'cleaning' })
-            .eq('id', assignment.request_id);
-
-        if (requestCleaningError) {
-          console.error('❌ فشل تحديث حالة الطلب إلى cleaning:', requestCleaningError);
-          showAlert(`فشل تحديث حالة الطلب: ${requestCleaningError.message}`);
-          return false;
-        }
-
-        const { error: assignmentCleaningError } = await supabase
-            .from('table_assignments')
-            .update({
-              status: 'cleaning',
-              cleaning_started_at: cleaningStartedAt.toISOString(),
-              cleaning_expires_at: cleaningExpiresAt.toISOString()
-            })
-            .eq('id', assignment.id);
-
-        if (assignmentCleaningError) {
-          console.error('❌ فشل تحديث حالة التعيين إلى cleaning:', assignmentCleaningError);
-          showAlert(`فشل تحديث حالة التعيين: ${assignmentCleaningError.message}`);
-          return false;
-        }
-
-        console.log(`✅ تم تحديث الطلب والتعيين إلى cleaning للطاولة ${table.table_name}`);
-    }
-
-    /*
-      نبقي مؤقت المتصفح للعمل الفوري داخل نفس الجلسة،
-      لكن مصدر الوقت الرسمي أصبح محفوظاً في table_assignments.cleaning_expires_at.
-    */
-    cleaningTimers[tableId] = {
-      id: setTimeout(async () => {
-        console.log(`⏰ انتهى وقت التنظيف للطاولة ${table.table_name}`);
-        await changeTableStatus(tableId, 'available');
-        showPersistentAlert(`🧹 انتهى وقت التنظيف للطاولة ${table.table_name}`);
-      }, holdMinutes * 60 * 1000),
-      expiresAt: cleaningExpiresAt.getTime()
-    };
-  }
-  
-  if (newStatus === 'reserved') {
+  if (newStatus === "reserved") {
     console.log(`⏳ الطاولة ${table.table_name} محجوزة. انتهاء الحجز سيتم عبر checkReservationTimers فقط.`);
   }
-  
-  // جلب كافة البيانات المحدثة (الطاولات والطلبات) فوراً محلياً دون انتظار الـ Realtime
+
   await loadAll();
-  
+
   renderFloorPlan();
   renderStatusSummary();
-  
+
   return true;
 }
 
@@ -514,6 +593,91 @@ async function restoreExpiredBooking(reqId) {
   }
 
   try {
+    /*
+      قبل استرجاع الطلب المنتهي للطابور:
+      نقرأ رقم الجوال من snapshot أو من جدول العملاء
+      ثم نفحص هل يوجد طلب نشط بنفس الرقم.
+    */
+    const { data: expiredRequest, error: expiredFetchError } = await supabase
+      .from("table_requests")
+      .select(`
+        id,
+        business_id,
+        customer_phone_snapshot,
+        customers (
+          phone,
+          whatsapp_number
+        )
+      `)
+      .eq("id", reqId)
+      .eq("business_id", currentUser.business_id)
+      .maybeSingle();
+
+    if (expiredFetchError || !expiredRequest) {
+      console.error("Restore expired fetch error:", expiredFetchError);
+
+      alert(currentLang === "ar"
+        ? "تعذر قراءة بيانات الحجز قبل الاسترجاع"
+        : "Could not read booking data before restore");
+
+      if (clickedBtn) {
+        clickedBtn.disabled = false;
+        clickedBtn.style.opacity = oldBtnOpacity;
+        clickedBtn.style.cursor = oldBtnCursor;
+        clickedBtn.innerHTML = oldBtnHtml;
+      }
+
+      return;
+    }
+
+    const restorePhone =
+      expiredRequest.customer_phone_snapshot ||
+      expiredRequest.customers?.phone ||
+      expiredRequest.customers?.whatsapp_number ||
+      "";
+
+    if (restorePhone) {
+      const { data: phoneCheck, error: phoneCheckError } = await supabase.rpc(
+        "easyq_check_active_queue_phone_v1",
+        {
+          p_business_id: currentUser.business_id,
+          p_phone: restorePhone
+        }
+      );
+
+      if (phoneCheckError || phoneCheck?.success !== true) {
+        console.error("Restore active phone check error:", phoneCheckError || phoneCheck);
+
+        alert(currentLang === "ar"
+          ? "تعذر التحقق من رقم الجوال قبل الاسترجاع"
+          : "Could not verify the phone number before restore");
+
+        if (clickedBtn) {
+          clickedBtn.disabled = false;
+          clickedBtn.style.opacity = oldBtnOpacity;
+          clickedBtn.style.cursor = oldBtnCursor;
+          clickedBtn.innerHTML = oldBtnHtml;
+        }
+
+        return;
+      }
+
+      if (phoneCheck.has_active === true) {
+        alert(currentLang === "ar"
+          ? "لا يمكن استرجاع هذا الحجز، يوجد طلب نشط في الطابور بنفس رقم الجوال"
+          : "This booking cannot be restored because this phone already has an active queue request");
+
+        if (clickedBtn) {
+          clickedBtn.disabled = false;
+          clickedBtn.style.opacity = oldBtnOpacity;
+          clickedBtn.style.cursor = oldBtnCursor;
+          clickedBtn.innerHTML = oldBtnHtml;
+        }
+
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from("table_requests")
       .update({
@@ -522,7 +686,8 @@ async function restoreExpiredBooking(reqId) {
         created_at: new Date().toISOString(),
         expired_at: null
       })
-      .eq("id", reqId);
+      .eq("id", reqId)
+      .eq("business_id", currentUser.business_id);
 
     if (error) {
       console.log(error);
@@ -702,91 +867,35 @@ if (!party || party < 1) {
   }
 
   /*
-    منع تكرار عميل محلي إذا كان نفس رقم الجوال موجوداً حالياً في الطابور.
-    الفحص الأول من waitingData سريع وفوري.
-    الفحص الثاني من قاعدة البيانات للتأكد إذا كانت الواجهة لم تتحدث بعد.
+    منع تكرار رقم الجوال في الطابور باستخدام RPC آمنة وموحدة.
+    لا نعتمد هنا على waiting_list_full لأنها تعرض waiting فقط
+    ولا نعتمد على مقارنة محلية قد تختلف فيها صيغة الرقم.
   */
   if (fullPhone) {
-    const normalizeQueuePhone = (phone) => {
-      const digits = String(phone || "").replace(/\D/g, "");
-
-      if (digits.startsWith("9665") && digits.length >= 12) {
-        return "0" + digits.substring(3);
+    const { data: phoneCheck, error: phoneCheckError } = await supabase.rpc(
+      "easyq_check_active_queue_phone_v1",
+      {
+        p_business_id: currentUser.business_id,
+        p_phone: fullPhone
       }
+    );
 
-      if (digits.startsWith("5") && digits.length === 9) {
-        return "0" + digits;
-      }
+    if (phoneCheckError || phoneCheck?.success !== true) {
+      console.error("Walk-in active phone check error:", phoneCheckError || phoneCheck);
 
-      if (digits.startsWith("05") && digits.length === 10) {
-        return digits;
-      }
-
-      return digits;
-    };
-
-    const normalizedFullPhone = normalizeQueuePhone(fullPhone);
-
-    const localDuplicate = Array.isArray(waitingData)
-      ? waitingData.find(item => {
-          const status = String(item.status || "").toLowerCase();
-
-          if (!["waiting", "offered", "restored"].includes(status)) {
-            return false;
-          }
-
-          const existingPhone =
-            item.phone ||
-            item.customer_phone ||
-            item.customer_phone_snapshot ||
-            "";
-
-          return normalizeQueuePhone(existingPhone) === normalizedFullPhone;
-        })
-      : null;
-
-    if (localDuplicate) {
       alert(
         currentLang === "ar"
-          ? "لا يمكن إضافة العميل، يوجد عميل في الطابور بنفس رقم الجوال"
-          : "This phone number already exists in the queue"
+          ? "تعذر التحقق من رقم الجوال، حاول مرة أخرى"
+          : "Could not verify the phone number, please try again"
       );
       return;
     }
 
-    const { data: latestWaitingRows, error: duplicateCheckError } = await supabase
-      .from("waiting_list_full")
-      .select("request_id, queue_position, status, phone, customer_phone, customer_phone_snapshot")
-      .eq("business_id", currentUser.business_id)
-      .in("status", ["waiting", "offered", "restored"]);
-
-    if (duplicateCheckError) {
-      console.error("Duplicate walk-in phone check error:", duplicateCheckError);
+    if (phoneCheck.has_active === true) {
       alert(
         currentLang === "ar"
-          ? "تعذر التحقق من تكرار رقم الجوال، حاول مرة أخرى"
-          : "Could not verify duplicate phone number, please try again"
-      );
-      return;
-    }
-
-    const dbDuplicate = Array.isArray(latestWaitingRows)
-      ? latestWaitingRows.find(item => {
-          const existingPhone =
-            item.phone ||
-            item.customer_phone ||
-            item.customer_phone_snapshot ||
-            "";
-
-          return normalizeQueuePhone(existingPhone) === normalizedFullPhone;
-        })
-      : null;
-
-    if (dbDuplicate) {
-      alert(
-        currentLang === "ar"
-          ? "لا يمكن إضافة العميل، يوجد عميل في الطابور بنفس رقم الجوال"
-          : "This phone number already exists in the queue"
+          ? "لا يمكن إضافة العميل، يوجد طلب نشط في الطابور بنفس رقم الجوال"
+          : "This phone number already has an active queue request"
       );
       return;
     }

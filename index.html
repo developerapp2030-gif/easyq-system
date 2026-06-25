@@ -851,13 +851,23 @@ btn.onclick = function(e) {
     <div class="modal-title" id="modalTitle">Table Actions</div>
     <div class="modal-sub" id="modalSub"></div>
     <div class="modal-actions">
-      <button class="modal-btn" style="background:#10b981;" onclick="manualStatusChange('available')" id="btnAvailable"><i class="fas fa-check-circle"></i> Avail</button>
-      <button class="modal-btn" style="background:#f59e0b;" onclick="manualStatusChange('reserved')" id="btnReserved"><i class="fas fa-clock"></i> Reserved</button>
-      <button class="modal-btn" style="background:#8B0000;" onclick="manualStatusChange('occupied')" id="btnOccupied"><i class="fas fa-chair"></i> Occupied</button>
-      <button class="modal-btn" style="background:#3b82f6;" onclick="manualStatusChange('cleaning')" id="btnCleaning"><i class="fas fa-broom"></i> Cleaning</button>
-      <button class="modal-btn" style="background:#6b7280;" onclick="manualStatusChange('disabled')" id="btnDisabled"><i class="fas fa-ban"></i> Disabled</button>
-      <button class="modal-btn" style="background:#8b5cf6;" onclick="manualStatusChange('pending')" id="btnPending"><i class="fas fa-hourglass-half"></i> Pending</button>
-      <button class="modal-btn" style="background:#8B5E3C;" onclick="swapCurrentTable()" id="btnSwap"><i class="fas fa-exchange-alt"></i> Swap</button>
+<button class="modal-btn" style="background:#10b981;" onclick="manualStatusChange('available')" id="btnAvailable"><i class="fas fa-check-circle"></i> Avail</button>
+<button class="modal-btn" style="background:#f59e0b;" onclick="manualStatusChange('reserved')" id="btnReserved"><i class="fas fa-clock"></i> Reserved</button>
+<button class="modal-btn" style="background:#8B0000;" onclick="manualStatusChange('occupied')" id="btnOccupied"><i class="fas fa-chair"></i> Occupied</button>
+<button class="modal-btn" style="background:#3b82f6;" onclick="manualStatusChange('cleaning')" id="btnCleaning"><i class="fas fa-broom"></i> Cleaning</button>
+<button class="modal-btn" style="background:#6b7280;" onclick="manualStatusChange('disabled')" id="btnDisabled"><i class="fas fa-ban"></i> Disabled</button>
+<button class="modal-btn" style="background:#8b5cf6;" onclick="manualStatusChange('pending')" id="btnPending"><i class="fas fa-hourglass-half"></i> Pending</button>
+
+<button
+  class="modal-btn"
+  style="background:#0E146D; display:none;"
+  onclick="openSeatReservationModal()"
+  id="btnSeatReservation"
+>
+  <i class="fas fa-calendar-check"></i> تعيين حجز
+</button>
+
+<button class="modal-btn" style="background:#8B5E3C;" onclick="swapCurrentTable()" id="btnSwap"><i class="fas fa-exchange-alt"></i> Swap</button>
     </div>
     <button class="modal-close" onclick="closeStatusModal()" id="modalCloseBtn">Close</button>
   </div>

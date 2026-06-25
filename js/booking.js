@@ -208,24 +208,53 @@ function initBookingPhoneInput() {
     useFullscreenPopup: false
   });
 
-  phoneInput.placeholder = " 512345678";
+  phoneInput.placeholder = "512 345 678";
   phoneInput.setAttribute("inputmode", "numeric");
-  phoneInput.setAttribute("maxlength", "9");
+  phoneInput.setAttribute("maxlength", "11");
 
-  phoneInput.addEventListener("input", function () {
-    let value = this.value.replace(/\D/g, "");
+  function formatBookingPhoneInput() {
+    const country = bookingPhoneInputInstance?.getSelectedCountryData?.();
+    let digits = phoneInput.value.replace(/\D/g, "");
 
-    // منع البداية بصفر نهائيًا
-    if (value.startsWith("0")) {
-      value = value.replace(/^0+/, "");
+    // السعودية: 9 أرقام فقط بعد المفتاح، وتبدأ بـ 5
+    if (country?.iso2 === "sa") {
+      // لا نسمح بالصفر في البداية لأن المفتاح +966 ظاهر مستقل
+      digits = digits.replace(/^0+/, "");
+
+      // حد أقصى 9 أرقام
+      digits = digits.slice(0, 9);
+
+      // تنسيق بصري: 512 345 678
+      if (digits.length > 6) {
+        phoneInput.value = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+      } else if (digits.length > 3) {
+        phoneInput.value = `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      } else {
+        phoneInput.value = digits;
+      }
+
+      return;
     }
 
-    // حد أقصى 9 أرقام للرقم السعودي المحلي بدون صفر
-    if (bookingPhoneInputInstance?.getSelectedCountryData()?.iso2 === "sa") {
-      value = value.slice(0, 9);
-    }
+    // بقية الدول: لا نفرض أن يبدأ الرقم بـ 5، فقط تنسيق خفيف كل 3 أرقام
+    digits = digits.slice(0, 15);
+    phoneInput.value = digits.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
+  }
 
-    this.value = value;
+  phoneInput.addEventListener("input", formatBookingPhoneInput);
+
+  phoneInput.addEventListener("countrychange", function () {
+    phoneInput.value = "";
+
+    const country = bookingPhoneInputInstance?.getSelectedCountryData?.();
+
+    if (country?.iso2 === "sa") {
+      phoneInput.placeholder = "512 345 678";
+      phoneInput.setAttribute("maxlength", "11");
+    } else {
+      phoneInput.placeholder = "Mobile number";
+      phoneInput.setAttribute("maxlength", "19");
+    }
   });
 }
 
@@ -1210,7 +1239,7 @@ async function submitBooking() {
   const name = document.getElementById('customerName')?.value.trim();
   window.currentCustomerName = name;
   const phoneInputEl = document.getElementById('customerPhone');
-const rawPhone = phoneInputEl?.value.trim() || "";
+const rawPhone = (phoneInputEl?.value || "").replace(/\D/g, "");
 const selectedCountry = bookingPhoneInputInstance?.getSelectedCountryData?.();
 const dialCode = selectedCountry?.dialCode || "966";
 const phone = `+${dialCode}${rawPhone}`;
@@ -1223,11 +1252,11 @@ if (!name) {
 }
   
 if (selectedCountry?.iso2 === "sa") {
-  if (!/^[1-9][0-9]{8}$/.test(rawPhone)) {
+  if (!/^5[0-9]{8}$/.test(rawPhone)) {
     alert(
       bookingPageLang === "en"
-        ? "Please enter 9 digits without starting with 0"
-        : "يجب إدخال 9 أرقام بدون أن يبدأ الرقم بـ 0"
+        ? "Please enter a Saudi mobile number: 9 digits starting with 5"
+        : "يجب إدخال رقم جوال سعودي صحيح: 9 أرقام تبدأ بـ 5"
     );
     return;
   }
@@ -1243,46 +1272,35 @@ if (selectedCountry?.iso2 === "sa") {
   submitBtn.innerHTML = `<div class="spinner"></div> ${escapeHtml(bookingText("checking_booking_text"))}`;
   
   try {
-    // ✅ الخطوة 1: التحقق من وجود حجز نشط لنفس الجوال
-    const { data: activeCheck, error: checkError } = await supabase
-      .rpc('check_active_booking_by_phone', {
-        p_phone: phone,
-        p_business_id: currentBusinessId
-      });
-    
-    if (checkError) throw new Error(checkError.message);
-    
-    // ✅ إذا وجد حجز نشط، استعد الحجز الحالي
-    if (activeCheck?.has_active === true) {
-      console.log('🔄 Active booking found:', activeCheck);
-      
-      currentRequestId = activeCheck.request_id;
-      currentQueueNumber = activeCheck.queue_position;
-      
-      localStorage.setItem('current_booking_id', currentRequestId);
-      sessionStorage.setItem('booking_cancelled', 'false');
-      sessionStorage.setItem('current_booking_id', currentRequestId);
-      
-      // جلب بيانات الحجز النشط من RPC الآمنة بدل القراءة المباشرة من table_requests
-      const { data: existingBookingData, error: existingBookingError } = await supabase.rpc(
-        'easyq_public_view_booking_by_request_id_v1',
-        {
-          p_request_id: currentRequestId
-        }
+    // ✅ فحص آمن وموحد: هل يوجد طلب نشط بنفس الجوال؟
+    // مهم: لا نعرض الحجز هنا لأن الجوال وحده لا يثبت ملكية الحجز.
+    const { data: activeCheck, error: checkError } = await supabase.rpc(
+      "easyq_check_active_queue_phone_v1",
+      {
+        p_business_id: currentBusinessId,
+        p_phone: phone
+      }
+    );
+
+    if (checkError || activeCheck?.success !== true) {
+      throw new Error(
+        bookingPageLang === "en"
+          ? "Could not verify the phone number. Please try again."
+          : "تعذر التحقق من رقم الجوال، حاول مرة أخرى."
+      );
+    }
+
+    if (activeCheck.has_active === true) {
+      alert(
+        bookingPageLang === "en"
+          ? "You already have an active booking with this mobile number. You cannot create another booking with the same number. To view your booking, use the active booking option and enter both your mobile number and booking reference code."
+          : "لديك حجز نشط بنفس رقم الجوال. لا يمكن إنشاء حجز جديد بنفس الرقم. لاستعراض الحجز، ادخل من خانة حجز نشط وأدخل رقم الجوال والرقم المرجعي معاً."
       );
 
-      const existingRequest = existingBookingData?.booking || null;
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = escapeHtml(bookingText("submit_button_text"));
 
-      if (existingBookingError || !existingBookingData?.success || !existingRequest) {
-        throw new Error('تعذر استعادة الحجز النشط');
-      }
-      
-      alert(`⚠️ لديك حجز نشط بالفعل!\nرقمك في الانتظار: ${existingRequest.queue_position}\nسيتم استعادة الحجز الحالي.`);
-      
-await renderStatusPage(existingRequest);
-setupRealtime();
-startCustomerSafetyPolling();
-return;
+      return;
     }
     
     // ✅ الخطوة 2: لا يوجد حجز نشط، تابع إنشاء حجز جديد
