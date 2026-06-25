@@ -1334,3 +1334,148 @@ select.form-input option {
     font-size: 10px !important;
   }
 }
+
+/* ============================================================
+   EASY-Q | Modern Intl Phone Dropdown - Booking Page
+   تجميل قائمة مفاتيح الدول في صفحة الحجز
+   ============================================================ */
+
+/* الحاوية العامة لحقل الجوال */
+.iti {
+  width: 100%;
+  direction: ltr;
+}
+
+/* ضبط مدخل الجوال داخل صفحة الحجز */
+.iti input[type="tel"],
+.iti .booking-input {
+  width: 100%;
+}
+
+/* زر الدولة داخل الحقل */
+.iti__selected-country {
+  border-radius: 14px;
+  padding: 0 10px;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.iti__selected-country:hover {
+  background: rgba(14, 20, 109, 0.06);
+}
+
+/* صندوق القائمة المنسدلة */
+.iti__dropdown-content {
+  width: 200px !important;
+  max-width: calc(100vw - 28px) !important;
+  border: 1px solid rgba(14, 20, 109, 0.12) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 18px 45px rgba(6, 4, 39, 0.18) !important;
+  overflow: hidden !important;
+  background: #333334 !important;
+  z-index: 999999 !important;
+}
+
+/* خانة البحث */
+.iti__search-input {
+  height: 44px !important;
+  padding: 0 14px !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(14, 20, 109, 0.10) !important;
+  outline: none !important;
+  font-size: 14px !important;
+  color: #060427 !important;
+  background: #f8f9ff !important;
+}
+
+/* قائمة الدول */
+.iti__country-list {
+  max-height: 260px !important;
+  padding: 8px !important;
+  background: #F4F5F8 !important;
+}
+
+/* كل دولة في القائمة */
+.iti__country {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-height: 42px !important;
+  padding: 9px 10px !important;
+  border-radius: 12px !important;
+  direction: ltr !important;
+  background: #FFFFFF !important;
+  margin-bottom: 4px !important;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+/* عند المرور */
+.iti__country:hover,
+.iti__country.iti__highlight {
+  background: rgba(14, 20, 109, 0.07) !important;
+}
+
+/* صندوق العلم */
+.iti__flag-box {
+  order: 1 !important;
+  width: 24px !important;
+  min-width: 24px !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* رمز الدولة قريب من العلم */
+.iti__dial-code {
+  order: 2 !important;
+  margin: 0 !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  background: rgba(14, 20, 109, 0.08) !important;
+  color: #090a25 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  line-height: 1.4 !important;
+  direction: ltr !important;
+  white-space: nowrap !important;
+}
+
+/* اسم الدولة بعد العلم والرمز */
+.iti__country-name {
+  order: 3 !important;
+  flex: 1 !important;
+  margin: 0 !important;
+  color: #060427 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* الفواصل بين الدول المفضلة وباقي الدول */
+.iti__divider {
+  border-bottom: 1px solid rgba(14, 20, 109, 0.08) !important;
+  margin: 7px 4px !important;
+}
+
+/* تحسين شكل السهم */
+.iti__arrow {
+  border-top-color: #fbfbfb !important;
+  margin-inline-start: 6px !important;
+}
+
+/* للموبايل: لا نجعل القائمة قاسية أو قديمة */
+@media (max-width: 520px) {
+  .iti__dropdown-content {
+    border-radius: 20px 20px 0 0 !important;
+  }
+
+  .iti__country-list {
+    max-height: 320px !important;
+  }
+
+  .iti__country {
+    min-height: 46px !important;
+  }
+}

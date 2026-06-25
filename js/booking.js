@@ -208,7 +208,7 @@ function initBookingPhoneInput() {
     useFullscreenPopup: false
   });
 
-  phoneInput.placeholder = "512 345 678";
+  phoneInput.placeholder = "ادخل رقم الجوال بدون الصفر 512345678";
   phoneInput.setAttribute("inputmode", "numeric");
   phoneInput.setAttribute("maxlength", "11");
 
@@ -1238,119 +1238,213 @@ ${!isGuestViewOnly ? `
 async function submitBooking() {
   const name = document.getElementById('customerName')?.value.trim();
   window.currentCustomerName = name;
+
   const phoneInputEl = document.getElementById('customerPhone');
-const rawPhone = (phoneInputEl?.value || "").replace(/\D/g, "");
-const selectedCountry = bookingPhoneInputInstance?.getSelectedCountryData?.();
-const dialCode = selectedCountry?.dialCode || "966";
-const phone = `+${dialCode}${rawPhone}`;
+  const rawPhone = phoneInputEl?.value.trim() || "";
+  const selectedCountry = bookingPhoneInputInstance?.getSelectedCountryData?.();
+  const dialCode = selectedCountry?.dialCode || "966";
+
+  // تنظيف الرقم من أي مسافات أو رموز تنسيق قبل الفحص
+  let phoneDigits = rawPhone.replace(/\D/g, "");
+
+  // في السعودية: إذا كتب العميل الصفر بالخطأ 05xxxxxxxx نحذفه لأن مفتاح الدولة موجود
+  if (selectedCountry?.iso2 === "sa" && phoneDigits.startsWith("0")) {
+    phoneDigits = phoneDigits.replace(/^0+/, "");
+  }
+
+  const phone = `+${dialCode}${phoneDigits}`;
+
   const partySize = parseInt(document.getElementById('partySizeValue')?.innerText || '2');
   const zone = document.getElementById('customerZone')?.value || null;
-  
-if (!name) {
-  alert(bookingText("name_required_alert_text"));
-  return;
-}
-  
-if (selectedCountry?.iso2 === "sa") {
-  if (!/^5[0-9]{8}$/.test(rawPhone)) {
-    alert(
-      bookingPageLang === "en"
-        ? "Please enter a Saudi mobile number: 9 digits starting with 5"
-        : "يجب إدخال رقم جوال سعودي صحيح: 9 أرقام تبدأ بـ 5"
-    );
+
+  if (!name) {
+    alert(bookingText("name_required_alert_text"));
     return;
   }
-} else {
-  if (!/^[0-9]{6,15}$/.test(rawPhone)) {
-    alert(bookingText("phone_invalid_alert_text"));
-    return;
+
+  if (selectedCountry?.iso2 === "sa") {
+    if (!/^[1-9][0-9]{8}$/.test(phoneDigits)) {
+      alert(
+        bookingPageLang === "en"
+          ? "Please enter 9 digits without starting with 0"
+          : "يجب إدخال 9 أرقام بدون أن يبدأ الرقم بـ 0"
+      );
+      return;
+    }
+  } else {
+    if (!/^[0-9]{6,15}$/.test(phoneDigits)) {
+      alert(bookingText("phone_invalid_alert_text"));
+      return;
+    }
   }
-}
-  
+
   const submitBtn = document.getElementById('submitBookingBtn');
   submitBtn.disabled = true;
   submitBtn.innerHTML = `<div class="spinner"></div> ${escapeHtml(bookingText("checking_booking_text"))}`;
-  
-  try {
-    // ✅ فحص آمن وموحد: هل يوجد طلب نشط بنفس الجوال؟
-    // مهم: لا نعرض الحجز هنا لأن الجوال وحده لا يثبت ملكية الحجز.
-    const { data: activeCheck, error: checkError } = await supabase.rpc(
-      "easyq_check_active_queue_phone_v1",
-      {
-        p_business_id: currentBusinessId,
-        p_phone: phone
-      }
-    );
 
-    if (checkError || activeCheck?.success !== true) {
-      throw new Error(
-        bookingPageLang === "en"
-          ? "Could not verify the phone number. Please try again."
-          : "تعذر التحقق من رقم الجوال، حاول مرة أخرى."
+  try {
+    // ✅ 1) منع إنشاء حجز جديد إذا نفس الجوال موجود حاليًا في قائمة الانتظار waiting
+    const { data: activeCheck, error: checkError } = await supabase
+      .rpc('check_active_booking_by_phone', {
+        p_phone: phone,
+        p_business_id: currentBusinessId
+      });
+
+    if (checkError) throw new Error(checkError.message);
+
+    if (activeCheck?.has_active === true) {
+      console.log('🔄 Active booking found:', activeCheck);
+
+      currentRequestId = activeCheck.request_id;
+      currentQueueNumber = activeCheck.queue_position;
+
+      localStorage.setItem('current_booking_id', currentRequestId);
+      sessionStorage.setItem('booking_cancelled', 'false');
+      sessionStorage.setItem('current_booking_id', currentRequestId);
+
+      const { data: existingBookingData, error: existingBookingError } = await supabase.rpc(
+        'easyq_public_view_booking_by_request_id_v1',
+        {
+          p_request_id: currentRequestId
+        }
       );
+
+      const existingRequest = existingBookingData?.booking || null;
+
+      if (existingBookingError || !existingBookingData?.success || !existingRequest) {
+        throw new Error('تعذر استعادة الحجز النشط');
+      }
+
+      alert(`⚠️ لديك حجز نشط بالفعل!\nرقمك في الانتظار: ${existingRequest.queue_position}\nسيتم استعادة الحجز الحالي.`);
+
+      await renderStatusPage(existingRequest);
+      setupRealtime();
+      startCustomerSafetyPolling();
+      return;
     }
 
-    if (activeCheck.has_active === true) {
+    // ✅ 2) فحص حد الحجوزات السلبية قبل إنشاء العميل أو إظهار رسالة التأكيد
+    const { data: negativeLimitRows, error: negativeLimitError } = await supabase
+      .rpc('easyq_check_online_booking_negative_limit_v1', {
+        p_business_id: currentBusinessId,
+        p_phone: phone
+      });
+
+    if (negativeLimitError) {
+      throw new Error(negativeLimitError.message);
+    }
+
+    const negativeLimit = Array.isArray(negativeLimitRows)
+      ? negativeLimitRows[0]
+      : negativeLimitRows;
+
+    if (negativeLimit?.should_block === true) {
       alert(
-        bookingPageLang === "en"
-          ? "You already have an active booking with this mobile number. You cannot create another booking with the same number. To view your booking, use the active booking option and enter both your mobile number and booking reference code."
-          : "لديك حجز نشط بنفس رقم الجوال. لا يمكن إنشاء حجز جديد بنفس الرقم. لاستعراض الحجز، ادخل من خانة حجز نشط وأدخل رقم الجوال والرقم المرجعي معاً."
+        negativeLimit.message ||
+        (
+          bookingPageLang === "en"
+            ? "Sorry, you cannot create a new booking for this number at the moment due to repeated incomplete bookings. Please try again after 12 hours or contact the restaurant directly."
+            : "نعتذر، لا يمكن إنشاء حجز جديد حاليًا لهذا الرقم بسبب تكرار حجوزات غير مكتملة . يمكنك معاودة الحجز بعد 12 ساعة أو يمكنك التواصل مع المطعم مباشرة."
+        )
       );
 
       submitBtn.disabled = false;
       submitBtn.innerHTML = escapeHtml(bookingText("submit_button_text"));
-
       return;
     }
-    
-    // ✅ الخطوة 2: لا يوجد حجز نشط، تابع إنشاء حجز جديد
-  submitBtn.innerHTML = `<div class="spinner"></div> ${escapeHtml(bookingText("creating_booking_text"))}`;
-    
-    // استخدام RPC لإنشاء عميل
+
+    // ✅ 3) لا يوجد منع نهائي، نبدأ إنشاء/تحديث العميل
+    submitBtn.innerHTML = `<div class="spinner"></div> ${escapeHtml(bookingText("creating_booking_text"))}`;
+
     const { data: customerId, error: customerError } = await supabase.rpc('create_customer_safe', {
-        p_name: name,
-        p_phone: phone,
-        p_business_id: currentBusinessId
+      p_name: name,
+      p_phone: phone,
+      p_business_id: currentBusinessId
     });
-    
+
     if (customerError) throw new Error(customerError.message);
     if (!customerId) throw new Error('فشل إنشاء العميل');
-    
-    // استخدام RPC لإنشاء طلب حجز
-    const { data: booking, error: bookingError } = await supabase.rpc('create_booking_safe', {
+
+    // ✅ دالة داخلية لإنشاء الحجز، مع دعم تأكيد آخر 12 ساعة
+    const createBooking = async (confirmRecentBooking = false) => {
+      return await supabase.rpc('create_booking_safe', {
         p_customer_id: customerId,
         p_business_id: currentBusinessId,
         p_party_size: partySize,
-        p_zone_name: zone
-    });
-    
+        p_zone_name: zone,
+        p_confirm_recent_booking: confirmRecentBooking
+      });
+    };
+
+    // ✅ 3) المحاولة الأولى بدون تأكيد
+    let { data: booking, error: bookingError } = await createBooking(false);
+
     if (bookingError) throw new Error(bookingError.message);
-    
-    // تعيين المتغيرات
+
+    // ✅ 4) إذا وجد النظام حجز أونلاين سلبي خلال آخر 12 ساعة، نطلب تأكيد العميل
+    if (booking?.needs_recent_confirmation === true) {
+      const confirmMessage =
+        bookingPageLang === "en"
+          ? "There is a previous booking with the same mobile number within the last 12 hours.\n\nYou can confirm a new booking now, but if you cancel this booking or do not show up, you will not be able to create another booking with the same number until 12 hours have passed.\n\nDo you want to continue?"
+          : "يوجد حجز سابق بنفس رقم الجوال خلال آخر 12 ساعة.\n\nيمكنك تأكيد حجزك الجديد الآن، لكن في حال إلغاء هذا الحجز أو عدم الحضور، فلن تتمكن من إنشاء حجز آخر بنفس الرقم إلا بعد مرور 12 ساعة.\n\nهل تريد تأكيد حجزك؟";
+
+      const confirmedRecentBooking = confirm(confirmMessage);
+
+      if (!confirmedRecentBooking) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = escapeHtml(bookingText("submit_button_text"));
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<div class="spinner"></div> ${escapeHtml(bookingText("creating_booking_text"))}`;
+
+      const confirmedResult = await createBooking(true);
+      booking = confirmedResult.data;
+      bookingError = confirmedResult.error;
+
+      if (bookingError) throw new Error(bookingError.message);
+
+      if (booking?.needs_recent_confirmation === true) {
+        throw new Error(
+          bookingPageLang === "en"
+            ? "Could not confirm the new booking. Please try again."
+            : "تعذر تأكيد الحجز الجديد، حاول مرة أخرى"
+        );
+      }
+    }
+
+    if (!booking?.success || !booking?.id) {
+      throw new Error(
+        booking?.message ||
+        (bookingPageLang === "en" ? "Booking was not created" : "لم يتم إنشاء الحجز")
+      );
+    }
+
+    // ✅ 5) نجاح إنشاء الحجز
     currentRequestId = booking.id;
     currentQueueNumber = booking.queue_position;
     window.originalQueueNumber = booking.original_queue_position || booking.queue_position;
-    
-    // حفظ في localStorage
+
     localStorage.setItem('current_booking_id', currentRequestId);
     sessionStorage.setItem('booking_cancelled', 'false');
     sessionStorage.setItem('current_booking_id', currentRequestId);
-    
+
     console.log('✅ currentRequestId:', currentRequestId);
     console.log('✅ queue_position:', currentQueueNumber);
     console.log('✅ booking_code:', booking.booking_code);
+
     resetCustomerAlertProtection();
     await renderStatusPage(booking);
-    await setupRealtime();           // ✅ إضافة جديدة
+    await setupRealtime();
     showAudioModal();
     startCustomerSafetyPolling();
-    
-} catch (err) {
-  alert(`${bookingText("booking_failed_text")} ${err.message}`);
-  submitBtn.disabled = false;
-submitBtn.innerHTML = escapeHtml(bookingText("submit_button_text"));
-}
-  
+
+  } catch (err) {
+    alert(`${bookingText("booking_failed_text")} ${err.message}`);
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = escapeHtml(bookingText("submit_button_text"));
+  }
 }
 
 async function cancelBooking() {

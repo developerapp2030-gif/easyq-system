@@ -30,6 +30,7 @@
     supportBusinessFilter: '',
     supportBusinessFilterLabel: '',
     errorLogs: [],
+    requestStatusAuditLogs: [],
     errorsSearch: '',
     errorsStatusFilter: 'unresolved',
     currentSupportSessionId: null,
@@ -509,23 +510,46 @@ body.super-admin-mode .main-content {
     }
   }
 
+async function loadRequestStatusAuditLogs() {
+  try {
+    const data = await rpc('super_admin_list_request_status_audit_v1', {
+      p_limit: 300,
+      p_business_id: null,
+      p_request_id: null
+    });
+
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn('[EASY-Q SA] request status audit logs failed:', err);
+    return [];
+  }
+}
+
   async function loadData(force = false) {
     if (SA.loading) return;
     if (SA.loaded && !force) return;
     SA.loading = true;
     setLoadingState(true);
     try {
-      const [businesses, supportSessions, errorLogs, adminNotifications] = await Promise.all([
-        loadBusinesses(),
-        loadSupportSessions(),
-        loadErrorLogs(),
-        loadAdminNotifications()
-      ]);
+const [
+  businesses,
+  supportSessions,
+  errorLogs,
+  requestStatusAuditLogs,
+  adminNotifications
+] = await Promise.all([
+  loadBusinesses(),
+  loadSupportSessions(),
+  loadErrorLogs(),
+  loadRequestStatusAuditLogs(),
+  loadAdminNotifications()
+]);
 
-      SA.businesses = businesses;
-      SA.supportSessions = supportSessions;
-      SA.errorLogs = errorLogs;
-      SA.adminNotifications = adminNotifications;
+SA.businesses = businesses;
+SA.supportSessions = supportSessions;
+SA.errorLogs = errorLogs;
+SA.requestStatusAuditLogs = requestStatusAuditLogs;
+SA.adminNotifications = adminNotifications;
       SA.loaded = true;
       SA.lastLoadedAt = new Date();
       updateCounters();
@@ -2117,6 +2141,9 @@ function errorPanel(rows) {
   if (!el) return;
 
   const rows = filteredErrors();
+const auditRows = Array.isArray(SA.requestStatusAuditLogs)
+  ? SA.requestStatusAuditLogs
+  : [];
 
   const totalErrors = SA.errorLogs.length;
   const unresolved = SA.errorLogs.filter((e) => e.is_resolved !== true).length;
@@ -2172,6 +2199,10 @@ function errorPanel(rows) {
       </div>
 
       ${errorsTable(rows)}
+
+<div style="height:18px;"></div>
+
+${requestStatusAuditPanel(auditRows)}
     </div>
   `;
 }
@@ -2186,6 +2217,113 @@ function errorPanel(rows) {
         </table>
       </div>`;
   }
+
+  function requestStatusAuditPanel(rows) {
+  return `
+    <div class="eqsa-card eqsa-panel">
+      <div class="eqsa-panel-title">
+        <div>
+          <h3 style="margin-bottom:4px;">
+            <i class="fas fa-shuffle" style="color:#0E146D;"></i>
+            سجل تدقيق حالات الطلبات
+          </h3>
+          <div class="eqsa-sub">
+            يعرض آخر تغييرات حالة الطلبات: من أي حالة إلى أي حالة، وعلى أي طاولة، ومتى حدث التغيير.
+          </div>
+        </div>
+
+        <span class="eqsa-badge" style="color:#0E146D;background:#EEF2FF;border-color:#C7D2FE;">
+          ${rows.length} عملية
+        </span>
+      </div>
+
+      ${requestStatusAuditTable(rows)}
+    </div>
+  `;
+}
+
+function requestStatusAuditTable(rows) {
+  if (!rows.length) {
+    return `<div class="eqsa-empty">لا توجد تغييرات حالات مسجلة حتى الآن.</div>`;
+  }
+
+  return `
+    <div class="eqsa-table-wrap">
+      <table class="eqsa-table" style="min-width:1180px;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>المطعم</th>
+            <th>الطلب</th>
+            <th>العميل</th>
+            <th>الطاولة</th>
+            <th>التغيير</th>
+            <th>حالة التعيين</th>
+            <th>المستخدم</th>
+            <th>التاريخ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row, index) => requestStatusAuditRow(row, index)).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function requestStatusAuditRow(row, index) {
+  const oldStatus = row.old_status || '—';
+  const newStatus = row.new_status || '—';
+
+  return `
+    <tr>
+      <td>${index + 1}</td>
+
+      <td>
+        <div class="eqsa-name">${esc(row.business_name || '—')}</div>
+        <div class="eqsa-sub" style="direction:ltr;text-align:right;">${esc(row.business_id || '')}</div>
+      </td>
+
+      <td>
+        <div class="eqsa-name" style="direction:ltr;text-align:right;">${esc(row.booking_code || '—')}</div>
+        <div class="eqsa-sub">${esc(row.request_source || '—')}</div>
+      </td>
+
+      <td>
+        <div class="eqsa-name">${esc(row.customer_name_snapshot || '—')}</div>
+        <div class="eqsa-sub" style="direction:ltr;text-align:right;">${esc(row.customer_phone_snapshot || '—')}</div>
+      </td>
+
+      <td>
+        <div class="eqsa-name">${esc(row.table_name || '—')}</div>
+        <div class="eqsa-sub" style="direction:ltr;text-align:right;">${esc(row.table_id || '')}</div>
+      </td>
+
+      <td>
+        ${requestStatusTransitionBadge(oldStatus, newStatus)}
+      </td>
+
+      <td>
+        ${badge(row.assignment_status || '—', '#64748B', '#F8FAFC')}
+      </td>
+
+      <td>
+        <div class="eqsa-name">${esc(row.changed_by_role || 'system')}</div>
+        <div class="eqsa-sub" style="direction:ltr;text-align:right;">${esc(row.changed_by_user_id || '—')}</div>
+      </td>
+
+      <td>${esc(fmtDateTime(row.changed_at))}</td>
+    </tr>
+  `;
+}
+
+function requestStatusTransitionBadge(oldStatus, newStatus) {
+  return `
+    <span class="eqsa-badge" style="color:#0E146D;background:#EEF2FF;border-color:#C7D2FE;">
+      ${esc(oldStatus)} → ${esc(newStatus)}
+    </span>
+  `;
+}
 
   function errorRow(e, i) {
   const resolved = e.is_resolved === true;
