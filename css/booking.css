@@ -1384,14 +1384,42 @@ select.form-input option {
   outline: none !important;
   font-size: 14px !important;
   color: #060427 !important;
-  background: #f8f9ff !important;
+  background: #c1c1c3 !important;
 }
 
 /* قائمة الدول */
 .iti__country-list {
   max-height: 260px !important;
   padding: 8px !important;
-  background: #F4F5F8 !important;
+  background: #515152 !important;
+}
+
+/* سكرول قائمة الدول */
+.iti__country-list {
+  scrollbar-width: thin;
+  scrollbar-color: #131313 #414141;
+}
+
+/* عرض السكرول */
+.iti__country-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+/* مسار السكرول */
+.iti__country-list::-webkit-scrollbar-track {
+  background: #757676;
+  border-radius: 999px;
+}
+
+/* لون مقبض السكرول */
+.iti__country-list::-webkit-scrollbar-thumb {
+  background: #202020;
+  border-radius: 999px;
+}
+
+/* لون السكرول عند المرور */
+.iti__country-list::-webkit-scrollbar-thumb:hover {
+  background: #242424;
 }
 
 /* كل دولة في القائمة */
@@ -1403,7 +1431,7 @@ select.form-input option {
   padding: 9px 10px !important;
   border-radius: 12px !important;
   direction: ltr !important;
-  background: #FFFFFF !important;
+  background: #8e8d8d !important;
   margin-bottom: 4px !important;
   transition: background 0.15s ease, transform 0.15s ease;
 }

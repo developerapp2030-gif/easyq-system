@@ -130,6 +130,25 @@
     display: flex !important;
 }
 
+/* مودال استعادة الحجز */
+#restoreModal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(4px) !important;
+    display: none !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 10000 !important;
+}
+
+#restoreModal.show {
+    display: flex !important;
+}
+
 #restoreModal .modal {
     background: var(--card-bg);
     border-radius: 20px;
@@ -138,6 +157,84 @@
     padding: 24px;
     position: relative;
     margin: 0;
+}
+
+/* تحسين العنوان فقط */
+#restoreModalTitle {
+    text-align: center;
+    font-size: 21px;
+    font-weight: 900;
+    margin-bottom: 8px;
+    color: var(--text-primary, inherit);
+}
+
+#restoreModalSub {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    color: var(--text-secondary, inherit);
+    opacity: 0.86;
+}
+
+/* تحسين الأزرار فقط */
+#restoreViewBtn,
+#restoreCloseBtn {
+    border-radius: 14px !important;
+    min-height: 44px;
+    font-weight: 800;
+}
+
+#restoreBookingPreview {
+    margin-top: 14px;
+}
+
+#restoreBookingPreview .restore-preview-found {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.10);
+}
+
+#restoreBookingPreview .restore-preview-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--booking-success, #22c55e);
+    color: #ffffff;
+    font-weight: 900;
+    flex: 0 0 28px;
+}
+
+#restoreBookingPreview .restore-preview-content {
+    width: 100%;
+}
+
+#restoreBookingPreview .restore-preview-title {
+    font-size: 13px;
+    font-weight: 900;
+    margin-bottom: 8px;
+    color: var(--text-primary, inherit);
+}
+
+#restoreBookingPreview .restore-preview-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    padding: 3px 0;
+    color: var(--text-secondary, inherit);
+}
+
+#restoreBookingPreview .restore-preview-row strong {
+    color: var(--text-primary, inherit);
+    font-weight: 900;
 }
 
   </style>
@@ -173,17 +270,18 @@
   <!-- مودال عرض الحجز -->
 <div class="modal-backdrop" id="restoreModal">
   <div class="modal" style="max-width: 400px;">
-<div class="modal-title" id="restoreModalTitle">عرض حجز نشط</div>
-<div class="modal-sub" id="restoreModalSub">أدخل رقم الحجز المرجعي و رقم الجوال</div>
+    <div class="modal-title" id="restoreModalTitle">عرض حجز نشط</div>
+    <div class="modal-sub" id="restoreModalSub">أدخل رقم الحجز المرجعي و رقم الجوال</div>
 
-<input type="text" id="restoreCode" class="form-input" placeholder="رقم الحجز المرجعي (مثال: A4821)" style="margin-bottom: 12px;">
-<div id="restoreModalAndText" style="text-align: center; margin: 10px 0;">و</div>
-<input type="tel" id="restorePhone" class="form-input" placeholder="رقم الجوال (05xxxxxxxx)" maxlength="10">
+    <input type="text" id="restoreCode" class="form-input" placeholder="رقم الحجز المرجعي (مثال: A4821)" style="margin-bottom: 12px;">
+    <div id="restoreModalAndText" style="text-align: center; margin: 10px 0;">و</div>
+    <input type="tel" id="restorePhone" class="form-input" placeholder="رقم الجوال (05xxxxxxxx)" maxlength="19">
+    <div id="restoreBookingPreview" style="display: none;"></div>
 
-<div style="display: flex; gap: 12px; margin-top: 20px;">
-  <button class="settings-save" id="restoreViewBtn" onclick="viewBooking()" style="flex: 1;">عرض الحجز</button>
-  <button class="settings-close" id="restoreCloseBtn" onclick="closeRestoreModal()" style="flex: 1;">إغلاق</button>
-</div>
+    <div style="display: flex; gap: 12px; margin-top: 20px;">
+      <button class="settings-save" id="restoreViewBtn" onclick="viewBooking()" style="flex: 1;">عرض الحجز</button>
+      <button class="settings-close" id="restoreCloseBtn" onclick="closeRestoreModal()" style="flex: 1;">إغلاق</button>
+    </div>
   </div>
 </div>
 </body>

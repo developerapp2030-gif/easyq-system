@@ -14,7 +14,8 @@ let realtimeChannel = null;
 let isGuestViewOnly = false;
 let currentBusinessProfile = null;
 let bookingPhoneInputInstance = null;
-
+let restorePhoneInputInstance = null;
+let pendingRestoredBooking = null;
 // ============================================================
 // إعدادات واجهة الحجز V2
 // ============================================================
@@ -199,32 +200,490 @@ function initBookingPhoneInput() {
     return;
   }
 
+  if (bookingPhoneInputInstance?.destroy) {
+    bookingPhoneInputInstance.destroy();
+  }
+
+  const defaultCountry =
+    typeof easyqGetDefaultPhoneCountry === "function"
+      ? easyqGetDefaultPhoneCountry()
+      : "sa";
+
   bookingPhoneInputInstance = window.intlTelInput(phoneInput, {
-    initialCountry: "sa",
-    separateDialCode: true,
+    initialCountry: defaultCountry,
+    separateDialCode: false,
     nationalMode: true,
-    autoPlaceholder: "aggressive",
+    autoPlaceholder: "off",
     strictMode: true,
     useFullscreenPopup: false
   });
 
-  phoneInput.placeholder = "ادخل رقم الجوال بدون الصفر 512345678";
+  function updateBookingPhonePlaceholder() {
+    const country = bookingPhoneInputInstance?.getSelectedCountryData?.();
+
+    if (country?.iso2 === "sa") {
+      phoneInput.placeholder =
+        bookingPageLang === "en"
+          ? "Enter 0512345678 or 512345678"
+          : "اكتب 0512345678 أو 512345678";
+    } else {
+      phoneInput.placeholder =
+        bookingPageLang === "en"
+          ? "Enter number without country code"
+          : "اكتب الرقم بدون مفتاح الدولة";
+    }
+  }
+
+  updateBookingPhonePlaceholder();
+
   phoneInput.setAttribute("inputmode", "numeric");
-  phoneInput.setAttribute("maxlength", "11");
+  phoneInput.setAttribute("autocomplete", "tel");
+  phoneInput.setAttribute("maxlength", "19");
 
   function formatBookingPhoneInput() {
     const country = bookingPhoneInputInstance?.getSelectedCountryData?.();
     let digits = phoneInput.value.replace(/\D/g, "");
 
-    // السعودية: 9 أرقام فقط بعد المفتاح، وتبدأ بـ 5
     if (country?.iso2 === "sa") {
-      // لا نسمح بالصفر في البداية لأن المفتاح +966 ظاهر مستقل
-      digits = digits.replace(/^0+/, "");
+      if (digits.startsWith("00966")) {
+        digits = digits.slice(5);
+      }
 
-      // حد أقصى 9 أرقام
-      digits = digits.slice(0, 9);
+      if (digits.startsWith("966")) {
+        digits = digits.slice(3);
+      }
 
-      // تنسيق بصري: 512 345 678
+      if (digits.startsWith("0")) {
+        digits = digits.slice(0, 10);
+      } else {
+        digits = digits.slice(0, 9);
+      }
+
+      if (digits.startsWith("0")) {
+        if (digits.length > 6) {
+          phoneInput.value = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+        } else if (digits.length > 3) {
+          phoneInput.value = `${digits.slice(0, 3)} ${digits.slice(3)}`;
+        } else {
+          phoneInput.value = digits;
+        }
+      } else {
+        if (digits.length > 6) {
+          phoneInput.value = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+        } else if (digits.length > 3) {
+          phoneInput.value = `${digits.slice(0, 3)} ${digits.slice(3)}`;
+        } else {
+          phoneInput.value = digits;
+        }
+      }
+
+      return;
+    }
+
+    digits = digits.slice(0, 15);
+    phoneInput.value = digits.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
+  }
+
+  phoneInput.addEventListener("input", function () {
+    formatBookingPhoneInput();
+
+    const errorEl = document.getElementById("bookingPhoneInlineError");
+    if (errorEl && errorEl.style.display !== "none") {
+      const validation = validateAndNormalizeBookingPhone(phoneInput);
+
+      if (validation.valid) {
+        clearBookingPhoneError(phoneInput);
+      }
+    }
+  });
+
+  phoneInput.addEventListener("blur", function () {
+    if (!phoneInput.value.trim()) {
+      clearBookingPhoneError(phoneInput);
+      return;
+    }
+
+    const validation = validateAndNormalizeBookingPhone(phoneInput);
+
+    if (!validation.valid) {
+      showBookingPhoneError(phoneInput, validation.message);
+    } else {
+      clearBookingPhoneError(phoneInput);
+    }
+  });
+
+  phoneInput.addEventListener("countrychange", function () {
+    phoneInput.value = "";
+    clearBookingPhoneError(phoneInput);
+    updateBookingPhonePlaceholder();
+    phoneInput.setAttribute("maxlength", "19");
+  });
+}
+
+function getBookingPhoneErrorMessage() {
+  return bookingPageLang === "en"
+    ? "Enter a valid mobile number, e.g. 0512345678 or 512345678"
+    : "اكتب رقم جوال صحيح مثل 0512345678 أو 512345678";
+}
+
+function getBookingPhoneErrorEl(phoneInput) {
+  let errorEl = document.getElementById("bookingPhoneInlineError");
+
+  if (errorEl) {
+    return errorEl;
+  }
+
+  errorEl = document.createElement("div");
+  errorEl.id = "bookingPhoneInlineError";
+  errorEl.setAttribute("role", "alert");
+
+  errorEl.style.display = "none";
+  errorEl.style.marginTop = "6px";
+  errorEl.style.fontSize = "13px";
+  errorEl.style.lineHeight = "1.5";
+  errorEl.style.color = "#a40d02";
+  errorEl.style.border = "none";
+  errorEl.style.fontWeight = "700";
+  errorEl.style.textShadow = "rgba(255, 255, 255, 0.88)";
+  errorEl.style.borderRadius = "2px";
+  errorEl.style.padding = "2px 2px";
+
+  const inputWrapper = phoneInput?.closest(".iti") || phoneInput;
+
+  if (inputWrapper?.insertAdjacentElement) {
+    inputWrapper.insertAdjacentElement("afterend", errorEl);
+  }
+
+  return errorEl;
+}
+
+function showBookingPhoneError(phoneInput, message) {
+  const errorEl = getBookingPhoneErrorEl(phoneInput);
+
+  if (!errorEl) return;
+
+  errorEl.textContent = message || getBookingPhoneErrorMessage();
+  errorEl.style.display = "block";
+
+  phoneInput?.setAttribute("aria-invalid", "true");
+  phoneInput?.setAttribute("aria-describedby", "bookingPhoneInlineError");
+}
+
+function clearBookingPhoneError(phoneInput) {
+  const errorEl = document.getElementById("bookingPhoneInlineError");
+
+  if (errorEl) {
+    errorEl.textContent = "";
+    errorEl.style.display = "none";
+  }
+
+  phoneInput?.removeAttribute("aria-invalid");
+  phoneInput?.removeAttribute("aria-describedby");
+}
+
+function validateAndNormalizeBookingPhone(phoneInput) {
+  const rawPhone = phoneInput?.value?.trim() || "";
+  const selectedCountry = bookingPhoneInputInstance?.getSelectedCountryData?.();
+
+  const countryIso =
+    selectedCountry?.iso2 ||
+    (
+      typeof easyqGetDefaultPhoneCountry === "function"
+        ? easyqGetDefaultPhoneCountry()
+        : "sa"
+    );
+
+  const dialCode =
+    selectedCountry?.dialCode ||
+    window.easyqPhoneSettings?.default_dial_code ||
+    "966";
+
+  let phoneDigits = rawPhone.replace(/\D/g, "");
+
+  if (countryIso === "sa") {
+    if (phoneDigits.startsWith("00966")) {
+      phoneDigits = phoneDigits.slice(5);
+    }
+
+    if (phoneDigits.startsWith("966")) {
+      phoneDigits = phoneDigits.slice(3);
+    }
+
+    phoneDigits = phoneDigits.replace(/^0+/, "");
+
+    if (!/^5\d{8}$/.test(phoneDigits)) {
+      return {
+        valid: false,
+        phone: "",
+        digits: phoneDigits,
+        message: getBookingPhoneErrorMessage()
+      };
+    }
+
+    return {
+      valid: true,
+      phone: `+966${phoneDigits}`,
+      digits: phoneDigits,
+      message: ""
+    };
+  }
+
+  if (!/^[0-9]{6,15}$/.test(phoneDigits)) {
+    return {
+      valid: false,
+      phone: "",
+      digits: phoneDigits,
+      message: bookingPageLang === "en"
+        ? "Enter a valid mobile number"
+        : "رقم الجوال غير صحيح، تأكد من اختيار الدولة وكتابة الرقم بشكل صحيح"
+    };
+  }
+
+  return {
+    valid: true,
+    phone: `+${dialCode}${phoneDigits}`,
+    digits: phoneDigits,
+    message: ""
+  };
+}
+
+function getRestorePhoneErrorMessage() {
+  return bookingPageLang === "en"
+    ? "Enter a valid mobile number, e.g. 0512345678 or 512345678"
+    : "اكتب رقم جوال صحيح مثل 0512345678 أو 512345678";
+}
+
+function getRestorePhoneErrorEl(phoneInput) {
+  let errorEl = document.getElementById("restorePhoneInlineError");
+
+  if (errorEl) {
+    return errorEl;
+  }
+
+  errorEl = document.createElement("div");
+  errorEl.id = "restorePhoneInlineError";
+  errorEl.setAttribute("role", "alert");
+
+  errorEl.style.display = "none";
+  errorEl.style.marginTop = "6px";
+  errorEl.style.fontSize = "13px";
+  errorEl.style.lineHeight = "1.5";
+  errorEl.style.color = "#b42318";
+  errorEl.style.border = "none";
+  errorEl.style.fontWeight = "700";
+  errorEl.style.textShadow = "none";
+  errorEl.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.08)";
+  errorEl.style.borderRadius = "8px";
+  errorEl.style.padding = "7px 10px";
+
+  const inputWrapper = phoneInput?.closest(".iti") || phoneInput;
+
+  if (inputWrapper?.insertAdjacentElement) {
+    inputWrapper.insertAdjacentElement("afterend", errorEl);
+  }
+
+  return errorEl;
+}
+
+function showRestorePhoneError(phoneInput, message) {
+  const errorEl = getRestorePhoneErrorEl(phoneInput);
+
+  if (!errorEl) return;
+
+  errorEl.textContent = message || getRestorePhoneErrorMessage();
+  errorEl.style.display = "block";
+
+  phoneInput?.setAttribute("aria-invalid", "true");
+  phoneInput?.setAttribute("aria-describedby", "restorePhoneInlineError");
+}
+
+function clearRestorePhoneError(phoneInput) {
+  const errorEl = document.getElementById("restorePhoneInlineError");
+
+  if (errorEl) {
+    errorEl.textContent = "";
+    errorEl.style.display = "none";
+  }
+
+  phoneInput?.removeAttribute("aria-invalid");
+  phoneInput?.removeAttribute("aria-describedby");
+}
+
+function getRestorePhoneCountryHintEl(phoneInput) {
+  let hintEl = document.getElementById("restorePhoneCountryHint");
+
+  if (hintEl) {
+    return hintEl;
+  }
+
+  hintEl = document.createElement("div");
+  hintEl.id = "restorePhoneCountryHint";
+
+  hintEl.style.display = "none";
+  hintEl.style.marginTop = "6px";
+  hintEl.style.fontSize = "12px";
+  hintEl.style.lineHeight = "1.5";
+  hintEl.style.color = "rgba(255, 255, 255, 0.9)";
+  hintEl.style.background = "rgba(255, 255, 255, 0.12)";
+  hintEl.style.border = "none";
+  hintEl.style.borderRadius = "8px";
+  hintEl.style.padding = "6px 10px";
+
+  const inputWrapper = phoneInput?.closest(".iti") || phoneInput;
+
+  if (inputWrapper?.insertAdjacentElement) {
+    inputWrapper.insertAdjacentElement("afterend", hintEl);
+  }
+
+  return hintEl;
+}
+
+function updateRestorePhoneCountryHint(phoneInput) {
+  const hintEl = getRestorePhoneCountryHintEl(phoneInput);
+  const country = restorePhoneInputInstance?.getSelectedCountryData?.();
+
+  if (!hintEl || !country) return;
+
+  if (country.iso2 === "sa") {
+    hintEl.textContent = "";
+    hintEl.style.display = "none";
+    return;
+  }
+
+  hintEl.textContent =
+    bookingPageLang === "en"
+      ? `Selected country code: +${country.dialCode}`
+      : `مفتاح الدولة المحدد: +${country.dialCode}`;
+
+  hintEl.style.display = "block";
+}
+
+function validateAndNormalizeRestorePhone(phoneInput) {
+  const rawPhone = phoneInput?.value?.trim() || "";
+  const selectedCountry = restorePhoneInputInstance?.getSelectedCountryData?.();
+
+  const countryIso =
+    selectedCountry?.iso2 ||
+    (
+      typeof easyqGetDefaultPhoneCountry === "function"
+        ? easyqGetDefaultPhoneCountry()
+        : "sa"
+    );
+
+  const dialCode =
+    selectedCountry?.dialCode ||
+    window.easyqPhoneSettings?.default_dial_code ||
+    "966";
+
+  let phoneDigits = rawPhone.replace(/\D/g, "");
+
+  if (countryIso === "sa") {
+    if (phoneDigits.startsWith("00966")) {
+      phoneDigits = phoneDigits.slice(5);
+    }
+
+    if (phoneDigits.startsWith("966")) {
+      phoneDigits = phoneDigits.slice(3);
+    }
+
+    phoneDigits = phoneDigits.replace(/^0+/, "");
+
+    if (!/^5\d{8}$/.test(phoneDigits)) {
+      return {
+        valid: false,
+        phone: "",
+        digits: phoneDigits,
+        message: getRestorePhoneErrorMessage()
+      };
+    }
+
+    return {
+      valid: true,
+      phone: `+966${phoneDigits}`,
+      digits: phoneDigits,
+      message: ""
+    };
+  }
+
+  if (!/^[0-9]{6,15}$/.test(phoneDigits)) {
+    return {
+      valid: false,
+      phone: "",
+      digits: phoneDigits,
+      message: bookingPageLang === "en"
+        ? "Enter a valid mobile number"
+        : "رقم الجوال غير صحيح، تأكد من اختيار الدولة وكتابة الرقم بشكل صحيح"
+    };
+  }
+
+  return {
+    valid: true,
+    phone: `+${dialCode}${phoneDigits}`,
+    digits: phoneDigits,
+    message: ""
+  };
+}
+
+function initRestorePhoneInput() {
+  const phoneInput = document.getElementById("restorePhone");
+
+  if (!phoneInput || typeof window.intlTelInput !== "function") {
+    return;
+  }
+
+  if (restorePhoneInputInstance?.destroy) {
+    restorePhoneInputInstance.destroy();
+  }
+
+  const defaultCountry =
+    typeof easyqGetDefaultPhoneCountry === "function"
+      ? easyqGetDefaultPhoneCountry()
+      : "sa";
+
+  restorePhoneInputInstance = window.intlTelInput(phoneInput, {
+    initialCountry: defaultCountry,
+    separateDialCode: false,
+    nationalMode: true,
+    autoPlaceholder: "off",
+    strictMode: true,
+    useFullscreenPopup: false
+  });
+
+  function updateRestorePhonePlaceholder() {
+    const country = restorePhoneInputInstance?.getSelectedCountryData?.();
+
+    if (country?.iso2 === "sa") {
+      phoneInput.placeholder =
+        bookingPageLang === "en"
+          ? "Enter 0512345678 or 512345678"
+          : "اكتب 0512345678 أو 512345678";
+    } else {
+      phoneInput.placeholder =
+        bookingPageLang === "en"
+          ? "Enter number without country code"
+          : "اكتب الرقم بدون مفتاح الدولة";
+    }
+  }
+
+  function formatRestorePhoneInput() {
+    const country = restorePhoneInputInstance?.getSelectedCountryData?.();
+    let digits = phoneInput.value.replace(/\D/g, "");
+
+    if (country?.iso2 === "sa") {
+      if (digits.startsWith("00966")) {
+        digits = digits.slice(5);
+      }
+
+      if (digits.startsWith("966")) {
+        digits = digits.slice(3);
+      }
+
+      if (digits.startsWith("0")) {
+        digits = digits.slice(0, 10);
+      } else {
+        digits = digits.slice(0, 9);
+      }
+
       if (digits.length > 6) {
         phoneInput.value = `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
       } else if (digits.length > 3) {
@@ -236,26 +695,195 @@ function initBookingPhoneInput() {
       return;
     }
 
-    // بقية الدول: لا نفرض أن يبدأ الرقم بـ 5، فقط تنسيق خفيف كل 3 أرقام
     digits = digits.slice(0, 15);
     phoneInput.value = digits.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
   }
 
-  phoneInput.addEventListener("input", formatBookingPhoneInput);
+  updateRestorePhonePlaceholder();
+  updateRestorePhoneCountryHint(phoneInput);
+
+  phoneInput.setAttribute("inputmode", "numeric");
+  phoneInput.setAttribute("autocomplete", "tel");
+  phoneInput.setAttribute("maxlength", "19");
+
+  phoneInput.addEventListener("input", function () {
+    formatRestorePhoneInput();
+
+    const errorEl = document.getElementById("restorePhoneInlineError");
+    if (errorEl && errorEl.style.display !== "none") {
+      const validation = validateAndNormalizeRestorePhone(phoneInput);
+
+      if (validation.valid) {
+        clearRestorePhoneError(phoneInput);
+      }
+    }
+  });
+
+  phoneInput.addEventListener("blur", function () {
+    if (!phoneInput.value.trim()) {
+      clearRestorePhoneError(phoneInput);
+      return;
+    }
+
+    const validation = validateAndNormalizeRestorePhone(phoneInput);
+
+    if (!validation.valid) {
+      showRestorePhoneError(phoneInput, validation.message);
+    } else {
+      clearRestorePhoneError(phoneInput);
+    }
+  });
 
   phoneInput.addEventListener("countrychange", function () {
     phoneInput.value = "";
-
-    const country = bookingPhoneInputInstance?.getSelectedCountryData?.();
-
-    if (country?.iso2 === "sa") {
-      phoneInput.placeholder = "512 345 678";
-      phoneInput.setAttribute("maxlength", "11");
-    } else {
-      phoneInput.placeholder = "Mobile number";
-      phoneInput.setAttribute("maxlength", "19");
-    }
+    clearRestorePhoneError(phoneInput);
+    updateRestorePhonePlaceholder();
+    updateRestorePhoneCountryHint(phoneInput);
+    phoneInput.setAttribute("maxlength", "19");
   });
+}
+
+function getRestoreViewButtonDefaultText() {
+  return bookingPageLang === "en" ? "View Booking" : "عرض الحجز";
+}
+
+function getRestoreContinueButtonText() {
+  return bookingPageLang === "en" ? "Continue to Queue" : "متابعة الطابور";
+}
+
+function resetRestoreBookingPreview(clearStoredBooking = true) {
+  const previewEl = document.getElementById("restoreBookingPreview");
+  const viewBtn = document.getElementById("restoreViewBtn");
+
+  if (clearStoredBooking) {
+    pendingRestoredBooking = null;
+  }
+
+  if (previewEl) {
+    previewEl.innerHTML = "";
+    previewEl.style.display = "none";
+  }
+
+  if (viewBtn) {
+    viewBtn.innerText = getRestoreViewButtonDefaultText();
+  }
+}
+
+function renderRestoreBookingPreview(booking) {
+  const previewEl = document.getElementById("restoreBookingPreview");
+  const viewBtn = document.getElementById("restoreViewBtn");
+
+  if (!previewEl || !booking) return;
+
+  const customerName =
+    booking.customer_name ||
+    booking.customer_name_snapshot ||
+    (bookingPageLang === "en" ? "Guest" : "ضيف");
+
+  const queueNumber =
+    booking.queue_position ||
+    booking.original_queue_position ||
+    "--";
+
+  const restoreStatus = booking.status || "waiting";
+
+  const restoreStatusLabels = bookingPageLang === "en"
+    ? {
+        waiting: "Waiting",
+        restored: "Restored",
+        offered: "Offered",
+        reserved: "Reserved",
+        occupied: "Seated",
+        cleaning: "Cleaning"
+      }
+    : {
+        waiting: "انتظار",
+        restored: "مسترجع",
+        offered: "معروض",
+        reserved: "محجوز",
+        occupied: "جالس",
+        cleaning: "تنظيف"
+      };
+
+  const statusLabel = restoreStatusLabels[restoreStatus] || restoreStatus;
+
+  previewEl.innerHTML = `
+    <div class="restore-preview-found">
+      <div class="restore-preview-icon">✓</div>
+      <div class="restore-preview-content">
+        <div class="restore-preview-title">
+          ${bookingPageLang === "en" ? "Booking found" : "تم العثور على الحجز"}
+        </div>
+
+        <div class="restore-preview-row">
+          <span>${bookingPageLang === "en" ? "Name" : "الاسم"}</span>
+          <strong>${escapeHtml(customerName)}</strong>
+        </div>
+
+        <div class="restore-preview-row">
+          <span>${bookingPageLang === "en" ? "Queue number" : "رقمك في الطابور"}</span>
+          <strong>${escapeHtml(String(queueNumber))}</strong>
+        </div>
+
+        <div class="restore-preview-row">
+          <span>${bookingPageLang === "en" ? "Status" : "الحالة"}</span>
+          <strong>${escapeHtml(statusLabel)}</strong>
+        </div>
+      </div>
+    </div>
+  `;
+
+  previewEl.style.display = "block";
+
+  if (viewBtn) {
+    viewBtn.innerText = getRestoreContinueButtonText();
+  }
+}
+
+async function continueRestoredBooking() {
+  if (!pendingRestoredBooking?.id) {
+    return;
+  }
+
+  const booking = pendingRestoredBooking;
+
+  currentRequestId = booking.id;
+  currentQueueNumber = booking.queue_position;
+
+  localStorage.setItem("current_booking_id", currentRequestId);
+  sessionStorage.setItem("booking_cancelled", "false");
+
+  closeRestoreModal();
+
+  await renderStatusPage(booking);
+  setupRealtime();
+  startCustomerSafetyPolling();
+  showAudioModal();
+}
+
+function bindRestorePreviewResetEvents() {
+  const codeInput = document.getElementById("restoreCode");
+  const phoneInput = document.getElementById("restorePhone");
+
+  if (codeInput && codeInput.dataset.restorePreviewResetBound !== "true") {
+    codeInput.dataset.restorePreviewResetBound = "true";
+
+    codeInput.addEventListener("input", function () {
+      resetRestoreBookingPreview(true);
+    });
+  }
+
+  if (phoneInput && phoneInput.dataset.restorePreviewResetBound !== "true") {
+    phoneInput.dataset.restorePreviewResetBound = "true";
+
+    phoneInput.addEventListener("input", function () {
+      resetRestoreBookingPreview(true);
+    });
+
+    phoneInput.addEventListener("countrychange", function () {
+      resetRestoreBookingPreview(true);
+    });
+  }
 }
 
 function getBookingZoneLabel(zone) {
@@ -1240,19 +1868,8 @@ async function submitBooking() {
   window.currentCustomerName = name;
 
   const phoneInputEl = document.getElementById('customerPhone');
-  const rawPhone = phoneInputEl?.value.trim() || "";
-  const selectedCountry = bookingPhoneInputInstance?.getSelectedCountryData?.();
-  const dialCode = selectedCountry?.dialCode || "966";
-
-  // تنظيف الرقم من أي مسافات أو رموز تنسيق قبل الفحص
-  let phoneDigits = rawPhone.replace(/\D/g, "");
-
-  // في السعودية: إذا كتب العميل الصفر بالخطأ 05xxxxxxxx نحذفه لأن مفتاح الدولة موجود
-  if (selectedCountry?.iso2 === "sa" && phoneDigits.startsWith("0")) {
-    phoneDigits = phoneDigits.replace(/^0+/, "");
-  }
-
-  const phone = `+${dialCode}${phoneDigits}`;
+  const phoneValidation = validateAndNormalizeBookingPhone(phoneInputEl);
+  const phone = phoneValidation.phone;
 
   const partySize = parseInt(document.getElementById('partySizeValue')?.innerText || '2');
   const zone = document.getElementById('customerZone')?.value || null;
@@ -1262,21 +1879,13 @@ async function submitBooking() {
     return;
   }
 
-  if (selectedCountry?.iso2 === "sa") {
-    if (!/^[1-9][0-9]{8}$/.test(phoneDigits)) {
-      alert(
-        bookingPageLang === "en"
-          ? "Please enter 9 digits without starting with 0"
-          : "يجب إدخال 9 أرقام بدون أن يبدأ الرقم بـ 0"
-      );
-      return;
-    }
-  } else {
-    if (!/^[0-9]{6,15}$/.test(phoneDigits)) {
-      alert(bookingText("phone_invalid_alert_text"));
-      return;
-    }
+  if (!phoneValidation.valid) {
+    showBookingPhoneError(phoneInputEl, phoneValidation.message);
+    phoneInputEl?.focus();
+    return;
   }
+
+  clearBookingPhoneError(phoneInputEl);
 
   const submitBtn = document.getElementById('submitBookingBtn');
   submitBtn.disabled = true;
@@ -2049,7 +2658,21 @@ function updateRestoreModalLanguage() {
   if (titleEl) titleEl.innerText = isEn ? "View Active Booking" : "عرض حجز نشط";
   if (subEl) subEl.innerText = isEn ? "Enter your booking reference and mobile number" : "أدخل رقم الحجز المرجعي و رقم الجوال";
   if (codeInput) codeInput.placeholder = isEn ? "Booking reference, e.g. A4821" : "رقم الحجز المرجعي (مثال: A4821)";
-  if (phoneInput) phoneInput.placeholder = isEn ? "Mobile number" : "رقم الجوال";
+  if (phoneInput) {
+    const selectedCountry = restorePhoneInputInstance?.getSelectedCountryData?.();
+
+    if (selectedCountry?.iso2 === "sa") {
+      phoneInput.placeholder = isEn
+        ? "Enter 0512345678 or 512345678"
+        : "اكتب 0512345678 أو 512345678";
+    } else {
+      phoneInput.placeholder = isEn
+        ? "Enter number without country code"
+        : "اكتب الرقم بدون مفتاح الدولة";
+    }
+  }
+
+  updateRestorePhoneCountryHint(phoneInput);
   if (andText) andText.innerText = isEn ? "and" : "و";
   if (viewBtn) viewBtn.innerText = isEn ? "View Booking" : "عرض الحجز";
   if (closeBtn) closeBtn.innerText = isEn ? "Close" : "إغلاق";
@@ -2058,50 +2681,92 @@ function updateRestoreModalLanguage() {
 function openRestoreModal() {
   updateRestoreModalLanguage();
   document.getElementById('restoreModal').classList.add('show');
+
+  setTimeout(function () {
+    initRestorePhoneInput();
+    bindRestorePreviewResetEvents();
+    resetRestoreBookingPreview(true);
+    updateRestoreModalLanguage();
+  }, 0);
 }
 
 function closeRestoreModal() {
+  const phoneInput = document.getElementById('restorePhone');
+
   document.getElementById('restoreModal').classList.remove('show');
   document.getElementById('restoreCode').value = '';
-  document.getElementById('restorePhone').value = '';
+
+  if (phoneInput) {
+    phoneInput.value = '';
+    clearRestorePhoneError(phoneInput);
+  }
+
+  const hintEl = document.getElementById("restorePhoneCountryHint");
+  if (hintEl) {
+    hintEl.textContent = "";
+    hintEl.style.display = "none";
+  }
+
+  resetRestoreBookingPreview(true);
 }
 
 async function viewBooking() {
+  if (pendingRestoredBooking?.id) {
+    await continueRestoredBooking();
+    return;
+  }
+
   const bookingCode = document.getElementById('restoreCode')?.value.trim().toUpperCase();
-  const phone = document.getElementById('restorePhone')?.value.trim();
-  
-  if (!bookingCode || !phone) {
-    alert('الرجاء إدخال رقم الحجز المرجعي ورقم الجوال');
+  const phoneInputEl = document.getElementById('restorePhone');
+  const phoneValidation = validateAndNormalizeRestorePhone(phoneInputEl);
+  const phone = phoneValidation.phone;
+
+  if (!bookingCode) {
+    alert(
+      bookingPageLang === "en"
+        ? "Please enter the booking reference"
+        : "الرجاء إدخال رقم الحجز المرجعي"
+    );
     return;
   }
-  
-  if (!phone.startsWith('05') || phone.length !== 10) {
-    alert('رقم الجوال غير صحيح (05xxxxxxxx)');
+
+  if (!phoneValidation.valid) {
+    showRestorePhoneError(phoneInputEl, phoneValidation.message);
+    phoneInputEl?.focus();
     return;
   }
-  
+
+  clearRestorePhoneError(phoneInputEl);
+  resetRestoreBookingPreview(true);
+
+  const viewBtn = document.getElementById("restoreViewBtn");
+  const originalBtnText = viewBtn?.innerText || getRestoreViewButtonDefaultText();
+
+  if (viewBtn) {
+    viewBtn.disabled = true;
+    viewBtn.innerHTML = `<div class="spinner"></div> ${
+      bookingPageLang === "en" ? "Checking..." : "جاري التحقق..."
+    }`;
+  }
+
   const { data, error } = await supabase.rpc('view_booking_by_code_and_phone', {
     p_booking_code: bookingCode,
-    p_phone: phone
+    p_phone: phone,
+    p_business_id: currentBusinessId
   });
-  
-  if (error || !data?.success) {
+
+  if (viewBtn) {
+    viewBtn.disabled = false;
+    viewBtn.innerText = originalBtnText;
+  }
+
+  if (error || !data?.success || !data?.booking) {
     alert(data?.message || '❌ لم يتم العثور على حجز نشط');
     return;
   }
-  
-  const booking = data.booking;
-  
-  currentRequestId = booking.id;
-  currentQueueNumber = booking.queue_position;
-  localStorage.setItem('current_booking_id', currentRequestId);
-  sessionStorage.setItem('booking_cancelled', 'false');
-  
-  closeRestoreModal();
-await renderStatusPage(booking);
-setupRealtime();
-startCustomerSafetyPolling();
-showAudioModal();
+
+  pendingRestoredBooking = data.booking;
+  renderRestoreBookingPreview(pendingRestoredBooking);
 }
 
 // Start
@@ -2156,40 +2821,73 @@ async function startBookingPage() {
         return;
     }
 
-    // ✅ استعادة الحجز من localStorage (بعد إغلاق الصفحة)
-    const savedBookingId = localStorage.getItem('current_booking_id');
-    if (savedBookingId && !currentRequestId) {
-        currentRequestId = savedBookingId;
-        sessionStorage.setItem('booking_cancelled', 'false');
-        console.log('🔄 Restored booking ID from localStorage:', currentRequestId);
-    }
-    // ✅ التحقق من وجود code في URL (متابعة عبر QR)
+    /*
+      ✅ أولوية رابط QR / المتابعة:
+      إذا الرابط يحتوي ?code=U2481 يجب تجاهل أي حجز قديم محفوظ في localStorage.
+      هذا يمنع فتح نموذج الحجز بدل صفحة المتابعة بسبب حجز قديم مخزن.
+    */
     const urlParams = new URLSearchParams(window.location.search);
-    const bookingCode = urlParams.get('code');
-    
-    if (bookingCode && !currentRequestId) {
+    const bookingCode = String(urlParams.get('code') || '').trim().toUpperCase();
+
+    if (bookingCode) {
         console.log('🔍 محاولة استعادة حجز عبر QR Code:', bookingCode);
-        
+
+        currentRequestId = null;
+        currentQueueNumber = null;
+
+        localStorage.removeItem('current_booking_id');
+        sessionStorage.removeItem('current_booking_id');
+        sessionStorage.setItem('booking_cancelled', 'false');
+
+        const qrBusinessId = String(urlParams.get('business_id') || '').trim();
+
+        if (!qrBusinessId) {
+            console.log('⚠️ رابط المتابعة لا يحتوي على business_id');
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        currentBusinessId = qrBusinessId;
+
+        if (typeof setCurrentBusinessId === 'function') {
+            setCurrentBusinessId(qrBusinessId);
+        }
+
         const { data, error } = await supabase.rpc(
             'easyq_public_view_booking_by_code_v1',
             {
-                p_booking_code: bookingCode
+                p_booking_code: bookingCode,
+                p_business_id: qrBusinessId
             }
         );
 
         const request = data?.booking || null;
-        
+
         if (!error && data?.success && request) {
             currentRequestId = request.id;
             currentQueueNumber = request.queue_position;
+
             localStorage.setItem('current_booking_id', currentRequestId);
+            sessionStorage.setItem('current_booking_id', currentRequestId);
             sessionStorage.setItem('booking_cancelled', 'false');
+
             console.log('✅ تم استعادة الحجز عبر QR:', currentRequestId);
-            
-            // ❌ تم حذف startCustomerSafetyPolling من هنا لمنع تشغيله قبل بناء الواجهة (renderUI)
         } else {
-            console.log('⚠️ لم يتم العثور على حجز نشط لهذا الرمز');
+            console.log('⚠️ لم يتم العثور على حجز نشط لهذا الرمز:', {
+                bookingCode,
+                error,
+                data
+            });
+
             window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    } else {
+        // ✅ استعادة الحجز من localStorage فقط إذا لا يوجد code في الرابط
+        const savedBookingId = localStorage.getItem('current_booking_id');
+
+        if (savedBookingId && !currentRequestId) {
+            currentRequestId = savedBookingId;
+            sessionStorage.setItem('booking_cancelled', 'false');
+            console.log('🔄 Restored booking ID from localStorage:', currentRequestId);
         }
     }
 

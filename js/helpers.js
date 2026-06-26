@@ -105,6 +105,359 @@ function isValidSaudiMobile(phone) {
   return /^05\d{8}$/.test(phone);
 }
 
+/* ============================================================
+   EASY-Q | International Phone Helpers
+   دوال مساعدة للهاتف الدولي - لا تغيّر السلوك وحدها
+   ============================================================ */
+
+window.easyqPhoneSettings = window.easyqPhoneSettings || {
+  defaultCountryIso2: "sa",
+  defaultDialCode: "966"
+};
+
+async function easyqLoadPhoneSettings(businessId = null) {
+  try {
+    const db =
+      (typeof supabase !== "undefined" && supabase) ||
+      window._supabaseClient ||
+      window.supabaseClient ||
+      null;
+
+    if (!db || typeof db.rpc !== "function") {
+      return window.easyqPhoneSettings;
+    }
+
+    const { data, error } = await db.rpc("easyq_get_phone_settings_v1", {
+      p_business_id: businessId || null
+    });
+
+    if (error) {
+      console.warn("easyqLoadPhoneSettings error:", error);
+      return window.easyqPhoneSettings;
+    }
+
+    const iso2 = String(data?.default_country_iso2 || "sa").toLowerCase();
+    const dialCode = String(data?.default_dial_code || "966").replace(/\D/g, "");
+
+    window.easyqPhoneSettings = {
+      defaultCountryIso2: /^[a-z]{2}$/.test(iso2) ? iso2 : "sa",
+      defaultDialCode: dialCode || "966"
+    };
+
+    return window.easyqPhoneSettings;
+  } catch (err) {
+    console.warn("easyqLoadPhoneSettings failed:", err);
+    return window.easyqPhoneSettings;
+  }
+}
+
+function easyqGetDefaultPhoneCountry() {
+  return String(
+    window.easyqPhoneSettings?.defaultCountryIso2 ||
+    "sa"
+  ).toLowerCase();
+}
+
+function easyqInitIntlPhoneInput(inputEl, options = {}) {
+  if (!inputEl) return null;
+
+  if (inputEl._easyqIntlPhoneInstance) {
+    return inputEl._easyqIntlPhoneInstance;
+  }
+
+  if (typeof window.intlTelInput !== "function") {
+    console.warn("intlTelInput library is not loaded");
+    return null;
+  }
+
+  const lang =
+    (typeof currentLang !== "undefined" && currentLang) ||
+    window.currentLang ||
+    "ar";
+
+  const placeholderText = String(lang).toLowerCase().startsWith("ar")
+    ? "اكتب الرقم بدون مفتاح الدولة"
+    : "Enter number without country code";
+
+  inputEl.placeholder = options.placeholder || placeholderText;
+  inputEl.setAttribute("autocomplete", "tel");
+  inputEl.setAttribute("inputmode", "tel");
+  inputEl.setAttribute("maxlength", "15");
+
+  const instance = window.intlTelInput(inputEl, {
+    initialCountry: options.initialCountry || easyqGetDefaultPhoneCountry(),
+    separateDialCode: true,
+    nationalMode: true,
+    autoPlaceholder: "off",
+    formatAsYouType: true,
+    strictMode: true,
+    useFullscreenPopup: false,
+    placeholderNumberType: "MOBILE",
+    validationNumberType: "MOBILE",
+    preferredCountries: ["sa", "ae", "kw", "bh", "qa", "om", "eg", "sd"],
+    ...options
+  });
+
+  inputEl._easyqIntlPhoneInstance = instance;
+
+  inputEl.addEventListener("input", function () {
+    easyqLimitLocalPhoneInput(inputEl, instance);
+  });
+
+  inputEl.addEventListener("countrychange", function () {
+    inputEl.placeholder = options.placeholder || placeholderText;
+    easyqLimitLocalPhoneInput(inputEl, instance);
+  });
+
+  return instance;
+}
+
+function easyqGetIntlPhoneValue(inputEl, instance = null) {
+  if (!inputEl) return "";
+
+  const intlInstance = instance || inputEl._easyqIntlPhoneInstance || null;
+  const rawValue = String(inputEl.value || "").trim();
+
+  if (!rawValue) return "";
+
+  if (intlInstance && typeof intlInstance.getNumber === "function") {
+    const intlNumber = intlInstance.getNumber();
+
+    if (intlNumber) {
+      return intlNumber.replace(/[^\d+]/g, "");
+    }
+  }
+
+  if (rawValue.startsWith("+")) {
+    return "+" + rawValue.replace(/\D/g, "");
+  }
+
+  return rawValue.replace(/[^\d]/g, "");
+}
+
+function easyqIsIntlPhoneValid(inputEl, instance = null) {
+  if (!inputEl) return false;
+
+  const intlInstance = instance || inputEl._easyqIntlPhoneInstance || null;
+
+  const countryData =
+    intlInstance && typeof intlInstance.getSelectedCountryData === "function"
+      ? intlInstance.getSelectedCountryData()
+      : null;
+
+  const iso2 = String(
+    countryData?.iso2 ||
+    easyqGetDefaultPhoneCountry() ||
+    "sa"
+  ).toLowerCase();
+
+  const dialCode = String(countryData?.dialCode || "").replace(/\D/g, "");
+  const digits = String(inputEl.value || "").replace(/\D/g, "");
+
+  if (!digits) return false;
+
+  /*
+    القاعدة المعتمدة:
+    السعودية فقط تقبل:
+    - 553473330
+    - 0553473330
+  */
+  if (iso2 === "sa") {
+    return /^5\d{8}$/.test(digits) || /^05\d{8}$/.test(digits);
+  }
+
+  /*
+    باقي الدول:
+    الموظف/العميل يكتب الرقم المحلي فقط بدون مفتاح الدولة.
+    لذلك نرفض غالبًا إذا كتب مفتاح الدولة يدويًا داخل الخانة.
+  */
+  if (dialCode && digits.startsWith(dialCode)) {
+    return false;
+  }
+
+  /*
+    تحقق خفيف ومرن لباقي الدول.
+    التحقق النهائي والحفظ الدولي سنثبته في saveWalkIn لاحقًا.
+  */
+  const maxLocalLength = dialCode ? Math.max(6, 15 - dialCode.length) : 15;
+
+  return digits.length >= 6 && digits.length <= maxLocalLength;
+}
+
+function easyqLimitLocalPhoneInput(inputEl, instance = null) {
+  if (!inputEl) return;
+
+  const intlInstance = instance || inputEl._easyqIntlPhoneInstance || null;
+  const countryData =
+    intlInstance && typeof intlInstance.getSelectedCountryData === "function"
+      ? intlInstance.getSelectedCountryData()
+      : null;
+
+  const iso2 = String(countryData?.iso2 || easyqGetDefaultPhoneCountry() || "sa").toLowerCase();
+
+  let digits = String(inputEl.value || "").replace(/\D/g, "");
+
+  /*
+    القاعدة المعتمدة:
+    - السعودية: نقبل 512345678 أو 0512345678
+    - باقي الدول: الرقم المحلي فقط بدون مفتاح الدولة
+    - الحد العام يمنع اللانهاية
+  */
+  let maxLength = 15;
+
+  if (iso2 === "sa") {
+    maxLength = digits.startsWith("0") ? 10 : 9;
+  }
+
+  if (digits.length > maxLength) {
+    digits = digits.slice(0, maxLength);
+  }
+
+  if (inputEl.value !== digits) {
+    inputEl.value = digits;
+  }
+}
+
+function easyqPhoneToWhatsappDigits(phone) {
+  return String(phone || "").replace(/\D/g, "");
+}
+
+function easyqGetIntlCountryDataList() {
+  if (
+    window.intlTelInput &&
+    typeof window.intlTelInput.getCountryData === "function"
+  ) {
+    return window.intlTelInput.getCountryData();
+  }
+
+  if (
+    window.intlTelInputGlobals &&
+    typeof window.intlTelInputGlobals.getCountryData === "function"
+  ) {
+    return window.intlTelInputGlobals.getCountryData();
+  }
+
+  return [];
+}
+
+function easyqResolveCountryFromInternationalPhone(phone, fallbackIso2 = null) {
+  const fallbackCountry = String(
+    fallbackIso2 ||
+    easyqGetDefaultPhoneCountry?.() ||
+    "sa"
+  ).toLowerCase();
+
+  const raw = String(phone || "").trim();
+  const digits = raw.replace(/\D/g, "");
+
+  if (!digits) {
+    return {
+      iso2: fallbackCountry,
+      dialCode: window.easyqPhoneSettings?.defaultDialCode || "966"
+    };
+  }
+
+  const countries = easyqGetIntlCountryDataList()
+    .filter(country => country && country.iso2 && country.dialCode)
+    .sort((a, b) => String(b.dialCode).length - String(a.dialCode).length);
+
+  /*
+    إذا الرقم محفوظ دوليًا مثل:
+    +966553473330
+    +201012345678
+    نحدد الدولة من مفتاحها.
+  */
+  if (raw.startsWith("+") || raw.startsWith("00")) {
+    const match = countries.find(country => {
+      const dial = String(country.dialCode || "").replace(/\D/g, "");
+      return dial && digits.startsWith(dial);
+    });
+
+    if (match) {
+      return {
+        iso2: String(match.iso2 || fallbackCountry).toLowerCase(),
+        dialCode: String(match.dialCode || "").replace(/\D/g, "")
+      };
+    }
+  }
+
+  /*
+    دعم أرقام قديمة محفوظة بدون علامة +
+    مثال: 966553473330
+  */
+  const legacyMatch = countries.find(country => {
+    const dial = String(country.dialCode || "").replace(/\D/g, "");
+    return dial && digits.startsWith(dial) && digits.length > dial.length + 5;
+  });
+
+  if (legacyMatch) {
+    return {
+      iso2: String(legacyMatch.iso2 || fallbackCountry).toLowerCase(),
+      dialCode: String(legacyMatch.dialCode || "").replace(/\D/g, "")
+    };
+  }
+
+  return {
+    iso2: fallbackCountry,
+    dialCode: window.easyqPhoneSettings?.defaultDialCode || "966"
+  };
+}
+
+function easyqSetIntlPhoneInputValue(inputEl, phone, instance = null) {
+  if (!inputEl) {
+    return {
+      iso2: easyqGetDefaultPhoneCountry?.() || "sa",
+      dialCode: window.easyqPhoneSettings?.defaultDialCode || "966",
+      localDigits: ""
+    };
+  }
+
+  const intlInstance = instance || inputEl._easyqIntlPhoneInstance || null;
+
+  const raw = String(phone || "").trim();
+  const digits = raw.replace(/\D/g, "");
+
+  const resolved = easyqResolveCountryFromInternationalPhone(raw);
+
+  if (intlInstance && typeof intlInstance.setCountry === "function") {
+    intlInstance.setCountry(resolved.iso2);
+  }
+
+  if (!digits) {
+    inputEl.value = "";
+    return {
+      ...resolved,
+      localDigits: ""
+    };
+  }
+
+  let localDigits = digits;
+
+  if (resolved.dialCode && localDigits.startsWith(resolved.dialCode)) {
+    localDigits = localDigits.substring(resolved.dialCode.length);
+  }
+
+  /*
+    للسعودية في التعديل نعرض الرقم المحلي بدون صفر:
+    +966553473330 => 553473330
+    0553473330    => 553473330
+  */
+  if (resolved.iso2 === "sa" && localDigits.startsWith("0")) {
+    localDigits = localDigits.substring(1);
+  }
+
+  inputEl.value = localDigits;
+
+  if (typeof easyqLimitLocalPhoneInput === "function") {
+    easyqLimitLocalPhoneInput(inputEl, intlInstance);
+  }
+
+  return {
+    ...resolved,
+    localDigits
+  };
+}
+
 function getStatusClass(status) {
   if (status === "occupied") return "status-occupied";
   if (status === "cleaning") return "status-cleaning";

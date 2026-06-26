@@ -48,23 +48,26 @@ function closeStatusModal() {
 }
 
 function showQRModal(bookingCode, customerName, queuePosition, status, phone = '', requestId = '', repeatVisitCount = 0) {
-    const trackUrl = `${window.location.origin}/booking.html?code=${bookingCode}`;
-    window.currentQRRequestId = requestId || '';
+    const qrBusinessId = String(
+      currentUser?.business_id ||
+      window.currentUser?.business_id ||
+      window.currentBusinessProfile?.id ||
+      ''
+    ).trim();
+
+    const trackUrl = qrBusinessId
+      ? `${window.location.origin}/booking.html?business_id=${encodeURIComponent(qrBusinessId)}&code=${encodeURIComponent(bookingCode || '')}`
+      : `${window.location.origin}/booking.html?code=${encodeURIComponent(bookingCode || '')}`;    window.currentQRRequestId = requestId || '';
     window.currentQRRewardContext = {
   requestId: requestId || '',
   customerName: customerName || 'ضيف',
   bookingCode: bookingCode || '',
   repeatVisitCount: Number(repeatVisitCount || 0)
 };
-    const cleanPhone = String(phone || '').replace(/\D/g, '');
-const whatsappPhone =
-  cleanPhone.startsWith('966')
-    ? cleanPhone
-    : cleanPhone.startsWith('0')
-      ? `966${cleanPhone.slice(1)}`
-      : cleanPhone.length === 9
-        ? `966${cleanPhone}`
-        : cleanPhone;
+    const whatsappPhone =
+      typeof normalizeWhatsAppPhone === 'function'
+        ? normalizeWhatsAppPhone(phone)
+        : String(phone || '').replace(/\D/g, '');
 
 const whatsappMessage = encodeURIComponent(
   `مرحباً ${customerName || 'ضيفنا'}، هذا رابط متابعة حجزك:\n${trackUrl}`
@@ -143,7 +146,11 @@ document.getElementById('qrQueuePosition').innerText = queuePosition;
 
 const qrPhoneEl = document.getElementById('qrCustomerPhone');
 if (qrPhoneEl) {
-  qrPhoneEl.innerText = cleanPhone || 'لا يوجد رقم جوال';
+  const displayPhone = String(phone || '').trim();
+
+  qrPhoneEl.innerText =
+    displayPhone ||
+    (currentLang === 'ar' ? 'لا يوجد رقم جوال' : 'No mobile number');
 }
 
 const qrWhatsappBtn = document.getElementById('qrWhatsappBtn');
@@ -466,21 +473,156 @@ function openWalkInModal() {
     return;
   }
 
-  document.getElementById("walkInName").value = "";
+  const isArabic = (window.currentLang || currentLang || 'ar') === 'ar';
+
+  const walkInTitle = document.getElementById("walkInTitle");
+  if (walkInTitle) {
+    walkInTitle.innerText = isArabic ? "إضافة عميل" : "Add Walk-in";
+  }
+
+  const walkInSub = document.getElementById("walkInSub");
+  if (walkInSub) {
+    walkInSub.innerText = isArabic
+      ? "إضافة عميل جديد من داخل المطعم"
+      : "Add a customer from inside the restaurant";
+  }
+
+  const phoneLabel = document.getElementById("walkInPhoneLabel");
+  if (phoneLabel) {
+    phoneLabel.innerText = isArabic ? "رقم الجوال" : "Mobile number";
+  }
+
+  const phoneHint = document.getElementById("walkInPhoneHint");
+  if (phoneHint) {
+    phoneHint.innerText = "";
+    phoneHint.classList.remove("show");
+  }
+
+  const nameLabel = document.getElementById("walkInNameLabel");
+  if (nameLabel) {
+    nameLabel.innerText = isArabic ? "الاسم الكامل" : "Full Name";
+  }
+
+  const nameInput = document.getElementById("walkInName");
+  if (nameInput) {
+    nameInput.value = "";
+    nameInput.placeholder = isArabic ? "الاسم الكامل" : "Full Name";
+  }
+
+  const partyLabel = document.getElementById("walkInPartyLabel");
+  if (partyLabel) {
+    partyLabel.innerText = isArabic ? "عدد الضيوف" : "Party Size";
+  }
+
+  const zoneLabel = document.getElementById("walkInZoneLabel");
+  if (zoneLabel) {
+    zoneLabel.innerText = isArabic ? "المنطقة المفضلة" : "Preferred Zone";
+  }
+
+  const saveText = document.getElementById("walkInSaveBtnText");
+  if (saveText) {
+    saveText.innerText = isArabic ? "إضافة" : "Add";
+  }
+
+  const cancelBtn = document.getElementById("walkInCancelBtn");
+  if (cancelBtn) {
+    cancelBtn.innerText = isArabic ? "إلغاء" : "Cancel";
+  }
+
+  const phoneInput = document.getElementById("walkInPhone");
+  if (phoneInput) {
+    phoneInput.value = "";
+    phoneInput.placeholder = isArabic
+      ? "اكتب الرقم بدون مفتاح الدولة"
+      : "Enter number without country code";
+  }
+
   currentPartySize = 2;
+
   const walkInPartyValue = document.getElementById("walkInPartyValue");
   const walkInParty = document.getElementById("walkInParty");
+
   if (walkInPartyValue) walkInPartyValue.innerText = "2";
   if (walkInParty) walkInParty.value = "2";
-  document.getElementById("walkInPhone").value = "";
-  document.getElementById("walkInZone").value = "";
-  
-  const phoneInput = document.getElementById('walkInPhone');
+
+  const walkInZone = document.getElementById("walkInZone");
+  if (walkInZone) walkInZone.value = "";
+
   if (phoneInput) {
-    phoneInput.oninput = function() {
-      searchCustomerByPhone(this.value);
+    const defaultPhoneCountry =
+      typeof easyqGetDefaultPhoneCountry === 'function'
+        ? easyqGetDefaultPhoneCountry()
+        : 'sa';
+
+    const intlInstance =
+      typeof easyqInitIntlPhoneInput === 'function'
+        ? easyqInitIntlPhoneInput(phoneInput, {
+            initialCountry: defaultPhoneCountry,
+            useFullscreenPopup: false,
+            placeholder: isArabic
+              ? "اكتب الرقم بدون مفتاح الدولة"
+              : "Enter number without country code"
+          })
+        : null;
+
+    /*
+      مهم جدًا في زحمة المطعم:
+      كل مرة يفتح مودل إضافة عميل نرجع الدولة للافتراضي
+      حتى لو الموظف اختار مصر أو غيرها في الإضافة السابقة.
+    */
+    if (intlInstance && typeof intlInstance.setCountry === 'function') {
+      intlInstance.setCountry(defaultPhoneCountry);
+    }
+
+    const validatePhoneSoft = () => {
+      if (!phoneHint) return;
+
+      const rawDigits = String(phoneInput.value || "").replace(/\D/g, "");
+
+      if (!rawDigits) {
+        phoneHint.innerText = "";
+        phoneHint.classList.remove("show");
+        return;
+      }
+
+      const isValid =
+        typeof easyqIsIntlPhoneValid === "function"
+          ? easyqIsIntlPhoneValid(phoneInput, intlInstance)
+          : rawDigits.length >= 7;
+
+      if (!isValid) {
+        phoneHint.innerText = isArabic
+          ? "رقم الجوال غير مكتمل أو غير صحيح"
+          : "Mobile number is incomplete or invalid";
+        phoneHint.classList.add("show");
+        return;
+      }
+
+      phoneHint.innerText = "";
+      phoneHint.classList.remove("show");
     };
+
+    phoneInput.oninput = function() {
+      if (typeof easyqLimitLocalPhoneInput === 'function') {
+        easyqLimitLocalPhoneInput(phoneInput, intlInstance);
+      }
+
+      if (phoneHint) {
+        phoneHint.innerText = "";
+        phoneHint.classList.remove("show");
+      }
+
+      const phoneValue =
+        typeof easyqGetIntlPhoneValue === 'function'
+          ? easyqGetIntlPhoneValue(phoneInput, intlInstance)
+          : this.value;
+
+      searchCustomerByPhone(phoneValue);
+    };
+
+    phoneInput.onblur = validatePhoneSoft;
   }
+
   document.getElementById("walkInModal").classList.add("show");
 }
 
@@ -3480,16 +3622,39 @@ let currentWhatsAppNotifyTable = null;
 function normalizeWhatsAppPhone(phone) {
   if (!phone) return "";
 
-  let digits = String(phone).replace(/\D/g, "");
+  const raw = String(phone || "").trim();
+  let digits = raw.replace(/\D/g, "");
 
-  // إذا كان الرقم سعودي محلي يبدأ بـ 05 نحوله إلى 9665
-  if (digits.startsWith("05")) {
-    digits = "966" + digits.substring(1);
+  if (!digits) return "";
+
+  /*
+    الرقم الدولي الجديد:
+    +966553473330 => 966553473330
+    +201012345678 => 201012345678
+  */
+  if (raw.startsWith("+")) {
+    return digits;
   }
 
-  // إذا كان الرقم يبدأ بـ 5 فقط نخليه سعودي
-  if (digits.length === 9 && digits.startsWith("5")) {
-    digits = "966" + digits;
+  /*
+    صيغة دولية قديمة بدون +
+    966553473330 => 966553473330
+  */
+  if (digits.length >= 10 && !digits.startsWith("0")) {
+    return digits;
+  }
+
+  /*
+    دعم السعودية فقط للأرقام المحلية القديمة:
+    0553473330 => 966553473330
+    553473330  => 966553473330
+  */
+  if (digits.startsWith("05") && digits.length === 10) {
+    return "966" + digits.substring(1);
+  }
+
+  if (digits.startsWith("5") && digits.length === 9) {
+    return "966" + digits;
   }
 
   return digits;

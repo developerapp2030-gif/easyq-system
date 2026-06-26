@@ -826,166 +826,299 @@ async function saveWalkIn() {
     return;
   }
 
-let name = document.getElementById("walkInName").value.trim();
+  const lang =
+    window.currentLang ||
+    (typeof currentLang !== 'undefined' ? currentLang : 'ar');
 
-if (!name) {
-  alert("اسم العميل مطلوب لإضافة عميل محلي");
-  return;
-}
+  const isArabic = lang === 'ar';
 
-if (name.length > 20) {
-  name = name.substring(0, 20);
-  alert("الاسم مقيد بـ 20 حرف كحد أقصى");
-}
+  const text = (ar, en) => isArabic ? ar : en;
 
-const party = parseInt(document.getElementById("walkInParty").value);
-let phoneDigits = document.getElementById("walkInPhone").value.trim();
-const preferredZone = document.getElementById("walkInZone").value;
-const customerName = name;
+  const phoneInput = document.getElementById("walkInPhone");
+  const phoneHint = document.getElementById("walkInPhoneHint");
 
-if (!phoneDigits) {
-  alert("رقم الجوال مطلوب لإضافة عميل محلي");
-  return;
-}
-  
-if (!party || party < 1) {
-  alert("أدخل عدد أشخاص صحيح");
-  return;
-}
-  
-  let fullPhone = "";
-  if (phoneDigits && phoneDigits.length === 8) {
-    fullPhone = "05" + phoneDigits;
-  } else if (phoneDigits && phoneDigits.length > 0 && phoneDigits.length !== 8) {
-    alert("رقم الجوال 8 أرقام بعد 05");
+  const setPhoneHint = (message) => {
+    if (!phoneHint) return;
+
+    if (!message) {
+      phoneHint.innerText = "";
+      phoneHint.classList.remove("show");
+      return;
+    }
+
+    phoneHint.innerText = message;
+    phoneHint.classList.add("show");
+  };
+
+  let name = document.getElementById("walkInName").value.trim();
+
+  if (!name) {
+    alert(text(
+      "اسم العميل مطلوب لإضافة عميل داخلي",
+      "Customer name is required"
+    ));
     return;
   }
-  
-  if (fullPhone && !isValidSaudiMobile(fullPhone)) {
-    alert("رقم الجوال غير صحيح");
+
+  if (name.length > 20) {
+    name = name.substring(0, 20);
+    alert(text(
+      "الاسم مقيد بـ 20 حرف كحد أقصى",
+      "Name is limited to 20 characters"
+    ));
+  }
+
+  const party = parseInt(document.getElementById("walkInParty").value);
+  const preferredZone = document.getElementById("walkInZone").value;
+  const customerName = name;
+
+  if (!phoneInput) {
+    alert(text(
+      "حقل رقم الجوال غير موجود",
+      "Phone input field is missing"
+    ));
+    return;
+  }
+
+  const intlInstance = phoneInput._easyqIntlPhoneInstance || null;
+
+  if (typeof easyqLimitLocalPhoneInput === 'function') {
+    easyqLimitLocalPhoneInput(phoneInput, intlInstance);
+  }
+
+  const rawDigits = String(phoneInput.value || "").replace(/\D/g, "");
+
+  if (!rawDigits) {
+    setPhoneHint(text(
+      "رقم الجوال مطلوب",
+      "Mobile number is required"
+    ));
+
+    alert(text(
+      "رقم الجوال مطلوب لإضافة عميل داخلي",
+      "Mobile number is required"
+    ));
+
+    phoneInput.focus();
+    return;
+  }
+
+  const isPhoneValid =
+    typeof easyqIsIntlPhoneValid === "function"
+      ? easyqIsIntlPhoneValid(phoneInput, intlInstance)
+      : rawDigits.length >= 7 && rawDigits.length <= 15;
+
+  if (!isPhoneValid) {
+    setPhoneHint(text(
+      "رقم الجوال غير مكتمل أو غير صحيح",
+      "Mobile number is incomplete or invalid"
+    ));
+
+    alert(text(
+      "رقم الجوال غير صحيح، تأكد من اختيار الدولة وكتابة الرقم المحلي بدون مفتاح الدولة",
+      "Invalid mobile number. Please select the country and enter the local number without the country code"
+    ));
+
+    phoneInput.focus();
+    return;
+  }
+
+  const countryData =
+    intlInstance && typeof intlInstance.getSelectedCountryData === "function"
+      ? intlInstance.getSelectedCountryData()
+      : null;
+
+  const iso2 = String(
+    countryData?.iso2 ||
+    easyqGetDefaultPhoneCountry?.() ||
+    "sa"
+  ).toLowerCase();
+
+  const dialCode = String(
+    countryData?.dialCode ||
+    window.easyqPhoneSettings?.defaultDialCode ||
+    "966"
+  ).replace(/\D/g, "");
+
+  let localDigits = rawDigits;
+
+  /*
+    القاعدة المعتمدة:
+    - السعودية تقبل 553473330 أو 0553473330
+    - باقي الدول: إدخال الرقم المحلي فقط بدون مفتاح الدولة
+  */
+  if (iso2 === "sa" && localDigits.startsWith("0")) {
+    localDigits = localDigits.substring(1);
+  }
+
+  if (iso2 !== "sa" && dialCode && localDigits.startsWith(dialCode)) {
+    setPhoneHint(text(
+      "اكتب الرقم المحلي فقط بدون مفتاح الدولة",
+      "Enter the local number only without the country code"
+    ));
+
+    alert(text(
+      "اكتب الرقم المحلي فقط بدون مفتاح الدولة",
+      "Enter the local number only without the country code"
+    ));
+
+    phoneInput.focus();
+    return;
+  }
+
+  if (!dialCode || !localDigits) {
+    setPhoneHint(text(
+      "رقم الجوال غير صحيح",
+      "Invalid mobile number"
+    ));
+
+    alert(text(
+      "رقم الجوال غير صحيح",
+      "Invalid mobile number"
+    ));
+
+    phoneInput.focus();
+    return;
+  }
+
+  const fullPhone = `+${dialCode}${localDigits}`;
+
+  setPhoneHint("");
+
+  if (!party || party < 1) {
+    alert(text(
+      "أدخل عدد أشخاص صحيح",
+      "Enter a valid party size"
+    ));
     return;
   }
 
   /*
     منع تكرار رقم الجوال في الطابور باستخدام RPC آمنة وموحدة.
-    لا نعتمد هنا على waiting_list_full لأنها تعرض waiting فقط
-    ولا نعتمد على مقارنة محلية قد تختلف فيها صيغة الرقم.
+    الرقم هنا أصبح دوليًا مثل +966553473330
   */
-  if (fullPhone) {
-    const { data: phoneCheck, error: phoneCheckError } = await supabase.rpc(
-      "easyq_check_active_queue_phone_v1",
-      {
-        p_business_id: currentUser.business_id,
-        p_phone: fullPhone
-      }
-    );
-
-    if (phoneCheckError || phoneCheck?.success !== true) {
-      console.error("Walk-in active phone check error:", phoneCheckError || phoneCheck);
-
-      alert(
-        currentLang === "ar"
-          ? "تعذر التحقق من رقم الجوال، حاول مرة أخرى"
-          : "Could not verify the phone number, please try again"
-      );
-      return;
+  const { data: phoneCheck, error: phoneCheckError } = await supabase.rpc(
+    "easyq_check_active_queue_phone_v1",
+    {
+      p_business_id: currentUser.business_id,
+      p_phone: fullPhone
     }
+  );
 
-    if (phoneCheck.has_active === true) {
-      alert(
-        currentLang === "ar"
-          ? "لا يمكن إضافة العميل، يوجد طلب نشط في الطابور بنفس رقم الجوال"
-          : "This phone number already has an active queue request"
-      );
-      return;
-    }
+  if (phoneCheckError || phoneCheck?.success !== true) {
+    console.error("Walk-in active phone check error:", phoneCheckError || phoneCheck);
+
+    alert(text(
+      "تعذر التحقق من رقم الجوال، حاول مرة أخرى",
+      "Could not verify the phone number, please try again"
+    ));
+    return;
   }
-  
+
+  if (phoneCheck.has_active === true) {
+    alert(text(
+      "لا يمكن إضافة العميل، يوجد طلب نشط في الطابور بنفس رقم الجوال",
+      "This phone number already has an active queue request"
+    ));
+    return;
+  }
+
   const saveBtn = document.getElementById('walkInSaveBtn');
-const saveBtnText = document.getElementById('walkInSaveBtnText');
-const saveBtnSpinner = document.getElementById('walkInSaveBtnSpinner');
+  const saveBtnText = document.getElementById('walkInSaveBtnText');
+  const saveBtnSpinner = document.getElementById('walkInSaveBtnSpinner');
 
-if (saveBtn) saveBtn.disabled = true;
-if (saveBtnText) saveBtnText.innerText = 'جاري الإضافة...';
-if (saveBtnSpinner) saveBtnSpinner.style.display = 'inline-block';
+  if (saveBtn) saveBtn.disabled = true;
+  if (saveBtnText) {
+    saveBtnText.innerText = text("جاري الإضافة...", "Adding...");
+  }
+  if (saveBtnSpinner) saveBtnSpinner.style.display = 'inline-block';
 
-let customerId = null;
+  let customerId = null;
 
-try {
-  
-  // البحث عن عميل موجود بنفس رقم الهاتف
-  if (fullPhone) {
+  try {
+    /*
+      البحث عن عميل موجود بنفس الرقم الدولي.
+      الدوال الخلفية أيضًا أصبحت تدعم التطبيع الدولي.
+    */
     const { data: existingCustomer, error: existingError } = await supabase
       .from("customers")
       .select("id, name")
       .eq("phone", fullPhone)
       .maybeSingle();
-    
+
     if (!existingError && existingCustomer?.id) {
       customerId = existingCustomer.id;
-      
+
       if (existingCustomer.name !== customerName) {
         await supabase.rpc('update_customer', {
-            p_customer_id: customerId,
-            p_name: customerName,
-            p_phone: fullPhone,
-            p_whatsapp_number: fullPhone
+          p_customer_id: customerId,
+          p_name: customerName,
+          p_phone: fullPhone,
+          p_whatsapp_number: fullPhone
         });
       }
     }
-  }
-  
-  // إنشاء عميل جديد إذا لم يوجد
-  if (!customerId) {
-    const { data: newCustomerId, error: customerError } = await supabase.rpc('create_customer', {
+
+    if (!customerId) {
+      const { data: newCustomerId, error: customerError } = await supabase.rpc('create_customer', {
         p_name: customerName,
-        p_phone: fullPhone || null,
-        p_whatsapp_number: fullPhone || null
-    });
-    
-    if (customerError) {
-      console.error("Customer error:", customerError);
-      alert("فشل إنشاء العميل: " + customerError.message);
-      return;
+        p_phone: fullPhone,
+        p_whatsapp_number: fullPhone
+      });
+
+      if (customerError) {
+        console.error("Customer error:", customerError);
+        alert(text(
+          "فشل إنشاء العميل: ",
+          "Failed to create customer: "
+        ) + customerError.message);
+        return;
+      }
+
+      customerId = newCustomerId;
     }
-    
-    customerId = newCustomerId;
-  }
-  
-  // 🔥 إنشاء طلب الانتظار باستخدام RPC
-  const { data: newRequestId, error: requestError } = await supabase.rpc('create_table_request', {
+
+    const { data: newRequestId, error: requestError } = await supabase.rpc('create_table_request', {
       p_customer_id: customerId,
       p_requested_party_size: party,
       p_zone_name: preferredZone || null,
       p_request_source: 'walk_in'
-  });
-  
-  if (requestError) {
-    console.error("Request error:", requestError);
-    alert("فشل إنشاء الطلب: " + requestError.message);
-    return;
-  }
-  
-// ✅ حفظ نسخة اسم ورقم العميل داخل الطلب نفسه حتى تظهر في صفحة التتبع والـ QR
-const { error: snapshotError } = await supabase
-  .from("table_requests")
-  .update({
-    customer_name_snapshot: customerName,
-    customer_phone_snapshot: fullPhone || null
-  })
-  .eq("id", newRequestId);
+    });
 
-if (snapshotError) {
-  console.warn("⚠️ تم إنشاء الطلب لكن فشل حفظ نسخة اسم العميل:", snapshotError);
-}
+    if (requestError) {
+      console.error("Request error:", requestError);
+      alert(text(
+        "فشل إنشاء الطلب: ",
+        "Failed to create request: "
+      ) + requestError.message);
+      return;
+    }
 
-  closeWalkInModal();
-  await loadAll();
-  showSuccessNotification("تم إضافة العميل");
+    const { error: snapshotError } = await supabase
+      .from("table_requests")
+      .update({
+        customer_name_snapshot: customerName,
+        customer_phone_snapshot: fullPhone
+      })
+      .eq("id", newRequestId);
+
+    if (snapshotError) {
+      console.warn("⚠️ تم إنشاء الطلب لكن فشل حفظ نسخة اسم ورقم العميل:", snapshotError);
+    }
+
+    closeWalkInModal();
+    await loadAll();
+
+    showSuccessNotification(text(
+      "تم إضافة العميل",
+      "Customer added"
+    ));
 
   } finally {
     if (saveBtn) saveBtn.disabled = false;
-    if (saveBtnText) saveBtnText.innerText = 'إضافة';
+    if (saveBtnText) {
+      saveBtnText.innerText = text("إضافة", "Add");
+    }
     if (saveBtnSpinner) saveBtnSpinner.style.display = 'none';
   }
 }
@@ -997,52 +1130,186 @@ if (snapshotError) {
 function openEditRequestModal(requestId) {
   const request = waitingData.find(w => w.request_id === requestId);
   if (!request) return;
-  
+
+  const lang =
+    window.currentLang ||
+    (typeof currentLang !== 'undefined' ? currentLang : 'ar');
+
+  const isArabic = lang === 'ar';
+  const text = (ar, en) => isArabic ? ar : en;
+
   if (!canDo('edit_requests')) {
-    showAlert('ليس لديك صلاحية لتعديل طلبات العملاء');
+    showAlert(text(
+      'ليس لديك صلاحية لتعديل طلبات العملاء',
+      'You do not have permission to edit customer requests'
+    ));
     return;
   }
 
   if (!['waiting', 'restored'].includes(request.status)) {
-    showAlert('يمكن تعديل الطلب فقط أثناء وجوده في قائمة الانتظار');
+    showAlert(text(
+      'يمكن تعديل الطلب فقط أثناء وجوده في قائمة الانتظار',
+      'The request can only be edited while it is in the waiting list'
+    ));
     return;
   }
-  
+
   currentEditingRequest = request;
   currentEditPartySize = request.requested_party_size || 2;
-  
-  document.getElementById('editName').value = request.customer_name || "";
-  
-  let phoneValue = "";
-  if (request.phone) {
-    let phoneStr = String(request.phone).trim();
 
-    // تحويل أي صيغة رقم إلى صيغة 8 أرقام فقط بعد 05
-    // أمثلة:
-    // +966553473330 => 53473330
-    // 966553473330  => 53473330
-    // 0553473330    => 53473330
-    // 553473330     => 53473330
-    phoneStr = phoneStr.replace(/\D/g, "");
-
-    if (phoneStr.startsWith("9665") && phoneStr.length >= 12) {
-      phoneValue = phoneStr.substring(4);
-    } else if (phoneStr.startsWith("05") && phoneStr.length >= 10) {
-      phoneValue = phoneStr.substring(2);
-    } else if (phoneStr.startsWith("5") && phoneStr.length === 9) {
-      phoneValue = phoneStr.substring(1);
-    } else if (phoneStr.length === 8) {
-      phoneValue = phoneStr;
-    } else {
-      phoneValue = phoneStr;
-    }
+  const editRequestTitle = document.getElementById('editRequestTitle');
+  if (editRequestTitle) {
+    editRequestTitle.innerText = text('تعديل طلب العميل', 'Edit Customer Request');
   }
-  document.getElementById('editPhone').value = phoneValue;
-  document.getElementById('editPartyValue').innerText = currentEditPartySize;
-  document.getElementById('editParty').value = currentEditPartySize;
-  document.getElementById('editZone').value = request.zone_name || "";
-  document.getElementById('editRequestSub').innerHTML = `تعديل طلب رقم #${request.queue_position || '?'}`;
-  
+
+  const editRequestSub = document.getElementById('editRequestSub');
+  if (editRequestSub) {
+    editRequestSub.innerText = text(
+      `تعديل طلب رقم #${request.queue_position || '?'}`,
+      `Edit request #${request.queue_position || '?'}`
+    );
+  }
+
+  const editNameLabel = document.getElementById('editNameLabel');
+  if (editNameLabel) {
+    editNameLabel.innerText = text('الاسم الكامل', 'Full Name');
+  }
+
+  const editName = document.getElementById('editName');
+  if (editName) {
+    editName.value = request.customer_name || "";
+    editName.placeholder = text('الاسم الكامل', 'Full Name');
+  }
+
+  const editPhoneLabel = document.getElementById('editPhoneLabel');
+  if (editPhoneLabel) {
+    editPhoneLabel.innerText = text('رقم الجوال', 'Mobile number');
+  }
+
+  const editPhoneHint = document.getElementById('editPhoneHint');
+  if (editPhoneHint) {
+    editPhoneHint.innerText = "";
+    editPhoneHint.classList.remove("show");
+  }
+
+  const editPartyLabel = document.getElementById('editPartyLabel');
+  if (editPartyLabel) {
+    editPartyLabel.innerText = text('عدد الضيوف', 'Party Size');
+  }
+
+  const editZoneLabel = document.getElementById('editZoneLabel');
+  if (editZoneLabel) {
+    editZoneLabel.innerText = text('المنطقة المفضلة', 'Preferred Zone');
+  }
+
+  const editRequestSaveBtn = document.getElementById('editRequestSaveBtn');
+  if (editRequestSaveBtn) {
+    editRequestSaveBtn.innerText = text('حفظ التعديلات', 'Save Changes');
+  }
+
+  const editRequestCancelBtn = document.getElementById('editRequestCancelBtn');
+  if (editRequestCancelBtn) {
+    editRequestCancelBtn.innerText = text('إلغاء', 'Cancel');
+  }
+
+  const editZone = document.getElementById('editZone');
+  if (editZone) {
+    const zoneLabels = {
+      "": text("بدون تفضيل", "No preference"),
+      Indoor: text("داخلي", "Indoor"),
+      VIP: "VIP",
+      Smoking: text("مدخنين", "Smoking"),
+      Family: text("عائلي", "Family"),
+      Outdoor: text("خارجي", "Outdoor")
+    };
+
+    Array.from(editZone.options).forEach(option => {
+      option.textContent = zoneLabels[option.value] || option.textContent;
+    });
+
+    editZone.value = request.zone_name || "";
+  }
+
+  const editPhone = document.getElementById('editPhone');
+
+  if (editPhone) {
+    editPhone.placeholder = text(
+      "اكتب الرقم بدون مفتاح الدولة",
+      "Enter number without country code"
+    );
+
+    const intlInstance =
+      typeof easyqInitIntlPhoneInput === 'function'
+        ? easyqInitIntlPhoneInput(editPhone, {
+            useFullscreenPopup: false,
+            placeholder: text(
+              "اكتب الرقم بدون مفتاح الدولة",
+              "Enter number without country code"
+            )
+          })
+        : null;
+
+    const savedPhone =
+      request.phone ||
+      request.customer_phone_snapshot ||
+      request.whatsapp_number ||
+      "";
+
+    if (typeof easyqSetIntlPhoneInputValue === "function") {
+      easyqSetIntlPhoneInputValue(editPhone, savedPhone, intlInstance);
+    } else {
+      editPhone.value = String(savedPhone || "").replace(/\D/g, "");
+    }
+
+    const validateEditPhoneSoft = () => {
+      if (!editPhoneHint) return;
+
+      const rawDigits = String(editPhone.value || "").replace(/\D/g, "");
+
+      if (!rawDigits) {
+        editPhoneHint.innerText = "";
+        editPhoneHint.classList.remove("show");
+        return;
+      }
+
+      const isValid =
+        typeof easyqIsIntlPhoneValid === "function"
+          ? easyqIsIntlPhoneValid(editPhone, intlInstance)
+          : rawDigits.length >= 7;
+
+      if (!isValid) {
+        editPhoneHint.innerText = text(
+          "رقم الجوال غير مكتمل أو غير صحيح",
+          "Mobile number is incomplete or invalid"
+        );
+        editPhoneHint.classList.add("show");
+        return;
+      }
+
+      editPhoneHint.innerText = "";
+      editPhoneHint.classList.remove("show");
+    };
+
+    editPhone.oninput = function () {
+      if (typeof easyqLimitLocalPhoneInput === 'function') {
+        easyqLimitLocalPhoneInput(editPhone, intlInstance);
+      }
+
+      if (editPhoneHint) {
+        editPhoneHint.innerText = "";
+        editPhoneHint.classList.remove("show");
+      }
+    };
+
+    editPhone.onblur = validateEditPhoneSoft;
+  }
+
+  const editPartyValue = document.getElementById('editPartyValue');
+  const editParty = document.getElementById('editParty');
+
+  if (editPartyValue) editPartyValue.innerText = currentEditPartySize;
+  if (editParty) editParty.value = currentEditPartySize;
+
   document.getElementById("editRequestModal").classList.add("show");
 }
 
@@ -1053,80 +1320,241 @@ function closeEditRequestModal() {
 
 async function saveEditedRequest() {
   if (!canDo('edit_requests')) {
-    showAlert('ليس لديك صلاحية لحفظ تعديل طلب العميل');
+    showAlert(
+      currentLang === "ar"
+        ? 'ليس لديك صلاحية لحفظ تعديل طلب العميل'
+        : 'You do not have permission to save customer request changes'
+    );
     return;
   }
 
   if (!currentEditingRequest) return;
-  
+
+  const lang =
+    window.currentLang ||
+    (typeof currentLang !== 'undefined' ? currentLang : 'ar');
+
+  const isArabic = lang === 'ar';
+  const text = (ar, en) => isArabic ? ar : en;
+
+  const editPhone = document.getElementById('editPhone');
+  const editPhoneHint = document.getElementById('editPhoneHint');
+
+  const setEditPhoneHint = (message) => {
+    if (!editPhoneHint) return;
+
+    if (!message) {
+      editPhoneHint.innerText = "";
+      editPhoneHint.classList.remove("show");
+      return;
+    }
+
+    editPhoneHint.innerText = message;
+    editPhoneHint.classList.add("show");
+  };
+
   const newName = document.getElementById('editName').value.trim();
-  let phoneDigits = document.getElementById('editPhone').value.trim();
   const newPartySize = currentEditPartySize;
   const newZone = document.getElementById('editZone').value;
-  
-  let fullPhone = "";
-  if (phoneDigits && phoneDigits.length === 8) {
-    fullPhone = "05" + phoneDigits;
-  } else if (phoneDigits && phoneDigits.length > 0 && phoneDigits.length !== 8) {
-    showAlert("رقم الجوال 8 أرقام بعد 05");
+
+  if (!newName) {
+    showAlert(text(
+      "اسم العميل مطلوب",
+      "Customer name is required"
+    ));
     return;
   }
-  
+
+  if (!editPhone) {
+    showAlert(text(
+      "حقل رقم الجوال غير موجود",
+      "Phone input field is missing"
+    ));
+    return;
+  }
+
+  let intlInstance = editPhone._easyqIntlPhoneInstance || null;
+
+  if (!intlInstance && typeof easyqInitIntlPhoneInput === "function") {
+    intlInstance = easyqInitIntlPhoneInput(editPhone, {
+      useFullscreenPopup: false,
+      placeholder: text(
+        "اكتب الرقم بدون مفتاح الدولة",
+        "Enter number without country code"
+      )
+    });
+  }
+
+  if (typeof easyqLimitLocalPhoneInput === 'function') {
+    easyqLimitLocalPhoneInput(editPhone, intlInstance);
+  }
+
+  const rawDigits = String(editPhone.value || "").replace(/\D/g, "");
+
+  if (!rawDigits) {
+    setEditPhoneHint(text(
+      "رقم الجوال مطلوب",
+      "Mobile number is required"
+    ));
+
+    showAlert(text(
+      "رقم الجوال مطلوب",
+      "Mobile number is required"
+    ));
+
+    editPhone.focus();
+    return;
+  }
+
+  const isPhoneValid =
+    typeof easyqIsIntlPhoneValid === "function"
+      ? easyqIsIntlPhoneValid(editPhone, intlInstance)
+      : rawDigits.length >= 7 && rawDigits.length <= 15;
+
+  if (!isPhoneValid) {
+    setEditPhoneHint(text(
+      "رقم الجوال غير مكتمل أو غير صحيح",
+      "Mobile number is incomplete or invalid"
+    ));
+
+    showAlert(text(
+      "رقم الجوال غير صحيح، تأكد من اختيار الدولة وكتابة الرقم المحلي بدون مفتاح الدولة",
+      "Invalid mobile number. Please select the country and enter the local number without the country code"
+    ));
+
+    editPhone.focus();
+    return;
+  }
+
+  const countryData =
+    intlInstance && typeof intlInstance.getSelectedCountryData === "function"
+      ? intlInstance.getSelectedCountryData()
+      : null;
+
+  const iso2 = String(
+    countryData?.iso2 ||
+    (typeof easyqGetDefaultPhoneCountry === "function" ? easyqGetDefaultPhoneCountry() : "sa")
+  ).toLowerCase();
+
+  const dialCode = String(
+    countryData?.dialCode ||
+    window.easyqPhoneSettings?.defaultDialCode ||
+    "966"
+  ).replace(/\D/g, "");
+
+  let localDigits = rawDigits;
+
+  /*
+    القاعدة المعتمدة:
+    - السعودية تقبل 553473330 أو 0553473330
+    - باقي الدول: الرقم المحلي فقط بدون مفتاح الدولة
+  */
+  if (iso2 === "sa" && localDigits.startsWith("0")) {
+    localDigits = localDigits.substring(1);
+  }
+
+  if (iso2 !== "sa" && dialCode && localDigits.startsWith(dialCode)) {
+    setEditPhoneHint(text(
+      "اكتب الرقم المحلي فقط بدون مفتاح الدولة",
+      "Enter the local number only without the country code"
+    ));
+
+    showAlert(text(
+      "اكتب الرقم المحلي فقط بدون مفتاح الدولة",
+      "Enter the local number only without the country code"
+    ));
+
+    editPhone.focus();
+    return;
+  }
+
+  if (!dialCode || !localDigits) {
+    setEditPhoneHint(text(
+      "رقم الجوال غير صحيح",
+      "Invalid mobile number"
+    ));
+
+    showAlert(text(
+      "رقم الجوال غير صحيح",
+      "Invalid mobile number"
+    ));
+
+    editPhone.focus();
+    return;
+  }
+
+  const fullPhone = `+${dialCode}${localDigits}`;
+
+  setEditPhoneHint("");
+
   try {
     let customerId = currentEditingRequest.customer_id;
-    
+
     if (!customerId && fullPhone) {
       const { data: customer } = await supabase
         .from("customers")
         .select("id")
         .eq("phone", fullPhone)
         .maybeSingle();
-      
+
       if (customer) {
         customerId = customer.id;
       }
     }
-    
-    // 🔥 استخدام RPC الآمن بدلاً من التحديث المباشر
+
     if (customerId) {
       const { error: updateError } = await supabase.rpc('update_customer', {
         p_customer_id: customerId,
         p_name: newName,
-        p_phone: fullPhone || null,
-        p_whatsapp_number: fullPhone || null
+        p_phone: fullPhone,
+        p_whatsapp_number: fullPhone
       });
-      
+
       if (updateError) {
         console.error("Update customer error:", updateError);
-        showAlert("فشل تحديث بيانات العميل: " + updateError.message);
+        showAlert(text(
+          "فشل تحديث بيانات العميل: ",
+          "Failed to update customer data: "
+        ) + updateError.message);
         return;
       }
     }
-    
-const updateRequestData = {
-  requested_party_size: newPartySize,
-  zone_name: newZone,
-  customer_name_snapshot: newName || null,
-  customer_phone_snapshot: fullPhone || null
-};
-    
+
+    const updateRequestData = {
+      requested_party_size: newPartySize,
+      zone_name: newZone,
+      customer_name_snapshot: newName || null,
+      customer_phone_snapshot: fullPhone
+    };
+
     const { error: updateRequestError } = await supabase
       .from("table_requests")
       .update(updateRequestData)
       .eq("id", currentEditingRequest.request_id);
-    
+
     if (updateRequestError) {
       console.error("Error updating request:", updateRequestError);
-      showAlert("حدث خطأ أثناء حفظ التعديلات: " + updateRequestError.message);
+      showAlert(text(
+        "حدث خطأ أثناء حفظ التعديلات: ",
+        "An error occurred while saving changes: "
+      ) + updateRequestError.message);
       return;
     }
-    
-    showSuccessNotification("تم تحديث الطلب بنجاح");
+
+    showSuccessNotification(text(
+      "تم تحديث الطلب بنجاح",
+      "Request updated successfully"
+    ));
+
     closeEditRequestModal();
     await loadAll();
+
   } catch (err) {
     console.error("Unexpected error:", err);
-    showAlert("حدث خطأ غير متوقع: " + err.message);
+    showAlert(text(
+      "حدث خطأ غير متوقع: ",
+      "Unexpected error: "
+    ) + err.message);
   }
 }
 

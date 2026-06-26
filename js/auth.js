@@ -3610,6 +3610,11 @@ startCurrentUserProfileAutoRefresh();
 await loadSettings();
 await loadActiveSettings();
 
+/* تحميل إعدادات الدولة الافتراضية للهاتف */
+if (typeof easyqLoadPhoneSettings === 'function') {
+  await easyqLoadPhoneSettings(user.business_id || null);
+}
+
 if (typeof loadTopbarBusinessIdentity === 'function') {
   await loadTopbarBusinessIdentity();
 }
