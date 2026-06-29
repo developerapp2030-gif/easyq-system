@@ -32,13 +32,11 @@
       reserved: [
         'btnOccupied',
         'btnCleaning',
-        'btnPending',
-        'btnSwap'
+        'btnPending'
       ],
 
       occupied: [
-        'btnCleaning',
-        'btnSwap'
+        'btnCleaning'
       ],
 
       cleaning: [
@@ -48,7 +46,6 @@
       ],
 
       pending: [
-        'btnSwap',
         'btnAssignReservation',
         'btnAvailable',
         'btnDisabled'
@@ -156,6 +153,26 @@
     style.textContent = `
       #statusModal .modal-actions {
         gap: 10px !important;
+      }
+
+      #statusModal .modal-actions.eqr-reserved-actions{
+        display:grid !important;
+        grid-template-columns:1fr 1fr !important;
+        gap:10px !important;
+      }
+
+      #statusModal .modal-actions.eqr-reserved-actions #btnOccupied{
+        grid-column:1 !important;
+      }
+
+      #statusModal .modal-actions.eqr-reserved-actions #btnCleaning{
+        grid-column:2 !important;
+      }
+
+      #statusModal .modal-actions.eqr-reserved-actions #btnPending{
+        grid-column:1 / -1 !important;
+        width:50% !important;
+        justify-self:center !important;
       }
 
       #statusModal .modal-btn[data-eq-table-action] {
@@ -609,6 +626,12 @@ function eqEscapeHtml(value) {
   }
 
   function eqApplyButtonTextsAndVisibility(currentStatus) {
+    const actionsWrap = document.querySelector('#statusModal .modal-actions');
+
+    if (actionsWrap) {
+      actionsWrap.classList.toggle('eqr-reserved-actions', eqNormalizeStatus(currentStatus) === 'reserved');
+    }
+
     Object.entries(EQ_TABLE_ACTIONS.buttonText).forEach(([buttonId, config]) => {
       const btn = document.getElementById(buttonId);
       if (!btn) return;

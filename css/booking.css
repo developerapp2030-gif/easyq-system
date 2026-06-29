@@ -438,12 +438,18 @@ select.form-input option {
   }
   
   .current-number-circle {
-    width: 120px;
-    height: 120px;
+    width: auto;
+    min-width: auto;
+    height: auto;
+    padding: 0;
   }
   
-  .current-number {
-    font-size: 48px;
+  .current-number,
+  .booking-current-queue-number {
+    font-size: 15px !important;
+    line-height: 1.4 !important;
+    font-weight: 950 !important;
+    white-space: nowrap !important;
   }
   
   .queue-number-circle {

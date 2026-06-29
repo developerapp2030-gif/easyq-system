@@ -780,6 +780,31 @@ async function closeExpiredRequest(reqId) {
       return;
     }
 
+    const businessId = currentUser?.business_id || null;
+
+    const { error: hideExpiredError } = await supabase
+      .from("table_requests")
+      .update({ expired_at: null })
+      .eq("id", reqId)
+      .eq("business_id", businessId);
+
+    if (hideExpiredError) {
+      console.error("Failed to hide expired request:", hideExpiredError);
+
+      if (clickedBtn) {
+        clickedBtn.disabled = false;
+        clickedBtn.style.opacity = oldBtnOpacity;
+        clickedBtn.style.cursor = oldBtnCursor;
+        clickedBtn.innerHTML = oldBtnHtml;
+      }
+
+      showAlert(currentLang === "ar"
+        ? "تم إلغاء الطلب لكن تعذر إخفاؤه من قائمة المنتهية"
+        : "Booking was cancelled but could not be hidden from expired list");
+
+      return;
+    }
+
     showSuccessNotification(currentLang === "ar"
       ? "تم إلغاء الطلب بنجاح"
       : "Booking cancelled successfully");

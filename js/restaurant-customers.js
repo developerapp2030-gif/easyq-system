@@ -334,12 +334,30 @@
   }
 
   function normalizePhone(phone) {
-    const digits = String(phone || '').replace(/\D/g, '');
+    const raw = String(phone || '').trim();
+    const digits = raw.replace(/\D/g, '');
+
     if (!digits) return '';
-    if (digits.startsWith('00966')) return digits.slice(2);
-    if (digits.startsWith('966')) return digits;
-    if (digits.startsWith('05')) return `966${digits.slice(1)}`;
-    if (digits.startsWith('5') && digits.length >= 9) return `966${digits}`;
+
+    // رقم دولي واضح مثل +96551234567 أو +201012345678
+    if (raw.startsWith('+')) {
+      return digits;
+    }
+
+    // رقم دولي مكتوب بدون + مثل 9665 أو 965 أو 20
+    if (digits.length >= 10 && !digits.startsWith('0')) {
+      return digits;
+    }
+
+    // دعم السعودية فقط للصيغ المحلية القديمة
+    if (digits.startsWith('05') && digits.length === 10) {
+      return `966${digits.slice(1)}`;
+    }
+
+    if (digits.startsWith('5') && digits.length === 9) {
+      return `966${digits}`;
+    }
+
     return digits;
   }
 

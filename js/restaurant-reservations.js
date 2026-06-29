@@ -33,6 +33,9 @@
     permissionsLoading: null
   };
 
+  let reservationPhoneInputInstance = null;
+
+
   const $ = (id) => document.getElementById(id);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
 
@@ -283,12 +286,29 @@
   }
 
   function normalizePhone(value) {
-    const digits = String(value || '').replace(/\D/g, '');
+    const raw = String(value || '').trim();
+    const digits = raw.replace(/\D/g, '');
+
     if (!digits) return '';
 
-    if (digits.startsWith('966')) return digits;
-    if (digits.startsWith('05') && digits.length === 10) return `966${digits.slice(1)}`;
-    if (digits.startsWith('5') && digits.length === 9) return `966${digits}`;
+    // رقم دولي واضح مثل +966553473330 أو +96551234567 أو +201012345678
+    if (raw.startsWith('+')) {
+      return digits;
+    }
+
+    // رقم دولي مكتوب بدون + مثل 9665 أو 965 أو 20
+    if (digits.length >= 10 && !digits.startsWith('0')) {
+      return digits;
+    }
+
+    // دعم السعودية فقط للصيغ المحلية القديمة
+    if (digits.startsWith('05') && digits.length === 10) {
+      return `966${digits.slice(1)}`;
+    }
+
+    if (digits.startsWith('5') && digits.length === 9) {
+      return `966${digits}`;
+    }
 
     return digits;
   }
@@ -338,6 +358,18 @@
       .eqr-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}.eqr-card{background:#fff;border:1px solid #E5E7EB;border-radius:20px;padding:15px;box-shadow:0 10px 26px rgba(15,23,42,.055);min-width:0}.eqr-card.wide{grid-column:span 2}.eqr-card.full{grid-column:1/-1}.eqr-title{font-size:13px;font-weight:1000;color:#111827;display:flex;align-items:center;gap:8px}.eqr-title i{color:#0E146D}.eqr-sub{font-size:11px;color:#64748B;font-weight:800;line-height:1.7;margin-top:4px}.eqr-num{font-size:31px;font-weight:1000;color:#0F172A;line-height:1;margin-top:10px}.eqr-card.ok .eqr-num{color:#047857}.eqr-card.bad .eqr-num{color:#B91C1C}.eqr-card.info .eqr-num{color:#1D4ED8}.eqr-card.warn .eqr-num{color:#B45309}
       .eqr-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.eqr-tab{background:#fff;border:1px solid #E5E7EB;color:#64748B;border-radius:999px}.eqr-tab.active{background:#0E146D;color:#fff;border-color:#0E146D}.eqr-chip{background:#fff;border:1px solid #E5E7EB;color:#64748B;border-radius:999px}.eqr-chip.active{background:#0E146D;border-color:#0E146D;color:#fff}
       .eqr-table-wrap{overflow:auto;border:1px solid #EEF2F7;border-radius:16px;background:#fff}.eqr-table{width:100%;border-collapse:collapse;min-width:1050px;table-layout:fixed}.eqr-table th,.eqr-table td{padding:10px;border-bottom:1px solid #EEF2F7;text-align:right;font-size:12px;font-weight:850;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.eqr-table th{background:#F8FAFC;color:#64748B;font-weight:1000;position:sticky;top:0}.eqr-page.eqr-ltr .eqr-table th,.eqr-page.eqr-ltr .eqr-table td{text-align:left}.eqr-phone,.eqr-code{direction:ltr;text-align:left!important;font-weight:1000}.eqr-phone{color:#0E146D}.eqr-code{color:#111827}.eqr-actions{display:flex;gap:6px;align-items:center;justify-content:flex-start;flex-wrap:nowrap}.eqr-page.eqr-rtl .eqr-actions{justify-content:flex-end}
+      .eqr-table th:last-child,
+.eqr-table td:last-child{
+  width:280px !important;
+  min-width:280px !important;
+  overflow:visible !important;
+}
+
+.eqr-table td:last-child .eqr-actions{
+  overflow:visible !important;
+  flex-wrap:wrap !important;
+  gap:6px !important;
+}
       .eqr-badge{min-height:24px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:1000;display:inline-flex;align-items:center;justify-content:center}.eqr-badge.ok{background:#ECFDF5;color:#047857}.eqr-badge.bad{background:#FEF2F2;color:#B91C1C}.eqr-badge.info{background:#EFF6FF;color:#1D4ED8}.eqr-badge.hold{background:#FFF7ED;color:#C2410C}.eqr-badge.muted{background:#F3F4F6;color:#6B7280}
       .eqr-empty{padding:22px;text-align:center;color:#64748B;font-weight:900;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:16px}.eqr-loader{min-height:260px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#64748B;font-weight:1000}.eqr-spinner{width:34px;height:34px;border-radius:50%;border:4px solid rgba(14,20,109,.13);border-top-color:#0E146D;animation:eqrSpin .8s linear infinite}@keyframes eqrSpin{to{transform:rotate(360deg)}}
       .eqr-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-top:14px}.eqr-day-name{font-size:11px;font-weight:1000;color:#64748B;text-align:center}.eqr-day{min-height:96px;background:#fff;border:1px solid #E5E7EB;border-radius:16px;padding:9px;box-shadow:0 8px 20px rgba(15,23,42,.045);cursor:pointer;transition:.15s ease;display:flex;flex-direction:column;gap:7px}.eqr-day:hover{transform:translateY(-1px);border-color:#0E146D}.eqr-day.out{opacity:.35}.eqr-day.today{border-color:#0E146D;box-shadow:0 0 0 3px rgba(14,20,109,.08)}.eqr-day-number{font-size:13px;font-weight:1000;color:#111827}.eqr-day-mark{margin-top:auto;display:flex;align-items:center;gap:5px;flex-wrap:wrap}.eqr-dot{width:8px;height:8px;border-radius:50%;background:#0E146D}.eqr-count{font-size:10px;font-weight:1000;background:#EEF2FF;color:#0E146D;border-radius:999px;padding:2px 7px}.eqr-day-list{font-size:10px;font-weight:900;color:#475569;line-height:1.55;display:grid;gap:3px}.eqr-day-list div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -385,6 +417,11 @@
 #eqrReservationModal .eqr-modal.compact .eqr-form-grid{gap:12px}
 #eqrReservationModal .eqr-field label{font-size:11.5px;font-weight:900;color:#475569;margin-bottom:7px}
 #eqrReservationModal .eqr-input,#eqrReservationModal .eqr-select,#eqrReservationModal .eqr-date,#eqrReservationModal .eqr-picker-button{min-height:42px;border-radius:12px;border-color:#E3E7F0;background:#F7F9FC;font-weight:800;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease}
+#eqrReservationModal #eqrCustomerName,
+#eqrReservationModal #eqrPhone,
+#eqrReservationModal #eqrReservationCode{
+  font-size:13px !important;
+}
 #eqrReservationModal .eqr-textarea{height:40px;min-height:40px;padding:7px 11px;border-radius:12px;border-color:#E3E7F0;background:#F7F9FC;font-weight:700;line-height:1.5;resize:vertical}
 #eqrReservationModal{align-items:flex-start;padding-top:14px}
 #eqrReservationModal .eqr-time-grid{grid-template-columns:repeat(3,1fr);gap:6px;max-height:240px;padding:2px}
@@ -392,6 +429,92 @@
 #eqrReservationModal .eqr-time-option:hover,#eqrReservationModal .eqr-time-option.selected{background:#0E146D;border-color:#0E146D;color:#fff}
 #eqrReservationModal .eqr-form-alert{display:none;margin-bottom:2px;padding:10px 12px;border-radius:11px;background:#FEF2F2;border:1px solid #FECACA;color:#B91C1C;font-size:12px;font-weight:900;line-height:1.5}
 #eqrReservationModal .eqr-form-alert.show{display:block}
+#eqrReservationModal .eqr-phone-error{
+  display:none;
+  margin-top:5px;
+  padding:0;
+  border-radius:0;
+  background:transparent;
+  color:#B42318;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.4;
+  box-shadow:none;
+}
+#eqrReservationModal .eqr-phone-error.show{display:block}
+#eqrReservationModal .eqr-phone-hint{display:none;margin-top:5px;color:#64748B;font-size:10.8px;font-weight:800;line-height:1.4}
+#eqrReservationModal .eqr-phone-hint.show{display:block}
+#eqrReservationModal .iti{
+  width:100%;
+  direction:ltr !important;
+}
+
+#eqrReservationModal .iti input{
+  width:100%;
+  direction:ltr !important;
+  text-align:left !important;
+}
+
+#eqrReservationModal .iti.eqr-phone-sa .iti__selected-country{
+  width:42px !important;
+  min-width:42px !important;
+  padding:0 6px !important;
+}
+
+#eqrReservationModal .iti.eqr-phone-sa .iti__country-container{
+  width:44px !important;
+  min-width:44px !important;
+}
+
+#eqrReservationModal .iti.eqr-phone-foreign .iti__selected-country{
+  width:78px !important;
+  min-width:78px !important;
+  padding:0 6px !important;
+}
+
+#eqrReservationModal .iti.eqr-phone-foreign .iti__country-container{
+  width:82px !important;
+  min-width:82px !important;
+}
+
+#eqrReservationModal .iti input::placeholder{
+  font-size:11px;
+  font-weight:700;
+  opacity:.62;
+}
+
+#eqrReservationModal .iti input::placeholder,
+#eqrReservationModal input#eqrPhone::placeholder{
+  font-size:11px;
+  font-weight:700;
+  opacity:.70;
+  text-align:Right !important;
+  direction:ltr !important;
+}
+
+#eqrReservationModal .iti__country-container,
+#eqrReservationModal .iti__flag-container{
+  left:0 !important;
+  right:auto !important;
+}
+
+#eqrReservationModal .iti.eqr-phone-sa .iti__selected-dial-code{
+  display:none !important;
+}
+
+#eqrReservationModal .iti.eqr-phone-foreign .iti__selected-dial-code{
+  display:inline-block !important;
+}
+
+#eqrReservationModal .iti.eqr-phone-sa input#eqrPhone{
+  padding-left:48px !important;
+  padding-right:11px !important;
+}
+
+#eqrReservationModal .iti.eqr-phone-foreign input#eqrPhone{
+  padding-left:98px !important;
+  padding-right:11px !important;
+}
 #eqrReservationModal .eqr-time-row{display:flex;align-items:center;gap:6px}
 #eqrReservationModal .eqr-time-part{min-width:0;flex:1;text-align:center;padding:0 6px;font-weight:900}
 #eqrReservationModal .eqr-time-period{flex:0 0 64px}
@@ -1196,7 +1319,9 @@ renderReservationModal(row, readonly);
 
             <div class="eqr-field">
               <label>${t('رقم الجوال', 'Phone number')}</label>
-              <input class="eqr-input" id="eqrPhone" value="${esc(toLocalPhone(row?.phone || ''))}" inputmode="numeric" maxlength="10" placeholder="05XXXXXXXX" oninput="EQRestaurantReservations.handleReservationPhoneInput(this)" ${readonly ? 'disabled' : ''}>
+              <input class="eqr-input" id="eqrPhone" value="" type="tel" inputmode="tel" maxlength="19" placeholder="${t('اكتب 0512345678 أو 512345678', 'Enter 0512345678 or 512345678')}" ${readonly ? 'disabled' : ''}>
+              <div class="eqr-phone-hint" id="eqrPhoneCountryHint"></div>
+              <div class="eqr-phone-error" id="eqrPhoneInlineError"></div>
             </div>
           </div>
 
@@ -1290,6 +1415,8 @@ renderReservationModal(row, readonly);
     }
 
     setTimeout(() => {
+      initReservationPhoneInput(row?.phone || '', readonly);
+
       const name = $('eqrCustomerName');
       if (name && !readonly) name.focus();
     }, 80);
@@ -1312,7 +1439,8 @@ renderReservationModal(row, readonly);
 
   function readForm() {
     const name = String($('eqrCustomerName')?.value || '').trim();
-    const phone = normalizePhone($('eqrPhone')?.value || '');
+        const phoneValidation = validateReservationPhoneValue();
+    const phone = phoneValidation.phone;
     const code = String($('eqrReservationCode')?.value || '').trim() || generateReservationCode();
     const party = n($('eqrPartySize')?.value, 1);
     const date = String($('eqrDate')?.value || '').trim();
@@ -1320,13 +1448,18 @@ renderReservationModal(row, readonly);
     const zone = String($('eqrZone')?.value || '').trim();
     const notes = String($('eqrNotes')?.value || '').trim();
 
-    return { name, phone, code, party, date, time, zone, notes };
+      return { name, phone, phoneValidation, code, party, date, time, zone, notes };
   }
 
   function validateForm(form) {
     if (!form.name) return t('اسم العميل مطلوب', 'Customer name is required');
     if (!form.phone) return t('رقم الجوال مطلوب', 'Phone number is required');
-    if (!/^9665\d{8}$/.test(form.phone)) return t('رقم الجوال يجب أن يكون ١٠ أرقام ويبدأ بـ 05', 'Phone must be 10 digits starting with 05');
+    if (!form.phoneValidation?.valid) {
+      return form.phoneValidation?.message || t(
+        'رقم الجوال غير صحيح',
+        'Phone number is invalid'
+      );
+    }
     if (!form.date) return t('تاريخ الحجز مطلوب', 'Reservation date is required');
     if (!form.time) return t('وقت الحجز مطلوب', 'Reservation time is required');
     if (form.party < 1) return t('عدد المقاعد غير صحيح', 'Seat count is invalid');
@@ -1359,9 +1492,16 @@ renderReservationModal(row, readonly);
       }
 
       clearReservationAlert();
+      clearReservationPhoneError();
       const validation = validateForm(form);
       if (validation) {
         showReservationAlert(validation);
+
+        if (!form.phoneValidation?.valid) {
+          showReservationPhoneError(validation);
+          $('eqrPhone')?.focus();
+        }
+
         return;
       }
 
@@ -1808,28 +1948,273 @@ function reservationDatePickerHtml(selectedDate) {
   `;
 }
 
-/* ---- مساعدات الجوال (عرض محلي 05 + تقييد الإدخال) ---- */
+/* ---- مساعدات الجوال الدولية لمودل الحجز الإداري ---- */
 function toAsciiDigits(str) {
   return String(str || '')
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
     .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06F0));
 }
 
-function toLocalPhone(value) {
-  let d = toAsciiDigits(value).replace(/\D/g, '');
-  if (!d) return '';
-  if (d.startsWith('966')) d = '0' + d.slice(3);
-  if (d.startsWith('5')) d = '0' + d;
-  return d.slice(0, 10);
+function reservationPhoneMessage() {
+  return t(
+    'اكتب رقم جوال صحيح مثل 0512345678 أو 512345678',
+    'Enter a valid mobile number like 0512345678 or 512345678'
+  );
+}
+
+function clearReservationPhoneError() {
+  const errorEl = $('eqrPhoneInlineError');
+
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.classList.remove('show');
+  }
+}
+
+function showReservationPhoneError(message) {
+  const errorEl = $('eqrPhoneInlineError');
+
+  if (errorEl) {
+    errorEl.textContent = message || reservationPhoneMessage();
+    errorEl.classList.add('show');
+  }
+}
+
+function updateReservationPhoneHint() {
+  const input = $('eqrPhone');
+  const hint = $('eqrPhoneCountryHint');
+
+  if (!input || !hint || !reservationPhoneInputInstance?.getSelectedCountryData) return;
+
+  const country = reservationPhoneInputInstance.getSelectedCountryData();
+  const iso2 = String(country?.iso2 || 'sa').toLowerCase();
+  const dialCode = country?.dialCode || '966';
+  const wrapper = input.closest('.iti');
+
+  if (wrapper) {
+    wrapper.classList.toggle('eqr-phone-sa', iso2 === 'sa');
+    wrapper.classList.toggle('eqr-phone-foreign', iso2 !== 'sa');
+  }
+
+  if (iso2 === 'sa') {
+    input.placeholder = t('اكتب 0512345678 أو 512345678', 'Enter 0512345678 or 512345678');
+    hint.textContent = '';
+    hint.classList.remove('show');
+    return;
+  }
+
+  input.placeholder = t('اكتب الرقم بدون مفتاح الدولة', 'Enter the number without country code');
+  hint.textContent = t(`مفتاح الدولة المحدد: +${dialCode}`, `Selected country code: +${dialCode}`);
+  hint.classList.add('show');
+}
+
+function setReservationPhoneValue(storedPhone) {
+  const input = $('eqrPhone');
+  if (!input) return;
+
+  const raw = String(storedPhone || '').trim();
+
+  if (!raw) {
+    input.value = '';
+    return;
+  }
+
+  const value = raw.startsWith('+')
+    ? raw
+    : `+${toAsciiDigits(raw).replace(/\D/g, '')}`;
+
+  if (typeof window.easyqSetIntlPhoneInputValue === 'function') {
+    window.easyqSetIntlPhoneInputValue(input, value, reservationPhoneInputInstance);
+    return;
+  }
+
+  if (reservationPhoneInputInstance?.setNumber) {
+    reservationPhoneInputInstance.setNumber(value);
+    return;
+  }
+
+  input.value = value;
+}
+
+function initReservationPhoneInput(storedPhone = '', readonly = false) {
+  const input = $('eqrPhone');
+  if (!input) return;
+
+  try {
+    if (reservationPhoneInputInstance?.destroy) {
+      reservationPhoneInputInstance.destroy();
+    }
+  } catch (e) {
+    // تجاهل
+  }
+
+  reservationPhoneInputInstance = null;
+
+  if (typeof window.easyqInitIntlPhoneInput === 'function') {
+    reservationPhoneInputInstance = window.easyqInitIntlPhoneInput(input, {
+      initialCountry: 'sa',
+      preferredCountries: ['sa', 'kw', 'ae', 'bh', 'qa', 'om', 'eg']
+    });
+  } else if (typeof window.intlTelInput === 'function') {
+    reservationPhoneInputInstance = window.intlTelInput(input, {
+      initialCountry: 'sa',
+      separateDialCode: false,
+      nationalMode: true,
+      autoPlaceholder: 'off',
+      strictMode: true,
+      useFullscreenPopup: false,
+      preferredCountries: ['sa', 'kw', 'ae', 'bh', 'qa', 'om', 'eg'],
+      utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/js/utils.js'
+    });
+  }
+
+  setReservationPhoneValue(storedPhone);
+  updateReservationPhoneHint();
+
+  input.addEventListener('countrychange', function () {
+    clearReservationPhoneError();
+    updateReservationPhoneHint();
+
+    if (String(input.value || '').trim()) {
+      const result = validateReservationPhoneValue();
+
+      if (!result.valid) {
+        showReservationPhoneError(result.message);
+      }
+    }
+  });
+
+  input.addEventListener('input', function () {
+    const raw = String(input.value || '').trim();
+
+    if (!raw) {
+      clearReservationPhoneError();
+      return;
+    }
+
+    const result = validateReservationPhoneValue();
+
+    if (result.valid) {
+      clearReservationPhoneError();
+    }
+  });
+
+  input.addEventListener('blur', function () {
+    const raw = String(input.value || '').trim();
+
+    if (!raw) {
+      clearReservationPhoneError();
+      return;
+    }
+
+    const result = validateReservationPhoneValue();
+
+    if (!result.valid) {
+      showReservationPhoneError(result.message);
+    } else {
+      clearReservationPhoneError();
+    }
+  });
+
+  if (readonly) {
+    input.disabled = true;
+  }
+}
+
+function validateReservationPhoneValue() {
+  const input = $('eqrPhone');
+
+  if (!input) {
+    return {
+      valid: false,
+      phone: '',
+      message: reservationPhoneMessage()
+    };
+  }
+
+  const raw = toAsciiDigits(input.value || '').trim();
+  let digits = raw.replace(/\D/g, '');
+
+  if (!digits) {
+    return {
+      valid: false,
+      phone: '',
+      message: t('رقم الجوال مطلوب', 'Phone number is required')
+    };
+  }
+
+  const country = reservationPhoneInputInstance?.getSelectedCountryData
+    ? reservationPhoneInputInstance.getSelectedCountryData()
+    : { iso2: 'sa', dialCode: '966' };
+
+  const iso2 = String(country?.iso2 || 'sa').toLowerCase();
+  const dialCode = String(country?.dialCode || '966');
+
+  if (raw.startsWith('+')) {
+    if (!/^\d{8,15}$/.test(digits)) {
+      return {
+        valid: false,
+        phone: '',
+        message: reservationPhoneMessage()
+      };
+    }
+
+    return {
+      valid: true,
+      phone: `+${digits}`,
+      message: ''
+    };
+  }
+
+  if (iso2 === 'sa') {
+    if (digits.startsWith('966') && digits.length === 12) {
+      digits = digits.slice(3);
+    }
+
+    if (digits.startsWith('05') && digits.length === 10) {
+      digits = digits.slice(1);
+    }
+
+    if (!/^5\d{8}$/.test(digits)) {
+      return {
+        valid: false,
+        phone: '',
+        message: reservationPhoneMessage()
+      };
+    }
+
+    return {
+      valid: true,
+      phone: `+966${digits}`,
+      message: ''
+    };
+  }
+
+  if (digits.startsWith(dialCode) && digits.length > dialCode.length + 5) {
+    digits = digits.slice(dialCode.length);
+  }
+
+  if (!/^\d{6,15}$/.test(digits)) {
+    return {
+      valid: false,
+      phone: '',
+      message: t(
+        'اكتب الرقم المحلي بدون مفتاح الدولة',
+        'Enter the local number without country code'
+      )
+    };
+  }
+
+  return {
+    valid: true,
+    phone: `+${dialCode}${digits}`,
+    message: ''
+  };
 }
 
 function handleReservationPhoneInput(el) {
   if (!el) return;
-  let v = toAsciiDigits(el.value).replace(/\D/g, '');
-  if (v.startsWith('966')) v = '0' + v.slice(3);
-  if (v.startsWith('5')) v = '0' + v;
-  if (v.length > 10) v = v.slice(0, 10);
-  el.value = v;
+  clearReservationPhoneError();
 }
 
 /* ---- تموضع عام لأي قائمة منبثقة (تاريخ/وقت) ---- */

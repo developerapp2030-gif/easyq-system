@@ -34,12 +34,12 @@ const DEFAULT_EASYQ_BOOKING_SETTINGS = {
   name_label_text: "الاسم",
   name_placeholder_text: "أدخل اسمك",
   phone_label_text: "رقم الجوال",
-  phone_placeholder_text: "05xxxxxxxx",
+  phone_placeholder_text: "اكتب 0512345678 أو 512345678",
   zone_label_text: "المنطقة",
   zone_no_preference_text: "بدون تفضيل",
   party_size_label_text: "عدد الأشخاص",
   name_required_alert_text: "الرجاء إدخال الاسم",
-  phone_invalid_alert_text: "الرجاء إدخال رقم جوال صحيح (05xxxxxxxx)",
+  phone_invalid_alert_text: "اكتب رقم جوال صحيح مثل 0512345678 أو 512345678",
   checking_booking_text: "جاري التحقق...",
   creating_booking_text: "جاري الحجز...",
   booking_failed_text: "فشل الحجز:",
@@ -1200,7 +1200,7 @@ async function loadPublicCurrentQueueCount() {
 
     currentPublicQueueText = count > 0
       ? String(count)
-      : "لا يوجد انتظار";
+      : (bookingPageLang === "en" ? "No waiting" : "لا يوجد انتظار");
 
     const queueEl = document.getElementById("liveQueueNumber");
 
@@ -1389,7 +1389,7 @@ async function renderBookingForm() {
       <div class="current-queue-card" id="currentQueueCard">
       <div class="current-queue-title">${escapeHtml(bookingText("current_queue_title"))}</div>
         <div class="current-number-circle">
-        <div class="current-number" id="liveQueueNumber">${escapeHtml(currentPublicQueueText || '--')}</div>
+        <div class="current-number booking-current-queue-number" id="liveQueueNumber">${escapeHtml(currentPublicQueueText || (bookingPageLang === "en" ? "No waiting" : "لا يوجد انتظار"))}</div>
         </div>
          <div class="current-queue-sub">${escapeHtml(bookingText("current_queue_sub"))}</div>
       </div>
@@ -1746,7 +1746,7 @@ else if (isCleaning) {
               <div class="premium-ring-sub" style="${(isWaiting && statusMessage === '') ? 'display: none;' : ''}">${statusMessage}</div>
             </div>
           </div>
-        </div>
+       
         
 
 
